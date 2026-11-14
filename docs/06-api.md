@@ -135,6 +135,7 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET | `/billing/quota` | 配额与已用量 |
 | GET | `/billing/invoices` | 账单（M5） |
 | GET/POST/DELETE | `/model-credentials` | 租户自有模型密钥（BYOK） |
+| GET | `/model-credentials/:id/verify` | 验证密文可解密（不返回明文） |
 
 ## SSE
 

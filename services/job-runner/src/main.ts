@@ -48,6 +48,7 @@ async function main(): Promise<void> {
     commands,
     capabilitiesDir: process.env.CAPABILITIES_DIR ?? `${REPO_ROOT}capabilities`,
     workspaceRoot: process.env.WORKSPACE_ROOT ?? tmpdir(),
+    credentialsKey: process.env.CREDENTIALS_KEY ?? process.env.AUTH_SECRET,
     env: process.env,
   })
   console.log('job-runner 已启动')

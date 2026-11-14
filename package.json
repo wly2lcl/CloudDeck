@@ -17,7 +17,8 @@
     "boundaries": "tsx scripts/check-boundaries.ts",
     "smoke:llm": "pnpm --filter @clouddeck/worker-llm smoke",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "smoke:tts": "pnpm --filter @clouddeck/worker-tts smoke"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

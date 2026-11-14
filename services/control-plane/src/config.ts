@@ -5,6 +5,7 @@ export interface AppConfig {
   host: string
   webOrigin: string
   authSecret: string
+  credentialsKey: string
   publicApiBase: string
   capabilitiesDir: string
   databaseUrl: string
@@ -26,6 +27,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     host: env.HOST ?? '0.0.0.0',
     webOrigin: env.WEB_ORIGIN ?? 'http://localhost:3000',
     authSecret: env.AUTH_SECRET ?? 'dev-secret-change-me',
+    credentialsKey: env.CREDENTIALS_KEY ?? env.AUTH_SECRET ?? 'dev-secret-change-me',
     publicApiBase: env.PUBLIC_API_BASE ?? `http://localhost:${port}`,
     capabilitiesDir: env.CAPABILITIES_DIR ?? `${REPO_ROOT}capabilities`,
     databaseUrl:

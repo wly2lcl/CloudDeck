@@ -106,7 +106,13 @@ runner → 队列(step) → worker → 输出目录 → runner 收集
 | `workers/video` | Node/FFmpeg | 分镜合成、字幕、转场、编码（M4） |
 | `workers/llm` | Node | 统一走模型网关，不做 provider 特判 |
 
-`workers/tts` 的 provider 通过 `TTS_PROVIDER` 选择：`fake`（默认，确定性 WAV）或 `http`（`TTS_HTTP_URL` + `TTS_HTTP_TOKEN`）。CosyVoice 本地服务与 DashScope 网关都按同一 HTTP 契约接入；未验证的云接口不在代码里硬编码。
+`workers/tts` 的 provider 通过 `TTS_PROVIDER` 选择：
+
+- `fake`（默认）：确定性 WAV，用于开发与测试。
+- `dashscope` / `bailian`：阿里云百炼 `qwen-audio-3.1-tts-flash`，端点 `https://dashscope.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer`，默认音色 `longanhuan_v3.1`；密钥取 `DASHSCOPE_API_KEY` 或 `BAILIAN_API_KEY`。
+- `http`：兼容服务，`TTS_HTTP_URL` + `TTS_HTTP_TOKEN`。
+
+真实音色 ID 由 `voiceMap` 指定；`narrator`、`default`、`旁白`、`对白` 等占位值会回落到 `TTS_DEFAULT_VOICE`。真实冒烟：`pnpm smoke:tts`。
 
 - 限流重试：HTTP provider 对 `429 / 5xx` 使用与 LLM 相同的指数退避；`TTS_MAX_ATTEMPTS`、`TTS_RETRY_BASE_MS` 可调。
 

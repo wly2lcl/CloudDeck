@@ -3,6 +3,7 @@ import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CLAUDE_DRIVER_ID, createClaudeCodeDriver } from '@clouddeck/driver-claude-code'
+import { listModelCredentials, withTenant } from '@clouddeck/db'
 import { registerDriver, runOnce, signWebhook } from '@clouddeck/job-runner'
 import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
 import { createFakeProvider, createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
@@ -571,6 +572,30 @@ describe('M1 端到端', () => {
     expect(project.json().data.name).toBe('来自模板的项目')
 
     const removed = await api(`/v1/templates/${templateId}`, { method: 'DELETE' })
+    expect(removed.statusCode).toBe(200)
+  })
+
+  it('模型凭据加密存储、列表脱敏并可删除', async () => {
+    const created = await api('/v1/model-credentials', {
+      method: 'POST',
+      payload: { provider: 'dashscope', label: '测试凭据', secret: 'sk-test-secret-1234' },
+    })
+    expect(created.statusCode).toBe(201)
+    const credential = created.json().data
+    expect(credential.keyHint).toBe('****1234')
+    expect(JSON.stringify(credential)).not.toContain('sk-test-secret')
+
+    const verify = await api(`/v1/model-credentials/${credential.id}/verify`)
+    expect(verify.json().data.ok).toBe(true)
+
+    const rows = await withTenant(ctx.db, tenantId, (tx) =>
+      listModelCredentials(tx, tenantId),
+    )
+    const stored = rows.find((row: { id: string }) => row.id === credential.id)
+    expect(stored?.encrypted_secret.startsWith('v1:')).toBe(true)
+    expect(stored?.encrypted_secret).not.toContain('sk-test-secret')
+
+    const removed = await api(`/v1/model-credentials/${credential.id}`, { method: 'DELETE' })
     expect(removed.statusCode).toBe(200)
   })
 

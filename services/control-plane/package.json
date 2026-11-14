@@ -12,6 +12,7 @@
   "dependencies": {
     "@clouddeck/contracts": "workspace:*",
     "@clouddeck/db": "workspace:*",
+    "@clouddeck/secrets": "workspace:*",
     "@clouddeck/storage": "workspace:*",
     "@fastify/cors": "^11.4.3",
     "@fastify/multipart": "^10.1.8",

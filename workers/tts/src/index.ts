@@ -3,7 +3,12 @@ import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
 import { createProviderFromEnv, type TtsProvider } from './providers'
 
-export { createFakeProvider, createProviderFromEnv, HttpTtsProvider } from './providers'
+export {
+  createFakeProvider,
+  createProviderFromEnv,
+  DashScopeTtsProvider,
+  HttpTtsProvider,
+} from './providers'
 export { buildChunks, chunkText, splitChapters, splitSegments } from './split'
 export { concatWav, createToneWav, parseWav, wavDurationMs } from './wav'
 import { buildChunks, splitChapters, type TtsChunk } from './split'
@@ -94,7 +99,6 @@ async function listArtifacts(outputDir: string, type: string): Promise<ArtifactS
 }
 
 export function createTtsDriver(options: TtsDriverOptions = {}): Driver {
-  const provider = options.provider ?? createProviderFromEnv(process.env)
   const pricePer1kUsd = options.pricePer1kUsd ?? 0.002
   const defaultMaxChars = options.maxCharsPerChunk ?? 200
 
@@ -107,6 +111,9 @@ export function createTtsDriver(options: TtsDriverOptions = {}): Driver {
     },
 
     async *events(ctx: TaskContext): AsyncGenerator<JobEvent> {
+      const provider =
+        options.provider ??
+        createProviderFromEnv({ ...process.env, ...ctx.env } as NodeJS.ProcessEnv)
       const params = ctx.params as TtsParams
       const voiceMap = parseVoiceMap(params.voiceMap)
       const defaultVoice = params.defaultVoice?.trim() || 'narrator'

@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { HttpTtsProvider } from '../src/providers'
+import { DashScopeTtsProvider, HttpTtsProvider } from '../src/providers'
 import { createToneWav, parseWav } from '../src/wav'
 
 const servers: Server[] = []
@@ -97,5 +97,79 @@ describe('HTTP TTS provider', () => {
     await expect(
       provider.synthesize({ text: '你好', voice: 'v1', format: 'wav' }),
     ).rejects.toThrow('500')
+  })
+})
+
+describe('DashScope TTS provider', () => {
+  it('解析 base64 音频并把占位音色替换为默认音色', async () => {
+    const wav = createToneWav(50)
+    let received = ''
+    const port = await startServer((body) => {
+      received = body
+      return {
+        status: 200,
+        contentType: 'application/json',
+        payload: JSON.stringify({ output: { audio: { data: wav.toString('base64') } } }),
+      }
+    })
+    const provider = new DashScopeTtsProvider({
+      token: 'test',
+      endpoint: `http://127.0.0.1:${port}/tts`,
+      defaultVoice: 'longanhuan_v3.1',
+    })
+    const data = await provider.synthesize({ text: '你好', voice: 'narrator', format: 'wav' })
+    expect(parseWav(data).sampleRate).toBe(16000)
+    const payload = JSON.parse(received) as {
+      model: string
+      input: { voice: string; format: string }
+    }
+    expect(payload.model).toBe('qwen-audio-3.1-tts-flash')
+    expect(payload.input.voice).toBe('longanhuan_v3.1')
+    expect(payload.input.format).toBe('wav')
+  })
+
+  it('下载 output.audio.url 指向的音频', async () => {
+    const wav = createToneWav(50)
+    let port = 0
+    port = await startServer((body) => {
+      if (body.includes('"text"')) {
+        return {
+          status: 200,
+          contentType: 'application/json',
+          payload: JSON.stringify({
+            output: { audio: { url: `http://127.0.0.1:${port}/audio.wav` } },
+          }),
+        }
+      }
+      return { status: 200, contentType: 'audio/wav', payload: wav }
+    })
+    const provider = new DashScopeTtsProvider({
+      token: 'test',
+      endpoint: `http://127.0.0.1:${port}/tts`,
+    })
+    const data = await provider.synthesize({ text: '你好', voice: 'longanhuan_v3.1', format: 'wav' })
+    expect(parseWav(data).sampleRate).toBe(16000)
+  })
+
+  it('429 后重试成功', async () => {
+    const wav = createToneWav(50)
+    let calls = 0
+    const port = await startServer(() => {
+      calls += 1
+      if (calls === 1) return { status: 429, contentType: 'application/json', payload: '{}' }
+      return {
+        status: 200,
+        contentType: 'application/json',
+        payload: JSON.stringify({ output: { audio: { data: wav.toString('base64') } } }),
+      }
+    })
+    const provider = new DashScopeTtsProvider({
+      token: 'test',
+      endpoint: `http://127.0.0.1:${port}/tts`,
+      retryBaseDelayMs: 1,
+    })
+    const data = await provider.synthesize({ text: '你好', voice: 'longanhuan_v3.1', format: 'wav' })
+    expect(parseWav(data).sampleRate).toBe(16000)
+    expect(calls).toBe(2)
   })
 })

@@ -14,6 +14,7 @@ import {
   insertUsage,
   isCancelRequested,
   linkAssets,
+  listModelCredentials,
   periodOf,
   setJobOutputs,
   setJobStatus,
@@ -27,6 +28,7 @@ import {
 } from '@clouddeck/driver-claude-code'
 import { createMockDriver, MOCK_DRIVER_ID } from '@clouddeck/driver-mock'
 import { LocalSandbox } from '@clouddeck/sandbox'
+import { decryptSecret, deriveMasterKey } from '@clouddeck/secrets'
 import { storageKeyFor, type Storage } from '@clouddeck/storage'
 import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
 import { createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
@@ -75,7 +77,54 @@ export interface RunnerDeps {
   capabilitiesDir?: string
   env?: NodeJS.ProcessEnv
   workspaceRoot?: string
+  credentialsKey?: string
   webhooks?: WebhookDispatchOptions
+}
+
+const PROVIDER_ENV: Record<string, string[]> = {
+  anthropic: ['ANTHROPIC_API_KEY'],
+  dashscope: ['DASHSCOPE_API_KEY', 'BAILIAN_API_KEY'],
+  bailian: ['DASHSCOPE_API_KEY', 'BAILIAN_API_KEY'],
+  openai: ['OPENAI_API_KEY', 'LLM_HTTP_TOKEN'],
+  openrouter: ['OPENAI_API_KEY', 'LLM_HTTP_TOKEN'],
+}
+
+/** 先读进程环境，再按租户凭据补齐缺失的密钥名。 */
+export async function resolveSecretEnv(
+  deps: Pick<RunnerDeps, 'db' | 'env' | 'credentialsKey'>,
+  tenantId: string,
+  secretNames: string[],
+): Promise<Record<string, string>> {
+  const source = deps.env ?? process.env
+  const env: Record<string, string> = {}
+  for (const name of secretNames) {
+    const value = source[name]
+    if (value) env[name] = value
+  }
+
+  const missing = secretNames.filter((name) => !env[name])
+  if (missing.length === 0) return env
+
+  const credentials = await listModelCredentials(deps.db, tenantId)
+  if (credentials.length === 0) return env
+
+  const masterKey = deriveMasterKey(
+    deps.credentialsKey ?? source.CREDENTIALS_KEY ?? source.AUTH_SECRET ?? 'dev-secret-change-me',
+  )
+
+  for (const credential of credentials) {
+    const mapped = PROVIDER_ENV[credential.provider] ?? []
+    for (const name of missing) {
+      if (env[name] || !mapped.includes(name)) continue
+      try {
+        env[name] = decryptSecret(credential.encrypted_secret, masterKey)
+      } catch (error) {
+        console.error(`凭据解密失败 provider=${credential.provider}`, error)
+      }
+    }
+  }
+
+  return env
 }
 
 interface Failure {
@@ -250,12 +299,11 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
       }
     }
 
-    const envSource = deps.env ?? process.env
-    const env: Record<string, string> = {}
-    for (const secret of capability.manifest.permissions.secrets) {
-      const value = envSource[secret]
-      if (value) env[secret] = value
-    }
+    const env = await resolveSecretEnv(
+      deps,
+      job.tenant_id,
+      capability.manifest.permissions.secrets,
+    )
 
     const commands = deps.commands ?? new LocalSandbox()
 

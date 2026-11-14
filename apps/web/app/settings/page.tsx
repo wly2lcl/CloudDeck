@@ -6,9 +6,12 @@ import { Nav } from '../../components/nav'
 import {
   ApiError,
   clearTokens,
+  createModelCredential,
   createProjectFromTemplate,
   createTemplate,
+  deleteModelCredential,
   deleteTemplate,
+  getModelCredentials,
   getBillingSummary,
   getCapabilityStates,
   getQuota,
@@ -19,6 +22,7 @@ import {
   updateTenantPlan,
   type BillingSummary,
   type CapabilityState,
+  type ModelCredential,
   type Quota,
   type Template,
   type Tenant,
@@ -33,6 +37,10 @@ export default function SettingsPage() {
   const [capabilities, setCapabilities] = useState<CapabilityState[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [summary, setSummary] = useState<BillingSummary | null>(null)
+  const [credentials, setCredentials] = useState<ModelCredential[]>([])
+  const [credentialProvider, setCredentialProvider] = useState('dashscope')
+  const [credentialLabel, setCredentialLabel] = useState('')
+  const [credentialSecret, setCredentialSecret] = useState('')
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -40,19 +48,21 @@ export default function SettingsPage() {
 
   const load = useCallback(async () => {
     try {
-      const [tenantData, quotaData, capabilityData, templateData, summaryData] =
+      const [tenantData, quotaData, capabilityData, templateData, summaryData, credentialData] =
         await Promise.all([
           getTenant(),
           getQuota(),
           getCapabilityStates(),
           getTemplates(),
           getBillingSummary(),
+          getModelCredentials(),
         ])
       setTenant(tenantData)
       setQuota(quotaData)
       setCapabilities(capabilityData)
       setTemplates(templateData)
       setSummary(summaryData)
+      setCredentials(credentialData)
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         clearTokens()
@@ -94,6 +104,32 @@ export default function SettingsPage() {
       )
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '更新能力失败')
+    }
+  }
+
+  const addCredential = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!credentialLabel.trim() || !credentialSecret.trim()) return
+    try {
+      await createModelCredential({
+        provider: credentialProvider,
+        label: credentialLabel.trim(),
+        secret: credentialSecret.trim(),
+      })
+      setCredentialLabel('')
+      setCredentialSecret('')
+      setCredentials(await getModelCredentials())
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '保存凭据失败')
+    }
+  }
+
+  const removeCredential = async (credential: ModelCredential) => {
+    try {
+      await deleteModelCredential(credential.id)
+      setCredentials((items) => items.filter((item) => item.id !== credential.id))
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '删除凭据失败')
     }
   }
 
@@ -215,6 +251,60 @@ export default function SettingsPage() {
               </label>
             ))}
           </div>
+        </section>
+
+        <section className="panel">
+          <h2>模型凭据（BYOK）</h2>
+          <p className="muted">
+            密钥以 AES-256-GCM 加密存储，仅显示末四位；任务运行时会按能力声明的密钥名注入。
+          </p>
+          <form className="row" onSubmit={addCredential} style={{ marginTop: 12 }}>
+            <select
+              value={credentialProvider}
+              onChange={(event) => setCredentialProvider(event.target.value)}
+            >
+              <option value="dashscope">dashscope / 百炼</option>
+              <option value="anthropic">anthropic</option>
+              <option value="openai">openai</option>
+              <option value="openrouter">openrouter</option>
+              <option value="custom">custom</option>
+            </select>
+            <input
+              placeholder="名称，如 百炼主账号"
+              value={credentialLabel}
+              onChange={(event) => setCredentialLabel(event.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="API Key"
+              value={credentialSecret}
+              onChange={(event) => setCredentialSecret(event.target.value)}
+            />
+            <button type="submit">保存</button>
+          </form>
+          <ul className="list" style={{ marginTop: 16 }}>
+            {credentials.length === 0 ? (
+              <li className="muted">还没有模型凭据。</li>
+            ) : (
+              credentials.map((credential) => (
+                <li key={credential.id} className="list-item">
+                  <span>
+                    <strong>
+                      {credential.label} · {credential.provider}
+                    </strong>
+                    <small className="muted">{credential.keyHint}</small>
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void removeCredential(credential)}
+                  >
+                    删除
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
         </section>
 
         <section className="panel">

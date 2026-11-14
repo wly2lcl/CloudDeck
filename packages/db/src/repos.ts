@@ -1245,6 +1245,64 @@ export async function deleteComment(
   return row !== null
 }
 
+export interface ModelCredentialRow {
+  id: string
+  tenant_id: string
+  provider: string
+  label: string
+  encrypted_secret: string
+  key_hint: string
+  status: string
+  created_at: Date
+  last_used_at: Date | null
+}
+
+export async function createModelCredential(
+  db: Database,
+  input: {
+    tenantId: string
+    provider: string
+    label: string
+    encryptedSecret: string
+    keyHint: string
+  },
+): Promise<ModelCredentialRow> {
+  const row = await one<ModelCredentialRow>(
+    db,
+    sql`INSERT INTO model_credentials (tenant_id, provider, label, encrypted_secret, key_hint)
+        VALUES (${input.tenantId}, ${input.provider}, ${input.label}, ${input.encryptedSecret}, ${input.keyHint})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建凭据失败')
+  return row
+}
+
+export async function listModelCredentials(
+  db: Database,
+  tenantId: string,
+): Promise<ModelCredentialRow[]> {
+  return rows<ModelCredentialRow>(
+    db,
+    sql`SELECT * FROM model_credentials
+        WHERE tenant_id = ${tenantId} AND status = 'active'
+        ORDER BY created_at DESC`,
+  )
+}
+
+export async function deleteModelCredential(
+  db: Database,
+  tenantId: string,
+  credentialId: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM model_credentials
+        WHERE id = ${credentialId} AND tenant_id = ${tenantId}
+        RETURNING id`,
+  )
+  return row !== null
+}
+
 export function periodOf(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }

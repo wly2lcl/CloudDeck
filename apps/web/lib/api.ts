@@ -108,6 +108,15 @@ export interface BillingSummary {
   }[]
 }
 
+export interface ModelCredential {
+  id: string
+  provider: string
+  label: string
+  keyHint: string
+  status: string
+  createdAt: string
+}
+
 export interface Comment {
   id: string
   projectId: string
@@ -258,6 +267,22 @@ export async function getHealth(): Promise<Envelope<HealthData>> {
   const response = await fetch(`${API_BASE}/healthz`, { cache: 'no-store' })
   if (!response.ok) throw new Error(`控制面返回 ${response.status}`)
   return (await response.json()) as Envelope<HealthData>
+}
+
+export async function getModelCredentials(): Promise<ModelCredential[]> {
+  return api<ModelCredential[]>('/v1/model-credentials')
+}
+
+export async function createModelCredential(input: {
+  provider: string
+  label: string
+  secret: string
+}): Promise<ModelCredential> {
+  return api<ModelCredential>('/v1/model-credentials', { method: 'POST', body: input })
+}
+
+export async function deleteModelCredential(id: string): Promise<void> {
+  await api(`/v1/model-credentials/${id}`, { method: 'DELETE' })
 }
 
 export async function getComments(projectId: string): Promise<Comment[]> {

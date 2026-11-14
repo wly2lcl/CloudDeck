@@ -29,6 +29,7 @@ export async function createTestContext(): Promise<TestContext> {
     host: '127.0.0.1',
     webOrigin: 'http://localhost:3000',
     authSecret: 'test-secret',
+    credentialsKey: 'test-credentials-key',
     publicApiBase: 'http://localhost:4310',
     capabilitiesDir: CAPABILITIES_DIR,
     databaseUrl: 'unused',

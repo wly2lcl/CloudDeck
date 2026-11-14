@@ -16,11 +16,11 @@
 
 首发仅支持租户 BYOK；平台级密钥池只用于内部与试用租户，是否对外开放由 M3 的条款核对结论决定（见 ADR-0008）。能力通过 manifest 的 `credentials.policy` 声明可用凭据类型。
 
-- 平台级模型密钥：存 KMS/Secrets Manager，仅 runner 可读。
-- 租户 BYOK：信封加密后存 `model_credentials`，展示只给 `key_hint`（末四位）。
-- 注入方式：任务启动时通过环境变量或短期 token 注入，进程结束即失效。
+- 租户 BYOK：AES-256-GCM 加密后存 `model_credentials`，格式 `v1:<iv>:<tag>:<ciphertext>`，展示只给 `key_hint`（末四位）。
+- 主密钥：来自 `CREDENTIALS_KEY`；未设置时回退 `AUTH_SECRET`（仅开发）。生产必须独立配置高熵随机值。
+- 注入方式：runner 先读进程环境，缺失时按 provider 映射解密租户凭据，任务启动时注入，进程结束即失效。
 - 禁止：写入镜像、写入 workspace、打印到日志、返回给客户端。
-- 轮换：支持多版本密钥，灰度切换；泄露时一键吊销。
+- 轮换：当前未实现；需要“解密-重加密”迁移，不能直接用新密钥覆盖。
 
 ## 模型网关
 

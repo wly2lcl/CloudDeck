@@ -22,7 +22,10 @@ M5 商业化核心（2026-11-14）：
 - `coding.assist`：代码工作区 → 补丁说明（Claude Code + 沙箱）
 - 设置页：套餐、配额、用量、能力开关、模板
 - 真实模型：`pnpm smoke:llm` 可跑通 OpenAI 兼容端点；429/5xx 自动退避重试
-- 测试：88 个后端/驱动用例 + Flutter analyze/test
+- 真实 TTS：`pnpm smoke:tts` 可跑通百炼 `qwen-audio-3.1-tts-flash`
+- 租户凭据：AES-256-GCM 加密存储，runner 按租户解密注入
+- 真实部署：Docker Postgres 全链路已验证（剧本 → 分镜 → 有声 → 视频）
+- 测试：99 个后端/驱动用例 + Flutter analyze/test
 
 实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）、[ADR-0013](docs/adr/0013-m5-commercial.md)（商业化核心）。
 
@@ -56,6 +59,16 @@ pnpm smoke:llm
 ```
 
 遇到 429 会自动按 `Retry-After` / 指数退避重试，耗尽后报可读错误。
+
+真实 TTS 冒烟：
+
+```sh
+TTS_PROVIDER=dashscope \
+TTS_MODEL='qwen-audio-3.1-tts-flash' \
+TTS_DEFAULT_VOICE='longanhuan_v3.1' \
+BAILIAN_API_KEY='<your-key>' \
+pnpm smoke:tts
+```
 
 移动端：
 

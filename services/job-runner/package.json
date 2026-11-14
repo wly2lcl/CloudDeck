@@ -21,6 +21,7 @@
     "@clouddeck/driver-claude-code": "workspace:*",
     "@clouddeck/driver-mock": "workspace:*",
     "@clouddeck/sandbox": "workspace:*",
+    "@clouddeck/secrets": "workspace:*",
     "@clouddeck/storage": "workspace:*",
     "@clouddeck/worker-llm": "workspace:*",
     "@clouddeck/worker-tts": "workspace:*",

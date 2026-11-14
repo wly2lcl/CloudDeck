@@ -203,8 +203,6 @@ export interface LlmDriverOptions {
 }
 
 export function createLlmDriver(options: LlmDriverOptions = {}): Driver {
-  const provider = options.provider ?? createLlmProviderFromEnv(process.env)
-
   return {
     id: LLM_DRIVER_ID,
     protocolVersion: 1,
@@ -214,6 +212,9 @@ export function createLlmDriver(options: LlmDriverOptions = {}): Driver {
     },
 
     async *events(ctx: TaskContext): AsyncGenerator<JobEvent> {
+      const provider =
+        options.provider ??
+        createLlmProviderFromEnv({ ...process.env, ...ctx.env } as NodeJS.ProcessEnv)
       const source = ctx.inputs[0]
       if (!source) {
         yield { type: 'error', code: 'NO_INPUT', message: '缺少输入文件', retryable: false, at: at() }

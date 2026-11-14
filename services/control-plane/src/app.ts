@@ -8,6 +8,7 @@ import { AppError, errorEnvelope } from './errors'
 import { registerAuthRoutes } from './routes/auth'
 import { registerCapabilityRoutes } from './routes/capabilities'
 import { registerCommentRoutes } from './routes/comments'
+import { registerCredentialRoutes } from './routes/credentials'
 import { registerJobRoutes } from './routes/jobs'
 import { registerProjectRoutes } from './routes/projects'
 import { registerShareRoutes } from './routes/shares'
@@ -82,6 +83,7 @@ export function buildServer(deps: AppDeps, options: BuildServerOptions = {}): Fa
   registerJobRoutes(app, deps, guard)
   registerTenantRoutes(app, deps, guard)
   registerCommentRoutes(app, deps, guard)
+  registerCredentialRoutes(app, deps, guard)
   registerTemplateRoutes(app, deps, guard)
   registerShareRoutes(app, deps, guard)
   registerWebhookRoutes(app, deps, guard)

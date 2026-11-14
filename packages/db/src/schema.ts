@@ -344,6 +344,24 @@ export const shares = pgTable(
   (table) => [index('shares_project_idx').on(table.tenantId, table.projectId)],
 )
 
+export const modelCredentials = pgTable(
+  'model_credentials',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    provider: text('provider').notNull(),
+    label: text('label').notNull(),
+    encryptedSecret: text('encrypted_secret').notNull(),
+    keyHint: text('key_hint').notNull(),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('model_credentials_tenant_idx').on(table.tenantId, table.provider, table.createdAt),
+  ],
+)
+
 export const comments = pgTable(
   'comments',
   {
@@ -387,5 +405,6 @@ export const schema = {
   templates,
   shares,
   comments,
+  modelCredentials,
   schemaMigrations,
 }

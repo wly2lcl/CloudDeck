@@ -119,6 +119,63 @@ describe('LLM driver', () => {
   })
 })
 
+describe('driver 从 ctx.env 创建 provider', () => {
+  it('使用任务环境中的 LLM 配置', async () => {
+    const server = createServer((request, response) => {
+      request.resume()
+      request.on('end', () => {
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    title: '环境剧本',
+                    acts: [
+                      {
+                        title: '第一幕',
+                        scenes: [
+                          {
+                            title: '第一场',
+                            summary: '测试',
+                            characters: [],
+                            dialogues: [],
+                          },
+                        ],
+                      },
+                    ],
+                  }),
+                },
+              },
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 10 },
+          }),
+        )
+      })
+    })
+    servers.push(server)
+    const port = await new Promise<number>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address()
+        resolve(typeof address === 'object' && address ? address.port : 0)
+      })
+    })
+
+    const ctx = await makeContext('script.generate', NARROW)
+    ctx.env = {
+      LLM_HTTP_URL: `http://127.0.0.1:${port}/v1`,
+      LLM_MODEL: 'test-model',
+      LLM_HTTP_TOKEN: 'test-token',
+    }
+    const driver = createLlmDriver()
+    const events = await collect(driver, ctx)
+    expect(events.some((event) => event.type === 'done')).toBe(true)
+    const content = await readFile(join(ctx.outputDir, 'script.md'), 'utf8')
+    expect(content).toContain('环境剧本')
+  })
+})
+
 describe('HTTP LLM provider', () => {
   it('429 后自动重试并成功', async () => {
     let calls = 0
