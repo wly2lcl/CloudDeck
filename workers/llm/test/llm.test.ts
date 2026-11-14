@@ -120,6 +120,72 @@ describe('LLM driver', () => {
 })
 
 describe('HTTP LLM provider', () => {
+  it('429 后自动重试并成功', async () => {
+    let calls = 0
+    const server = createServer((request, response) => {
+      request.resume()
+      request.on('end', () => {
+        calls += 1
+        if (calls === 1) {
+          response.writeHead(429, { 'content-type': 'application/json', 'retry-after': '0' })
+          response.end(JSON.stringify({ error: { message: 'rate limit' } }))
+          return
+        }
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(
+          JSON.stringify({
+            choices: [{ message: { content: '{"ok":true}' } }],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+        )
+      })
+    })
+    servers.push(server)
+    const port = await new Promise<number>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address()
+        resolve(typeof address === 'object' && address ? address.port : 0)
+      })
+    })
+
+    const provider = new HttpLlmProvider({
+      baseUrl: `http://127.0.0.1:${port}/v1`,
+      model: 'test-model',
+      retryBaseDelayMs: 1,
+    })
+    const result = await provider.complete({ system: 's', prompt: 'p', json: true })
+    expect(result.text).toContain('ok')
+    expect(calls).toBe(2)
+  })
+
+  it('重试耗尽后抛出可读错误', async () => {
+    let calls = 0
+    const server = createServer((request, response) => {
+      request.resume()
+      request.on('end', () => {
+        calls += 1
+        response.writeHead(429, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ error: { message: 'rate limit' } }))
+      })
+    })
+    servers.push(server)
+    const port = await new Promise<number>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address()
+        resolve(typeof address === 'object' && address ? address.port : 0)
+      })
+    })
+
+    const provider = new HttpLlmProvider({
+      baseUrl: `http://127.0.0.1:${port}/v1`,
+      model: 'test-model',
+      maxAttempts: 3,
+      retryBaseDelayMs: 1,
+    })
+    await expect(provider.complete({ system: 's', prompt: 'p' })).rejects.toThrow('429')
+    expect(calls).toBe(3)
+  })
+
   it('解析 OpenAI 兼容响应并计算成本', async () => {
     const server = createServer((request, response) => {
       request.resume()

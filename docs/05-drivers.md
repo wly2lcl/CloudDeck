@@ -108,7 +108,12 @@ runner → 队列(step) → worker → 输出目录 → runner 收集
 
 `workers/tts` 的 provider 通过 `TTS_PROVIDER` 选择：`fake`（默认，确定性 WAV）或 `http`（`TTS_HTTP_URL` + `TTS_HTTP_TOKEN`）。CosyVoice 本地服务与 DashScope 网关都按同一 HTTP 契约接入；未验证的云接口不在代码里硬编码。
 
+- 限流重试：HTTP provider 对 `429 / 5xx` 使用与 LLM 相同的指数退避；`TTS_MAX_ATTEMPTS`、`TTS_RETRY_BASE_MS` 可调。
+
 `workers/llm`：`script.generate` 与 `storyboard.plan` 共用。默认启发式生成，配置 `LLM_HTTP_URL` / `LLM_MODEL` 后走 OpenAI 兼容接口并解析 JSON；输出格式见能力包 README。
+
+- 限流重试：`429 / 500 / 502 / 503 / 504` 与网络错误自动指数退避，优先遵循 `Retry-After`；`LLM_MAX_ATTEMPTS`、`LLM_RETRY_BASE_MS`、`LLM_TIMEOUT_MS` 可调。
+- 真实冒烟：`pnpm smoke:llm`，读取 `LLM_HTTP_URL` / `LLM_MODEL` / `LLM_HTTP_TOKEN`，先验 provider，再跑一遍 `script.generate`。密钥只走环境变量，不落仓库。
 
 `workers/video`：消费分镜 JSON，生成 BMP 画面、调用 ffmpeg 合成 MP4 与 SRT；`FFMPEG_BIN`、`VIDEO_WIDTH/HEIGHT/FPS` 可配置。ffmpeg 缺失时返回 `FFMPEG_UNAVAILABLE`。
 

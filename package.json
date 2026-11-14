@@ -15,6 +15,7 @@
     "mobile:analyze": "cd apps/mobile && flutter analyze",
     "mobile:test": "cd apps/mobile && flutter test",
     "boundaries": "tsx scripts/check-boundaries.ts",
+    "smoke:llm": "pnpm --filter @clouddeck/worker-llm smoke",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries",
     "format": "prettier --write ."
   },

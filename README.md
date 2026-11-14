@@ -21,7 +21,8 @@ M5 商业化核心（2026-11-14）：
 - 月度对账单：明细 + 总额 + 任务数
 - `coding.assist`：代码工作区 → 补丁说明（Claude Code + 沙箱）
 - 设置页：套餐、配额、用量、能力开关、模板
-- 测试：85 个后端/驱动用例 + Flutter analyze/test
+- 真实模型：`pnpm smoke:llm` 可跑通 OpenAI 兼容端点；429/5xx 自动退避重试
+- 测试：88 个后端/驱动用例 + Flutter analyze/test
 
 实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）、[ADR-0013](docs/adr/0013-m5-commercial.md)（商业化核心）。
 
@@ -43,6 +44,18 @@ pnpm dev        # 控制面 :4310 + job-runner + Web :3000
 ```sh
 pnpm check
 ```
+
+真实模型冒烟（密钥只走环境变量）：
+
+```sh
+LLM_HTTP_URL='https://<your-openai-compatible>/v1' \
+LLM_MODEL='<model>' \
+LLM_HTTP_TOKEN='<your-key>' \
+LLM_MAX_ATTEMPTS=6 LLM_RETRY_BASE_MS=1500 \
+pnpm smoke:llm
+```
+
+遇到 429 会自动按 `Retry-After` / 指数退避重试，耗尽后报可读错误。
 
 移动端：
 

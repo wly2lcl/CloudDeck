@@ -41,6 +41,25 @@ afterEach(async () => {
 })
 
 describe('HTTP TTS provider', () => {
+  it('429 后自动重试并成功', async () => {
+    const wav = createToneWav(50)
+    let calls = 0
+    const port = await startServer(() => {
+      calls += 1
+      if (calls === 1) {
+        return { status: 429, contentType: 'application/json', payload: '{"error":"rate"}' }
+      }
+      return { status: 200, contentType: 'audio/wav', payload: wav }
+    })
+    const provider = new HttpTtsProvider({
+      url: `http://127.0.0.1:${port}/tts`,
+      retryBaseDelayMs: 1,
+    })
+    const data = await provider.synthesize({ text: '你好', voice: 'v1', format: 'wav' })
+    expect(parseWav(data).sampleRate).toBe(16000)
+    expect(calls).toBe(2)
+  })
+
   it('接收二进制音频响应', async () => {
     const wav = createToneWav(50)
     const port = await startServer(() => ({
@@ -71,7 +90,10 @@ describe('HTTP TTS provider', () => {
       contentType: 'application/json',
       payload: '{}',
     }))
-    const provider = new HttpTtsProvider({ url: `http://127.0.0.1:${port}/tts` })
+    const provider = new HttpTtsProvider({
+      url: `http://127.0.0.1:${port}/tts`,
+      maxAttempts: 1,
+    })
     await expect(
       provider.synthesize({ text: '你好', voice: 'v1', format: 'wav' }),
     ).rejects.toThrow('500')
