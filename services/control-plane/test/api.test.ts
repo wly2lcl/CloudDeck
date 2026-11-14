@@ -926,10 +926,14 @@ describe('M1 端到端', () => {
     let text = ''
     try {
       const response = await fetch(`${url}/v1/jobs/${completedJobId}/events?after=0`, {
-        headers: { authorization: `Bearer ${accessToken}` },
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          origin: 'http://localhost:3000',
+        },
         signal: controller.signal,
       })
       expect(response.status).toBe(200)
+      expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:3000')
       const reader = response.body?.getReader()
       if (!reader) throw new Error('无事件流')
       while (true) {

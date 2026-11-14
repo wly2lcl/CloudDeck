@@ -388,7 +388,7 @@ button:disabled {
   color: var(--muted);
 }
 
-.log li.error {
+.log li.log-error {
   color: var(--danger);
   background: rgba(248, 113, 113, 0.06);
   border: none;
@@ -434,7 +434,8 @@ button:disabled {
 
 .graph {
   display: block;
-  min-width: 100%;
+  width: 100%;
+  height: auto;
 }
 
 .graph-node {

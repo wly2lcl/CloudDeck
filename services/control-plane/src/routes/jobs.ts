@@ -29,7 +29,15 @@ import { requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
-import { ok, param, parseBody, queryString, sleep, terminalStatuses } from './helpers'
+import {
+  ok,
+  param,
+  parseBody,
+  queryString,
+  sleep,
+  sseHeaders,
+  terminalStatuses,
+} from './helpers'
 
 const createJobSchema = z.object({
   capabilityId: z.string().min(1),
@@ -243,12 +251,7 @@ export function registerJobRoutes(
     if (!Number.isFinite(lastSeq) || lastSeq < 0) lastSeq = 0
 
     reply.hijack()
-    reply.raw.writeHead(200, {
-      'content-type': 'text/event-stream; charset=utf-8',
-      'cache-control': 'no-cache, no-transform',
-      connection: 'keep-alive',
-      'x-accel-buffering': 'no',
-    })
+    reply.raw.writeHead(200, sseHeaders(request.headers.origin, deps.config.webOrigin))
 
     let closed = false
     request.raw.on('close', () => {

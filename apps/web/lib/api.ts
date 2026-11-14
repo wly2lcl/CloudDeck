@@ -214,6 +214,7 @@ export interface JobEvent {
   level?: string
   costUsd?: number
   code?: string
+  spec?: { name?: string }
   at: string
 }
 

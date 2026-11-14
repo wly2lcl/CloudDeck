@@ -195,7 +195,7 @@ export default function JobPage() {
           ) : (
             <ol className="log">
               {events.map((event) => (
-                <li key={event.seq} className={event.type}>
+                <li key={event.seq} className={`log-${event.type}`}>
                   <span className="log-type">{event.type}</span>
                   <span className="log-body">
                     {event.type === 'progress'
@@ -206,9 +206,11 @@ export default function JobPage() {
                           ? `${event.code}: ${event.message}`
                           : event.type === 'usage'
                             ? `成本 ${event.costUsd} USD`
-                            : event.type === 'done'
-                              ? '完成'
-                              : event.type}
+                            : event.type === 'artifact'
+                              ? `产物 ${event.spec?.name ?? ''}`.trim()
+                              : event.type === 'done'
+                                ? '完成'
+                                : event.type}
                   </span>
                   <span className="log-time">
                     {new Date(event.at).toLocaleTimeString()}

@@ -21,6 +21,14 @@ Two ideas define the project:
 
 ![Architecture](docs/assets/architecture.svg)
 
+## Screenshots
+
+| Projects | Content chain |
+|---|---|
+| ![Projects](docs/assets/screenshots/projects.png) | ![Content chain](docs/assets/screenshots/project.png) |
+| **Job progress** | **Sign in** |
+| ![Job progress](docs/assets/screenshots/job.png) | ![Sign in](docs/assets/screenshots/login.png) |
+
 ## Features
 
 - Multi-tenant workspace: accounts, roles, projects, versioned assets, content graph.

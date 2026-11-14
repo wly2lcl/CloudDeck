@@ -32,3 +32,22 @@ export const terminalStatuses = new Set(['succeeded', 'failed', 'cancelled'])
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
+
+/** SSE 直接写 raw socket，需要手动补 CORS 头。 */
+export function sseHeaders(
+  origin: string | undefined,
+  allowedOrigin: string,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    'content-type': 'text/event-stream; charset=utf-8',
+    'cache-control': 'no-cache, no-transform',
+    connection: 'keep-alive',
+    'x-accel-buffering': 'no',
+  }
+  if (origin && origin === allowedOrigin) {
+    headers['access-control-allow-origin'] = origin
+    headers['access-control-allow-credentials'] = 'true'
+    headers.vary = 'Origin'
+  }
+  return headers
+}

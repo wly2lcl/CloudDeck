@@ -69,7 +69,12 @@ export function ContentGraph({
 
   return (
     <div className="graph-scroll">
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="graph">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="graph"
+        style={{ maxWidth: width }}
+        preserveAspectRatio="xMinYMin meet"
+      >
         <defs>
           <marker
             id="chain-arrow"

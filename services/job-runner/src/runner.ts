@@ -265,7 +265,6 @@ async function finalize(
   const cost = await sumJobUsage(deps.db, job.id)
   await setJobOutputs(deps.db, job.id, outputs, cost)
   await setJobStatus(deps.db, job.id, 'succeeded')
-  await emit(deps.db, job, { type: 'done', at: now() })
 }
 
 export interface RunResult {

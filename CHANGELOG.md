@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-11-14
+
+### Fixed
+
+- Job and comment SSE streams now send CORS headers, so the web client can receive events cross-origin.
+- Content graph scales to the panel width instead of clipping later pipeline stages.
+- Runner no longer emits a duplicate `done` event after finalize.
+- Job event list shows artifact names and no longer styles progress rows as bars.
+
+### Changed
+
+- Dependabot: `docker/build-push-action` v7, `docker/login-action` v4,
+  `docker/metadata-action` v6, `docker/setup-buildx-action` v4, `cupertino_icons` 2.0.
+
 ## [0.1.0] - 2026-11-14
 
 ### Added

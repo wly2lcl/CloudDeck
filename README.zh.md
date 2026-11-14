@@ -14,6 +14,14 @@ CloudDeck 是可自托管的 AI 内容生产工作台：把「一个想法」推
 
 ![架构](docs/assets/architecture.svg)
 
+## 界面
+
+| 项目列表 | 内容链 |
+|---|---|
+| ![项目列表](docs/assets/screenshots/projects.png) | ![内容链](docs/assets/screenshots/project.png) |
+| **任务进度** | **登录** |
+| ![任务进度](docs/assets/screenshots/job.png) | ![登录](docs/assets/screenshots/login.png) |
+
 ## 功能
 
 - 多租户：账号、角色、项目、资产版本、内容链图
