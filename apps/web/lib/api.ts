@@ -108,6 +108,16 @@ export interface BillingSummary {
   }[]
 }
 
+export interface Comment {
+  id: string
+  projectId: string
+  assetId: string | null
+  body: string
+  author: string
+  createdAt: string
+  canDelete: boolean
+}
+
 export interface PublicShare {
   project: { id: string; name: string; description: string | null }
   assets: GraphAsset[]
@@ -248,6 +258,21 @@ export async function getHealth(): Promise<Envelope<HealthData>> {
   const response = await fetch(`${API_BASE}/healthz`, { cache: 'no-store' })
   if (!response.ok) throw new Error(`控制面返回 ${response.status}`)
   return (await response.json()) as Envelope<HealthData>
+}
+
+export async function getComments(projectId: string): Promise<Comment[]> {
+  return api<Comment[]>(`/v1/projects/${projectId}/comments`)
+}
+
+export async function addComment(projectId: string, body: string): Promise<Comment> {
+  return api<Comment>(`/v1/projects/${projectId}/comments`, {
+    method: 'POST',
+    body: { body },
+  })
+}
+
+export async function deleteComment(id: string): Promise<void> {
+  await api(`/v1/comments/${id}`, { method: 'DELETE' })
 }
 
 export async function getTenant(): Promise<Tenant> {

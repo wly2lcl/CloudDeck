@@ -120,6 +120,9 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 |---|---|---|
 | GET | `/billing/usage?period=2026-11` | 本期总用量 |
 | GET | `/billing/summary?period=2026-11` | 按能力/驱动/单位聚合 |
+| GET | `/billing/statement?period=2026-11` | 月度对账单（明细 + 总额 + 任务数） |
+| GET/POST | `/projects/:id/comments` | 项目评论列表 / 新增 |
+| DELETE | `/comments/:id` | 删除评论（作者或 owner/admin） |
 | GET | `/templates` | 项目模板列表 |
 | POST | `/templates` | 创建模板 |
 | DELETE | `/templates/:id` | 删除模板 |

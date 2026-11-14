@@ -7,16 +7,20 @@ import { ContentGraph } from '../../../components/content-graph'
 import { Nav } from '../../../components/nav'
 import {
   ApiError,
+  addComment,
   api,
   clearTokens,
   createShare,
+  deleteComment,
   downloadAsset,
+  getComments,
   getAssetContent,
   getAssetUrl,
   getProjectGraph,
   getToken,
   type Asset,
   type CapabilitySummary,
+  type Comment,
   type Project,
   type ProjectGraph,
 } from '../../../lib/api'
@@ -40,6 +44,8 @@ export default function ProjectPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [capabilities, setCapabilities] = useState<CapabilitySummary[]>([])
   const [graph, setGraph] = useState<ProjectGraph>({ assets: [], links: [] })
+  const [comments, setComments] = useState<Comment[]>([])
+  const [commentBody, setCommentBody] = useState('')
   const [assetType, setAssetType] = useState('novel_manuscript')
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -54,16 +60,19 @@ export default function ProjectPage() {
 
   const load = useCallback(async () => {
     try {
-      const [projectData, assetData, capabilityData, graphData] = await Promise.all([
-        api<Project>(`/v1/projects/${projectId}`),
-        api<Asset[]>(`/v1/projects/${projectId}/assets`),
-        api<CapabilitySummary[]>('/v1/capabilities'),
-        getProjectGraph(projectId),
-      ])
+      const [projectData, assetData, capabilityData, graphData, commentData] =
+        await Promise.all([
+          api<Project>(`/v1/projects/${projectId}`),
+          api<Asset[]>(`/v1/projects/${projectId}/assets`),
+          api<CapabilitySummary[]>('/v1/capabilities'),
+          getProjectGraph(projectId),
+          getComments(projectId),
+        ])
       setProject(projectData)
       setAssets(assetData)
       setCapabilities(capabilityData)
       setGraph(graphData)
+      setComments(commentData)
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         clearTokens()
@@ -104,6 +113,27 @@ export default function ProjectPage() {
       await navigator.clipboard?.writeText(url).catch(() => undefined)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '创建分享失败')
+    }
+  }
+
+  const submitComment = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!commentBody.trim()) return
+    try {
+      const comment = await addComment(projectId, commentBody.trim())
+      setComments((items) => [...items, comment])
+      setCommentBody('')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '评论失败')
+    }
+  }
+
+  const removeComment = async (comment: Comment) => {
+    try {
+      await deleteComment(comment.id)
+      setComments((items) => items.filter((item) => item.id !== comment.id))
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '删除评论失败')
     }
   }
 
@@ -189,6 +219,42 @@ export default function ProjectPage() {
               if (asset) void previewAsset(asset)
             }}
           />
+        </section>
+
+        <section className="panel">
+          <h2>评论（{comments.length}）</h2>
+          {comments.length === 0 ? (
+            <p className="muted">还没有评论，留下第一条协作记录。</p>
+          ) : (
+            <ul className="comment-list">
+              {comments.map((comment) => (
+                <li key={comment.id} className="comment-item">
+                  <div className="comment-meta">
+                    <strong>{comment.author}</strong>
+                    <span className="muted">{new Date(comment.createdAt).toLocaleString()}</span>
+                  </div>
+                  <p>{comment.body}</p>
+                  {comment.canDelete && (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => void removeComment(comment)}
+                    >
+                      删除
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <form className="row" onSubmit={submitComment} style={{ marginTop: 16 }}>
+            <input
+              placeholder="写一条评论…"
+              value={commentBody}
+              onChange={(event) => setCommentBody(event.target.value)}
+            />
+            <button type="submit">发送</button>
+          </form>
         </section>
 
         <section className="panel">

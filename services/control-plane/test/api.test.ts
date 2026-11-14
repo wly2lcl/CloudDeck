@@ -574,6 +574,43 @@ describe('M1 端到端', () => {
     expect(removed.statusCode).toBe(200)
   })
 
+  it('项目评论可创建、列出与删除', async () => {
+    const created = await api(`/v1/projects/${projectId}/comments`, {
+      method: 'POST',
+      payload: { body: '第一章节奏可以再快一点' },
+    })
+    expect(created.statusCode).toBe(201)
+    expect(created.json().data.canDelete).toBe(true)
+    const commentId = created.json().data.id
+
+    const list = await api(`/v1/projects/${projectId}/comments`)
+    expect(
+      list.json().data.some((comment: { id: string }) => comment.id === commentId),
+    ).toBe(true)
+
+    const removed = await api(`/v1/comments/${commentId}`, { method: 'DELETE' })
+    expect(removed.statusCode).toBe(200)
+
+    const after = await api(`/v1/projects/${projectId}/comments`)
+    expect(
+      after.json().data.some((comment: { id: string }) => comment.id === commentId),
+    ).toBe(false)
+  })
+
+  it('月度账单汇总总额与明细一致', async () => {
+    const statement = await api('/v1/billing/statement')
+    expect(statement.statusCode).toBe(200)
+    const data = statement.json().data as {
+      totalUsd: number
+      items: { amountUsd: number }[]
+      jobCount: number
+    }
+    expect(data.totalUsd).toBeGreaterThan(0)
+    const sum = data.items.reduce((total, item) => total + item.amountUsd, 0)
+    expect(data.totalUsd).toBeCloseTo(sum, 4)
+    expect(data.jobCount).toBeGreaterThan(0)
+  })
+
   it('只读分享可公开访问，撤销后失效', async () => {
     const created = await api(`/v1/projects/${projectId}/shares`, {
       method: 'POST',

@@ -29,14 +29,17 @@ M5 原计划包含计费账单、管理后台、模板市场、分享协作、�
    - token 查找通过 `SECURITY DEFINER` 函数定位分享，随后进入该租户上下文，避免公开请求绕过 RLS。
    - 不做密码保护、访问统计与水印。
 
-5. **coding.assist**
+5. **评论与账单**
+   - 项目级评论：成员可写，作者或 owner/admin 可删；按项目顺序返回。
+   - `GET /v1/billing/statement` 输出月度对账单 JSON（明细 + 总额 + 任务数），不生成 PDF。
+6. **coding.assist**
    - 能力包 + Claude Code driver，输入 `code_workspace`，输出补丁说明。
    - 代码执行仍走沙箱；gVisor 结论沿用 ADR-0012：正式对外开放前再评估。
 
 ## 明确 deferred
 
 - 支付渠道、发票、退款、账单 PDF
-- 评论与实时协作
+- 实时协作（当前只有项目级评论）
 - 多语言 UI
 - 模板市场与跨租户分发
 - 生成式视频镜头

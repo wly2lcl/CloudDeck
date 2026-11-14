@@ -344,6 +344,20 @@ export const shares = pgTable(
   (table) => [index('shares_project_idx').on(table.tenantId, table.projectId)],
 )
 
+export const comments = pgTable(
+  'comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    assetId: uuid('asset_id'),
+    userId: uuid('user_id').notNull(),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [index('comments_project_idx').on(table.tenantId, table.projectId, table.createdAt)],
+)
+
 export const schemaMigrations = pgTable('schema_migrations', {
   version: text('version').primaryKey(),
   appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().default(now),
@@ -372,5 +386,6 @@ export const schema = {
   tenantCapabilities,
   templates,
   shares,
+  comments,
   schemaMigrations,
 }

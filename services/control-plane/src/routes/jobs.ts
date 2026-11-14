@@ -305,6 +305,31 @@ export function registerJobRoutes(
     })
   })
 
+  app.get('/v1/billing/statement', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const period = queryString(request, 'period') ?? periodOf()
+    const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const items = await usageBreakdown(tx, auth.tenantId, period)
+      const usage = await getUsageSummary(tx, auth.tenantId, period)
+      return { items, usage }
+    })
+    const totalUsd = result.items.reduce((sum, item) => sum + Number(item.amount_usd), 0)
+    return ok(request, {
+      period,
+      generatedAt: new Date().toISOString(),
+      totalUsd: Number(totalUsd.toFixed(4)),
+      jobCount: result.usage.job_count,
+      items: result.items.map((row) => ({
+        capabilityId: row.capability_id,
+        driverId: row.driver_id,
+        unit: row.unit,
+        quantity: Number(row.quantity),
+        amountUsd: Number(row.amount_usd),
+        entries: row.entries,
+      })),
+    })
+  })
+
   app.get('/v1/billing/summary', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
     const period = queryString(request, 'period') ?? periodOf()

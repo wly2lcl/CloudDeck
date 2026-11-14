@@ -1178,6 +1178,73 @@ export async function usageBreakdown(
   )
 }
 
+export interface CommentRow {
+  id: string
+  tenant_id: string
+  project_id: string
+  asset_id: string | null
+  user_id: string
+  body: string
+  created_at: Date
+  author_name: string | null
+  author_email: string
+}
+
+export async function createComment(
+  db: Database,
+  input: { tenantId: string; projectId: string; userId: string; body: string; assetId?: string },
+): Promise<CommentRow> {
+  const row = await one<CommentRow>(
+    db,
+    sql`WITH inserted AS (
+          INSERT INTO comments (tenant_id, project_id, asset_id, user_id, body)
+          VALUES (${input.tenantId}, ${input.projectId}, ${input.assetId ?? null}, ${input.userId}, ${input.body})
+          RETURNING *
+        )
+        SELECT inserted.*, u.display_name AS author_name, u.email AS author_email
+        FROM inserted JOIN users u ON u.id = inserted.user_id`,
+  )
+  if (!row) throw new Error('创建评论失败')
+  return row
+}
+
+export async function listComments(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+): Promise<CommentRow[]> {
+  return rows<CommentRow>(
+    db,
+    sql`SELECT c.*, u.display_name AS author_name, u.email AS author_email
+        FROM comments c JOIN users u ON u.id = c.user_id
+        WHERE c.tenant_id = ${tenantId} AND c.project_id = ${projectId}
+        ORDER BY c.created_at ASC`,
+  )
+}
+
+export async function getComment(
+  db: Database,
+  tenantId: string,
+  commentId: string,
+): Promise<{ id: string; user_id: string } | null> {
+  return one<{ id: string; user_id: string }>(
+    db,
+    sql`SELECT id, user_id FROM comments WHERE id = ${commentId} AND tenant_id = ${tenantId}`,
+  )
+}
+
+export async function deleteComment(
+  db: Database,
+  tenantId: string,
+  commentId: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM comments WHERE id = ${commentId} AND tenant_id = ${tenantId} RETURNING id`,
+  )
+  return row !== null
+}
+
 export function periodOf(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }
