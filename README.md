@@ -23,9 +23,13 @@ M5 商业化核心（2026-11-14）：
 - 设置页：套餐、配额、用量、能力开关、模板
 - 真实模型：`pnpm smoke:llm` 可跑通 OpenAI 兼容端点；429/5xx 自动退避重试
 - 真实 TTS：`pnpm smoke:tts` 可跑通百炼 `qwen-audio-3.1-tts-flash`
-- 租户凭据：AES-256-GCM 加密存储，runner 按租户解密注入
+- 租户凭据：AES-256-GCM 加密存储，支持主密钥轮换与 `last_used_at`
 - 真实部署：Docker Postgres 全链路已验证（剧本 → 分镜 → 有声 → 视频）
-- 测试：99 个后端/驱动用例 + Flutter analyze/test
+- 对账与账单：按任务比较预估/实际，生成不可变月度账单快照
+- 可观测性：`/metrics` 暴露任务、用量与请求计数
+- 沙箱：支持 `SANDBOX_RUNTIME=runsc`（gVisor），`pnpm sandbox:check` 预检
+- 模板市场：公开/导入模板；评论支持 SSE 实时流
+- 测试：105 个后端/驱动用例 + Flutter analyze/test
 
 实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）、[ADR-0013](docs/adr/0013-m5-commercial.md)（商业化核心）。
 

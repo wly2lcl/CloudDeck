@@ -6,6 +6,7 @@ import {
   getComment,
   getProject,
   listComments,
+  listCommentsAfter,
   withTenant,
   type CommentRow,
 } from '@clouddeck/db'
@@ -13,7 +14,7 @@ import { requireAuth } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
-import { ok, param, parseBody } from './helpers'
+import { ok, param, parseBody, queryString, sleep } from './helpers'
 
 const createSchema = z.object({
   body: z.string().min(1).max(4000),
@@ -50,6 +51,56 @@ export function registerCommentRoutes(
       request,
       comments.map((comment) => serializeComment(comment, auth.userId, auth.role)),
     )
+  })
+
+  app.get('/v1/projects/:id/comments/stream', { preHandler: guard }, async (request, reply) => {
+    const auth = requireAuth(request)
+    const projectId = param(request, 'id')
+    const project = await withTenant(deps.db, auth.tenantId, (tx) =>
+      getProject(tx, auth.tenantId, projectId),
+    )
+    if (!project) throw new AppError('NOT_FOUND', '项目不存在')
+
+    const initial = queryString(request, 'after')
+    let cursor = initial ? new Date(initial) : new Date(0)
+    if (Number.isNaN(cursor.getTime())) cursor = new Date(0)
+
+    reply.hijack()
+    reply.raw.writeHead(200, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+      'x-accel-buffering': 'no',
+    })
+
+    let closed = false
+    request.raw.on('close', () => {
+      closed = true
+    })
+
+    const heartbeat = setInterval(() => {
+      if (!closed) reply.raw.write('event: ping\ndata: {}\n\n')
+    }, 15000)
+
+    try {
+      while (!closed) {
+        const comments = await withTenant(deps.db, auth.tenantId, (tx) =>
+          listCommentsAfter(tx, auth.tenantId, projectId, cursor),
+        )
+        for (const comment of comments) {
+          cursor = new Date(comment.created_at)
+          reply.raw.write(
+            `event: comment\ndata: ${JSON.stringify(
+              serializeComment(comment, auth.userId, auth.role),
+            )}\n\n`,
+          )
+        }
+        if (comments.length === 0) await sleep(500)
+      }
+    } finally {
+      clearInterval(heartbeat)
+      reply.raw.end()
+    }
   })
 
   app.post('/v1/projects/:id/comments', { preHandler: guard }, async (request, reply) => {

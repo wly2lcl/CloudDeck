@@ -6,24 +6,33 @@ import { Nav } from '../../components/nav'
 import {
   ApiError,
   clearTokens,
+  createInvoice,
   createModelCredential,
   createProjectFromTemplate,
   createTemplate,
   deleteModelCredential,
   deleteTemplate,
   getModelCredentials,
+  getBillingReconciliation,
   getBillingSummary,
   getCapabilityStates,
+  getInvoices,
+  getPublicTemplates,
   getQuota,
   getTemplates,
   getTenant,
   getToken,
+  importPublicTemplate,
   setCapabilityEnabled,
+  setTemplatePublic,
   updateTenantPlan,
   type BillingSummary,
   type CapabilityState,
+  type Invoice,
   type ModelCredential,
+  type PublicTemplate,
   type Quota,
+  type Reconciliation,
   type Template,
   type Tenant,
 } from '../../lib/api'
@@ -38,6 +47,9 @@ export default function SettingsPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [summary, setSummary] = useState<BillingSummary | null>(null)
   const [credentials, setCredentials] = useState<ModelCredential[]>([])
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [publicTemplates, setPublicTemplates] = useState<PublicTemplate[]>([])
   const [credentialProvider, setCredentialProvider] = useState('dashscope')
   const [credentialLabel, setCredentialLabel] = useState('')
   const [credentialSecret, setCredentialSecret] = useState('')
@@ -48,21 +60,36 @@ export default function SettingsPage() {
 
   const load = useCallback(async () => {
     try {
-      const [tenantData, quotaData, capabilityData, templateData, summaryData, credentialData] =
-        await Promise.all([
-          getTenant(),
-          getQuota(),
-          getCapabilityStates(),
-          getTemplates(),
-          getBillingSummary(),
-          getModelCredentials(),
-        ])
+      const [
+        tenantData,
+        quotaData,
+        capabilityData,
+        templateData,
+        summaryData,
+        credentialData,
+        reconciliationData,
+        invoiceData,
+        publicTemplateData,
+      ] = await Promise.all([
+        getTenant(),
+        getQuota(),
+        getCapabilityStates(),
+        getTemplates(),
+        getBillingSummary(),
+        getModelCredentials(),
+        getBillingReconciliation(),
+        getInvoices(),
+        getPublicTemplates(),
+      ])
       setTenant(tenantData)
       setQuota(quotaData)
       setCapabilities(capabilityData)
       setTemplates(templateData)
       setSummary(summaryData)
       setCredentials(credentialData)
+      setReconciliation(reconciliationData)
+      setInvoices(invoiceData)
+      setPublicTemplates(publicTemplateData)
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         clearTokens()
@@ -104,6 +131,34 @@ export default function SettingsPage() {
       )
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '更新能力失败')
+    }
+  }
+
+  const generateInvoice = async () => {
+    try {
+      await createInvoice()
+      setInvoices(await getInvoices())
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '生成账单失败')
+    }
+  }
+
+  const togglePublish = async (template: Template) => {
+    try {
+      await setTemplatePublic(template.id, !template.isPublic)
+      setTemplates(await getTemplates())
+      setPublicTemplates(await getPublicTemplates())
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '更新模板失败')
+    }
+  }
+
+  const importTemplate = async (template: PublicTemplate) => {
+    try {
+      await importPublicTemplate(template.id)
+      setTemplates(await getTemplates())
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '导入模板失败')
     }
   }
 
@@ -235,6 +290,60 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
+          <h2>账单对账</h2>
+          {reconciliation && (
+            <p className="meta">
+              预估 {reconciliation.totals.estimatedCostUsd.toFixed(4)} USD · 实际{' '}
+              {reconciliation.totals.actualCostUsd.toFixed(4)} USD · 任务{' '}
+              {reconciliation.jobs.length}
+            </p>
+          )}
+          {reconciliation && reconciliation.jobs.length > 0 && (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>任务</th>
+                  <th>能力</th>
+                  <th>状态</th>
+                  <th>预估</th>
+                  <th>实际</th>
+                  <th>偏差</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reconciliation.jobs.map((job) => (
+                  <tr key={job.jobId}>
+                    <td>{job.jobId.slice(0, 8)}</td>
+                    <td>{job.capabilityId}</td>
+                    <td>{job.status}</td>
+                    <td>{job.estimatedCostUsd.toFixed(4)}</td>
+                    <td>{job.actualCostUsd.toFixed(4)}</td>
+                    <td>{job.varianceUsd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <div className="row" style={{ marginTop: 16 }}>
+            <button type="button" onClick={() => void generateInvoice()}>
+              生成本期账单
+            </button>
+          </div>
+          <ul className="list" style={{ marginTop: 12 }}>
+            {invoices.map((invoice) => (
+              <li key={invoice.id} className="list-item">
+                <span>
+                  <strong>{invoice.period}</strong>
+                  <small className="muted">
+                    {invoice.totalUsd} USD · {invoice.jobCount} 个任务 · {invoice.status}
+                  </small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="panel">
           <h2>能力开关</h2>
           <div className="stack">
             {capabilities.map((capability) => (
@@ -330,6 +439,9 @@ export default function SettingsPage() {
                   <small className="muted">{template.description || '暂无描述'}</small>
                 </span>
                 <span className="row">
+                  <button type="button" className="ghost" onClick={() => void togglePublish(template)}>
+                    {template.isPublic ? '取消公开' : '公开到市场'}
+                  </button>
                   <button type="button" className="ghost" onClick={() => void useTemplate(template)}>
                     用模板建项目
                   </button>
@@ -344,6 +456,29 @@ export default function SettingsPage() {
               </li>
             ))}
           </ul>
+
+          <h2 style={{ marginTop: 24 }}>公开模板市场</h2>
+          {publicTemplates.length === 0 ? (
+            <p className="muted">还没有公开模板。</p>
+          ) : (
+            <ul className="list">
+              {publicTemplates.map((template) => (
+                <li key={template.id} className="list-item">
+                  <span>
+                    <strong>{template.name}</strong>
+                    <small className="muted">{template.description || '暂无描述'}</small>
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void importTemplate(template)}
+                  >
+                    导入
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </>

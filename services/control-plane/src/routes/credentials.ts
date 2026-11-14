@@ -4,6 +4,7 @@ import {
   createModelCredential,
   deleteModelCredential,
   listModelCredentials,
+  updateModelCredentialSecret,
   withTenant,
   type ModelCredentialRow,
 } from '@clouddeck/db'
@@ -68,6 +69,46 @@ export function registerCredentialRoutes(
     )
     if (!deleted) throw new AppError('NOT_FOUND', '凭据不存在')
     return ok(request, { deleted: true })
+  })
+
+  app.post('/v1/model-credentials/rotate', { preHandler: guard }, async (request) => {
+    const auth = requireRole(request, ['owner', 'admin'])
+    const currentKey = deriveMasterKey(deps.config.credentialsKey)
+    const previousKey = deps.config.credentialsPreviousKey
+      ? deriveMasterKey(deps.config.credentialsPreviousKey)
+      : null
+
+    const credentials = await withTenant(deps.db, auth.tenantId, (tx) =>
+      listModelCredentials(tx, auth.tenantId),
+    )
+
+    let rotated = 0
+    let failed = 0
+    for (const credential of credentials) {
+      let plaintext: string
+      try {
+        plaintext = decryptSecret(credential.encrypted_secret, currentKey)
+      } catch {
+        if (!previousKey) {
+          failed += 1
+          continue
+        }
+        try {
+          plaintext = decryptSecret(credential.encrypted_secret, previousKey)
+        } catch {
+          failed += 1
+          continue
+        }
+      }
+
+      const reEncrypted = encryptSecret(plaintext, currentKey)
+      await withTenant(deps.db, auth.tenantId, (tx) =>
+        updateModelCredentialSecret(tx, auth.tenantId, credential.id, reEncrypted),
+      )
+      rotated += 1
+    }
+
+    return ok(request, { rotated, failed, total: credentials.length })
   })
 
   // 仅用于本地验证解密链路，返回脱敏信息，不返回明文。

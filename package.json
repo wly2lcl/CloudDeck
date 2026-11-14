@@ -18,7 +18,8 @@
     "smoke:llm": "pnpm --filter @clouddeck/worker-llm smoke",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries",
     "format": "prettier --write .",
-    "smoke:tts": "pnpm --filter @clouddeck/worker-tts smoke"
+    "smoke:tts": "pnpm --filter @clouddeck/worker-tts smoke",
+    "sandbox:check": "tsx scripts/sandbox-preflight.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

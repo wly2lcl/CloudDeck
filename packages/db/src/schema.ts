@@ -325,6 +325,7 @@ export const templates = pgTable(
     name: text('name').notNull(),
     description: text('description'),
     payload: jsonb('payload').notNull().default({}),
+    isPublic: boolean('is_public').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
   },
   (table) => [index('templates_tenant_idx').on(table.tenantId, table.createdAt)],
@@ -360,6 +361,21 @@ export const modelCredentials = pgTable(
   (table) => [
     index('model_credentials_tenant_idx').on(table.tenantId, table.provider, table.createdAt),
   ],
+)
+
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    period: text('period').notNull(),
+    totalUsd: numeric('total_usd', { precision: 12, scale: 4 }).notNull(),
+    jobCount: integer('job_count').notNull(),
+    snapshot: jsonb('snapshot').notNull().default({}),
+    status: text('status').notNull().default('issued'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [index('invoices_tenant_idx').on(table.tenantId, table.period)],
 )
 
 export const comments = pgTable(
@@ -406,5 +422,6 @@ export const schema = {
   shares,
   comments,
   modelCredentials,
+  invoices,
   schemaMigrations,
 }

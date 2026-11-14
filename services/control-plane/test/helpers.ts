@@ -30,6 +30,7 @@ export async function createTestContext(): Promise<TestContext> {
     webOrigin: 'http://localhost:3000',
     authSecret: 'test-secret',
     credentialsKey: 'test-credentials-key',
+    credentialsPreviousKey: 'old-credentials-key',
     publicApiBase: 'http://localhost:4310',
     capabilitiesDir: CAPABILITIES_DIR,
     databaseUrl: 'unused',

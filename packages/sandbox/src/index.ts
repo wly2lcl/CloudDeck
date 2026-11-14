@@ -158,6 +158,8 @@ export interface DockerSandboxOptions {
   cpus?: number
   user?: string
   envAllowlist?: string[]
+  /** 容器运行时，如 runsc（gVisor）；默认由 Docker 决定 */
+  runtime?: string
 }
 
 export class DockerSandbox implements CommandRunner {
@@ -190,6 +192,7 @@ export class DockerSandbox implements CommandRunner {
       '--rm',
       '--init',
       '-i',
+      ...(this.options.runtime ? ['--runtime', this.options.runtime] : []),
       '--network',
       this.options.network ?? 'none',
       '--read-only',

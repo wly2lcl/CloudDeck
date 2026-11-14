@@ -55,3 +55,33 @@ describe('LocalSandbox', () => {
     expect(result.stdout.trim()).toBe('HELLO')
   })
 })
+
+describe('DockerSandbox 参数', () => {
+  it('传入 runtime 与网络参数', async () => {
+    const { mkdtemp, chmod, writeFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const dir = await mkdtemp(join(tmpdir(), 'clouddeck-fake-docker-'))
+    const fake = join(dir, 'docker')
+    await writeFile(fake, '#!/bin/sh\necho "$@"\n')
+    await chmod(fake, 0o755)
+    const oldPath = process.env.PATH
+    process.env.PATH = `${dir}:${oldPath}`
+    try {
+      const { DockerSandbox } = await import('../src/index')
+      const sandbox = new DockerSandbox({
+        image: 'test-image',
+        workspaceRoot: dir,
+        runtime: 'runsc',
+        network: 'none',
+      })
+      const result = await sandbox.run('echo', ['hello'], { cwd: dir })
+      expect(result.stdout).toContain('--runtime runsc')
+      expect(result.stdout).toContain('--network none')
+      expect(result.stdout).toContain('test-image echo hello')
+    } finally {
+      process.env.PATH = oldPath
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+})

@@ -93,7 +93,39 @@ export interface Template {
   name: string
   description: string | null
   payload: Record<string, unknown>
+  isPublic: boolean
   createdAt: string
+}
+
+export interface PublicTemplate {
+  id: string
+  name: string
+  description: string | null
+  payload: Record<string, unknown>
+  createdAt: string
+}
+
+export interface Reconciliation {
+  period: string
+  jobs: {
+    jobId: string
+    capabilityId: string
+    status: string
+    estimatedCostUsd: number
+    actualCostUsd: number
+    varianceUsd: number
+  }[]
+  totals: { estimatedCostUsd: number; actualCostUsd: number }
+}
+
+export interface Invoice {
+  id: string
+  period: string
+  totalUsd: number
+  jobCount: number
+  status: string
+  createdAt: string
+  snapshot?: Record<string, unknown>
 }
 
 export interface BillingSummary {
@@ -343,6 +375,35 @@ export async function getBillingSummary(period?: string): Promise<BillingSummary
   return api<BillingSummary>(`/v1/billing/summary${period ? `?period=${period}` : ''}`)
 }
 
+export async function getBillingReconciliation(period?: string): Promise<Reconciliation> {
+  return api<Reconciliation>(
+    `/v1/billing/reconciliation${period ? `?period=${period}` : ''}`,
+  )
+}
+
+export async function createInvoice(period?: string): Promise<Invoice> {
+  return api<Invoice>(`/v1/billing/invoices${period ? `?period=${period}` : ''}`, {
+    method: 'POST',
+    body: {},
+  })
+}
+
+export async function getInvoices(): Promise<Invoice[]> {
+  return api<Invoice[]>('/v1/billing/invoices')
+}
+
+export async function getPublicTemplates(): Promise<PublicTemplate[]> {
+  return api<PublicTemplate[]>('/v1/templates/public')
+}
+
+export async function setTemplatePublic(id: string, isPublic: boolean): Promise<void> {
+  await api(`/v1/templates/${id}/public`, { method: 'PATCH', body: { isPublic } })
+}
+
+export async function importPublicTemplate(id: string): Promise<Template> {
+  return api<Template>(`/v1/templates/public/${id}/import`, { method: 'POST', body: {} })
+}
+
 export async function createShare(
   projectId: string,
   expiresInDays = 7,
@@ -398,6 +459,58 @@ export async function downloadAsset(assetId: string, version: number): Promise<v
   anchor.download = `${assetId}-v${version}`
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+export function streamComments(
+  projectId: string,
+  onComment: (comment: Comment) => void,
+): () => void {
+  const controller = new AbortController()
+  const token = getToken()
+
+  void (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/v1/projects/${projectId}/comments/stream`, {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      })
+      if (!response.ok || !response.body) throw new Error('评论流连接失败')
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        let index = buffer.indexOf('\n\n')
+        while (index >= 0) {
+          const chunk = buffer.slice(0, index)
+          buffer = buffer.slice(index + 2)
+          index = buffer.indexOf('\n\n')
+
+          let eventName = 'message'
+          let data = ''
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('event: ')) eventName = line.slice(7).trim()
+            if (line.startsWith('data: ')) data += line.slice(6)
+          }
+          if (eventName === 'comment' && data) {
+            try {
+              onComment(JSON.parse(data) as Comment)
+            } catch {
+              // 忽略无法解析的评论
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') console.error(error)
+    }
+  })()
+
+  return () => controller.abort()
 }
 
 export function streamJobEvents(

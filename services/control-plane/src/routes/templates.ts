@@ -5,11 +5,15 @@ import {
   createTemplate,
   deleteTemplate,
   getTemplate,
+  importPublicTemplate,
+  listPublicTemplates,
   listTemplates,
+  setTemplatePublic,
   withTenant,
+  type PublicTemplateRow,
   type TemplateRow,
 } from '@clouddeck/db'
-import { requireAuth } from '../auth'
+import { requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
@@ -27,6 +31,17 @@ const projectSchema = z.object({
 })
 
 function serializeTemplate(template: TemplateRow) {
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    payload: template.payload,
+    isPublic: template.is_public,
+    createdAt: toIso(template.created_at),
+  }
+}
+
+function serializePublicTemplate(template: PublicTemplateRow) {
   return {
     id: template.id,
     name: template.name,
@@ -62,6 +77,35 @@ export function registerTemplateRoutes(
     )
     reply.status(201)
     return ok(request, serializeTemplate(template))
+  })
+
+  app.get('/v1/templates/public', { preHandler: guard }, async (request) => {
+    requireAuth(request)
+    const templates = await listPublicTemplates(deps.db)
+    return ok(request, templates.map(serializePublicTemplate))
+  })
+
+  app.post('/v1/templates/public/:id/import', { preHandler: guard }, async (request, reply) => {
+    const auth = requireAuth(request)
+    const template = await withTenant(deps.db, auth.tenantId, (tx) =>
+      importPublicTemplate(tx, auth.tenantId, param(request, 'id')),
+    )
+    if (!template) throw new AppError('NOT_FOUND', '公开模板不存在')
+    reply.status(201)
+    return ok(request, serializeTemplate(template))
+  })
+
+  app.patch('/v1/templates/:id/public', { preHandler: guard }, async (request) => {
+    const auth = requireRole(request, ['owner', 'admin'])
+    const body = parseBody(
+      z.object({ isPublic: z.boolean() }),
+      request.body,
+    )
+    const updated = await withTenant(deps.db, auth.tenantId, (tx) =>
+      setTemplatePublic(tx, auth.tenantId, param(request, 'id'), body.isPublic),
+    )
+    if (!updated) throw new AppError('NOT_FOUND', '模板不存在')
+    return ok(request, { id: param(request, 'id'), isPublic: body.isPublic })
   })
 
   app.delete('/v1/templates/:id', { preHandler: guard }, async (request) => {

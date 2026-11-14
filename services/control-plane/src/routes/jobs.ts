@@ -2,15 +2,19 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import type { AssetType, CapabilityManifest } from '@clouddeck/contracts'
 import {
+  billingReconciliation,
+  createInvoice,
   createJob,
   getAsset,
   getCapability,
+  getInvoice,
   getJob,
   getProject,
   getQuotaSnapshot,
   getUsageSummary,
   incrementQuotaJobs,
   isCapabilityEnabled,
+  listInvoices,
   usageBreakdown,
   listJobEvents,
   listJobs,
@@ -21,7 +25,7 @@ import {
   withTenant,
   type JobRow,
 } from '@clouddeck/db'
-import { requireAuth } from '../auth'
+import { requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
@@ -327,6 +331,111 @@ export function registerJobRoutes(
         amountUsd: Number(row.amount_usd),
         entries: row.entries,
       })),
+    })
+  })
+
+  app.get('/v1/billing/reconciliation', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const period = queryString(request, 'period') ?? periodOf()
+    const rows = await withTenant(deps.db, auth.tenantId, (tx) =>
+      billingReconciliation(tx, auth.tenantId, period),
+    )
+
+    const jobs = rows.map((row) => {
+      const estimated = Number(row.estimated_cost_usd)
+      const actual = Number(row.usage_usd)
+      return {
+        jobId: row.job_id,
+        capabilityId: row.capability_id,
+        status: row.status,
+        estimatedCostUsd: estimated,
+        actualCostUsd: actual,
+        varianceUsd: Number((actual - estimated).toFixed(4)),
+      }
+    })
+
+    return ok(request, {
+      period,
+      jobs,
+      totals: {
+        estimatedCostUsd: Number(jobs.reduce((sum, job) => sum + job.estimatedCostUsd, 0).toFixed(4)),
+        actualCostUsd: Number(jobs.reduce((sum, job) => sum + job.actualCostUsd, 0).toFixed(4)),
+      },
+    })
+  })
+
+  app.post('/v1/billing/invoices', { preHandler: guard }, async (request, reply) => {
+    const auth = requireRole(request, ['owner', 'admin'])
+    const period = queryString(request, 'period') ?? periodOf()
+    const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const items = await usageBreakdown(tx, auth.tenantId, period)
+      const usage = await getUsageSummary(tx, auth.tenantId, period)
+      const totalUsd = items.reduce((sum, item) => sum + Number(item.amount_usd), 0)
+      const snapshot = {
+        generatedAt: new Date().toISOString(),
+        items: items.map((row) => ({
+          capabilityId: row.capability_id,
+          driverId: row.driver_id,
+          unit: row.unit,
+          quantity: Number(row.quantity),
+          amountUsd: Number(row.amount_usd),
+          entries: row.entries,
+        })),
+      }
+      return createInvoice(tx, {
+        tenantId: auth.tenantId,
+        period,
+        totalUsd: Number(totalUsd.toFixed(4)),
+        jobCount: usage.job_count,
+        snapshot,
+      })
+    })
+
+    reply.status(result.created ? 201 : 200)
+    const invoice = result.invoice
+    return ok(request, {
+      id: invoice.id,
+      period: invoice.period,
+      totalUsd: Number(invoice.total_usd),
+      jobCount: invoice.job_count,
+      status: invoice.status,
+      createdAt: toIso(invoice.created_at),
+      snapshot: invoice.snapshot,
+    })
+  })
+
+  app.get('/v1/billing/invoices', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const invoices = await withTenant(deps.db, auth.tenantId, (tx) =>
+      listInvoices(tx, auth.tenantId),
+    )
+    return ok(
+      request,
+      invoices.map((invoice) => ({
+        id: invoice.id,
+        period: invoice.period,
+        totalUsd: Number(invoice.total_usd),
+        jobCount: invoice.job_count,
+        status: invoice.status,
+        createdAt: toIso(invoice.created_at),
+      })),
+    )
+  })
+
+  app.get('/v1/billing/invoices/:id', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const invoice = await withTenant(deps.db, auth.tenantId, (tx) =>
+      getInvoice(tx, auth.tenantId, param(request, 'id')),
+    )
+    if (!invoice) throw new AppError('NOT_FOUND', '账单不存在')
+    return ok(request, {
+      id: invoice.id,
+      period: invoice.period,
+      totalUsd: Number(invoice.total_usd),
+      jobCount: invoice.job_count,
+      status: invoice.status,
+      createdAt: toIso(invoice.created_at),
+      snapshot: invoice.snapshot,
     })
   })
 

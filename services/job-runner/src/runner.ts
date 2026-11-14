@@ -16,6 +16,7 @@ import {
   linkAssets,
   listModelCredentials,
   periodOf,
+  touchModelCredential,
   setJobOutputs,
   setJobStatus,
   sumJobUsage,
@@ -118,6 +119,7 @@ export async function resolveSecretEnv(
       if (env[name] || !mapped.includes(name)) continue
       try {
         env[name] = decryptSecret(credential.encrypted_secret, masterKey)
+        await touchModelCredential(deps.db, credential.id)
       } catch (error) {
         console.error(`凭据解密失败 provider=${credential.provider}`, error)
       }

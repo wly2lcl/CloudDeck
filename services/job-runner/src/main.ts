@@ -39,6 +39,7 @@ async function main(): Promise<void> {
           network: process.env.SANDBOX_NETWORK === 'bridge' ? 'bridge' : 'none',
           memory: process.env.SANDBOX_MEMORY ?? '2g',
           cpus: Number(process.env.SANDBOX_CPUS ?? 2),
+          runtime: process.env.SANDBOX_RUNTIME,
         })
       : createCommandRunner({ driver: 'local' })
 

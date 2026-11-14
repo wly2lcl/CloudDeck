@@ -1,4 +1,4 @@
-import { createModelCredential, createTenant } from '@clouddeck/db'
+import { createModelCredential, createTenant, listModelCredentials } from '@clouddeck/db'
 import { createTestDb } from '@clouddeck/db/testing'
 import { deriveMasterKey, encryptSecret } from '@clouddeck/secrets'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -32,6 +32,9 @@ describe('租户密钥解析', () => {
       ['DASHSCOPE_API_KEY'],
     )
     expect(env.DASHSCOPE_API_KEY).toBe('sk-dashscope-secret')
+
+    const rows = await listModelCredentials(handle.db, tenant.id)
+    expect(rows[0]?.last_used_at).not.toBeNull()
   })
 
   it('进程环境优先于租户凭据', async () => {

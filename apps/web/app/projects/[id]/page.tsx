@@ -18,6 +18,7 @@ import {
   getAssetUrl,
   getProjectGraph,
   getToken,
+  streamComments,
   type Asset,
   type CapabilitySummary,
   type Comment,
@@ -90,6 +91,15 @@ export default function ProjectPage() {
     }
     void load()
   }, [load, router])
+
+  useEffect(() => {
+    if (!getToken()) return
+    return streamComments(projectId, (comment) => {
+      setComments((items) =>
+        items.some((item) => item.id === comment.id) ? items : [...items, comment],
+      )
+    })
+  }, [projectId])
 
   const previewAsset = async (asset: Asset) => {
     try {

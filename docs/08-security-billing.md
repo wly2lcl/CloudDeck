@@ -20,7 +20,8 @@
 - 主密钥：来自 `CREDENTIALS_KEY`；未设置时回退 `AUTH_SECRET`（仅开发）。生产必须独立配置高熵随机值。
 - 注入方式：runner 先读进程环境，缺失时按 provider 映射解密租户凭据，任务启动时注入，进程结束即失效。
 - 禁止：写入镜像、写入 workspace、打印到日志、返回给客户端。
-- 轮换：当前未实现；需要“解密-重加密”迁移，不能直接用新密钥覆盖。
+- 轮换：设置 `CREDENTIALS_KEY_PREVIOUS` 后调用 `POST /v1/model-credentials/rotate`，逐条解密-重加密；不是原子操作，失败项可重跑。
+- 使用记录：runner 成功解密后更新 `last_used_at`，用于排查闲置与异常凭据。
 
 ## 模型网关
 

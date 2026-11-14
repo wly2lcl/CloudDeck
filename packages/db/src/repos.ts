@@ -1013,6 +1013,15 @@ export interface TemplateRow {
   name: string
   description: string | null
   payload: Record<string, unknown>
+  is_public: boolean
+  created_at: Date
+}
+
+export interface PublicTemplateRow {
+  id: string
+  name: string
+  description: string | null
+  payload: Record<string, unknown>
   created_at: Date
 }
 
@@ -1051,6 +1060,47 @@ export async function getTemplate(
     db,
     sql`SELECT * FROM templates WHERE id = ${templateId} AND tenant_id = ${tenantId}`,
   )
+}
+
+export async function setTemplatePublic(
+  db: Database,
+  tenantId: string,
+  templateId: string,
+  isPublic: boolean,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`UPDATE templates SET is_public = ${isPublic}
+        WHERE id = ${templateId} AND tenant_id = ${tenantId}
+        RETURNING id`,
+  )
+  return row !== null
+}
+
+export async function listPublicTemplates(db: Database): Promise<PublicTemplateRow[]> {
+  return rows<PublicTemplateRow>(db, sql`SELECT * FROM list_public_templates()`)
+}
+
+export async function getPublicTemplate(
+  db: Database,
+  templateId: string,
+): Promise<PublicTemplateRow | null> {
+  return one<PublicTemplateRow>(db, sql`SELECT * FROM get_public_template(${templateId})`)
+}
+
+export async function importPublicTemplate(
+  db: Database,
+  tenantId: string,
+  templateId: string,
+): Promise<TemplateRow | null> {
+  const template = await getPublicTemplate(db, templateId)
+  if (!template) return null
+  return createTemplate(db, {
+    tenantId,
+    name: template.name,
+    description: template.description ?? undefined,
+    payload: template.payload,
+  })
 }
 
 export async function deleteTemplate(
@@ -1149,19 +1199,25 @@ export interface UsageBreakdownRow {
   entries: number
 }
 
-export async function usageBreakdown(
-  db: Database,
-  tenantId: string,
-  period: string,
-): Promise<UsageBreakdownRow[]> {
+export function periodRange(period: string): { start: Date; end: Date } {
   const [yearValue, monthValue] = period.split('-')
   const year = Number(yearValue)
   const month = Number(monthValue)
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
     throw new Error(`账期格式非法: ${period}`)
   }
-  const start = new Date(Date.UTC(year, month - 1, 1))
-  const end = new Date(Date.UTC(year, month, 1))
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1)),
+    end: new Date(Date.UTC(year, month, 1)),
+  }
+}
+
+export async function usageBreakdown(
+  db: Database,
+  tenantId: string,
+  period: string,
+): Promise<UsageBreakdownRow[]> {
+  const { start, end } = periodRange(period)
 
   return rows<UsageBreakdownRow>(
     db,
@@ -1219,6 +1275,22 @@ export async function listComments(
         FROM comments c JOIN users u ON u.id = c.user_id
         WHERE c.tenant_id = ${tenantId} AND c.project_id = ${projectId}
         ORDER BY c.created_at ASC`,
+  )
+}
+
+export async function listCommentsAfter(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+  after: Date,
+): Promise<CommentRow[]> {
+  return rows<CommentRow>(
+    db,
+    sql`SELECT c.*, u.display_name AS author_name, u.email AS author_email
+        FROM comments c JOIN users u ON u.id = c.user_id
+        WHERE c.tenant_id = ${tenantId} AND c.project_id = ${projectId}
+          AND c.created_at > ${after.toISOString()}::timestamptz
+        ORDER BY c.created_at ASC LIMIT 100`,
   )
 }
 
@@ -1289,6 +1361,27 @@ export async function listModelCredentials(
   )
 }
 
+export async function touchModelCredential(db: Database, credentialId: string): Promise<void> {
+  await db.execute(
+    sql`UPDATE model_credentials SET last_used_at = now() WHERE id = ${credentialId}`,
+  )
+}
+
+export async function updateModelCredentialSecret(
+  db: Database,
+  tenantId: string,
+  credentialId: string,
+  encryptedSecret: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`UPDATE model_credentials SET encrypted_secret = ${encryptedSecret}
+        WHERE id = ${credentialId} AND tenant_id = ${tenantId}
+        RETURNING id`,
+  )
+  return row !== null
+}
+
 export async function deleteModelCredential(
   db: Database,
   tenantId: string,
@@ -1301,6 +1394,108 @@ export async function deleteModelCredential(
         RETURNING id`,
   )
   return row !== null
+}
+
+export interface JobReconciliationRow {
+  job_id: string
+  capability_id: string
+  status: string
+  estimated_cost_usd: string
+  actual_cost_usd: string
+  usage_usd: string
+}
+
+export async function billingReconciliation(
+  db: Database,
+  tenantId: string,
+  period: string,
+): Promise<JobReconciliationRow[]> {
+  const { start, end } = periodRange(period)
+  return rows<JobReconciliationRow>(
+    db,
+    sql`SELECT j.id AS job_id, j.capability_id, j.status,
+               j.estimated_cost_usd::text AS estimated_cost_usd,
+               j.actual_cost_usd::text AS actual_cost_usd,
+               COALESCE((SELECT SUM(u.amount_usd) FROM usage_ledger u WHERE u.job_id = j.id), 0)::text AS usage_usd
+        FROM jobs j
+        WHERE j.tenant_id = ${tenantId}
+          AND j.created_at >= ${start.toISOString()}::timestamptz
+          AND j.created_at < ${end.toISOString()}::timestamptz
+        ORDER BY j.created_at DESC`,
+  )
+}
+
+export interface InvoiceRow {
+  id: string
+  tenant_id: string
+  period: string
+  total_usd: string
+  job_count: number
+  snapshot: Record<string, unknown>
+  status: string
+  created_at: Date
+}
+
+export async function createInvoice(
+  db: Database,
+  input: {
+    tenantId: string
+    period: string
+    totalUsd: number
+    jobCount: number
+    snapshot: Record<string, unknown>
+  },
+): Promise<{ invoice: InvoiceRow; created: boolean }> {
+  const inserted = await one<InvoiceRow>(
+    db,
+    sql`INSERT INTO invoices (tenant_id, period, total_usd, job_count, snapshot)
+        VALUES (${input.tenantId}, ${input.period}, ${input.totalUsd}, ${input.jobCount}, ${json(input.snapshot)})
+        ON CONFLICT (tenant_id, period) DO NOTHING
+        RETURNING *`,
+  )
+  if (inserted) return { invoice: inserted, created: true }
+
+  const existing = await one<InvoiceRow>(
+    db,
+    sql`SELECT * FROM invoices WHERE tenant_id = ${input.tenantId} AND period = ${input.period}`,
+  )
+  if (!existing) throw new Error('创建账单失败')
+  return { invoice: existing, created: false }
+}
+
+export async function listInvoices(db: Database, tenantId: string): Promise<InvoiceRow[]> {
+  return rows<InvoiceRow>(
+    db,
+    sql`SELECT * FROM invoices WHERE tenant_id = ${tenantId} ORDER BY period DESC`,
+  )
+}
+
+export async function getInvoice(
+  db: Database,
+  tenantId: string,
+  invoiceId: string,
+): Promise<InvoiceRow | null> {
+  return one<InvoiceRow>(
+    db,
+    sql`SELECT * FROM invoices WHERE id = ${invoiceId} AND tenant_id = ${tenantId}`,
+  )
+}
+
+export async function globalJobStatusCounts(
+  db: Database,
+): Promise<{ status: string; count: number }[]> {
+  return rows<{ status: string; count: number }>(
+    db,
+    sql`SELECT status, COUNT(*)::int AS count FROM jobs GROUP BY status`,
+  )
+}
+
+export async function globalUsageTotal(db: Database): Promise<number> {
+  const row = await one<{ total: string }>(
+    db,
+    sql`SELECT COALESCE(SUM(amount_usd), 0)::text AS total FROM usage_ledger`,
+  )
+  return Number(row?.total ?? 0)
 }
 
 export function periodOf(date = new Date()): string {

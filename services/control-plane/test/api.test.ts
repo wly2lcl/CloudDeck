@@ -3,7 +3,8 @@ import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CLAUDE_DRIVER_ID, createClaudeCodeDriver } from '@clouddeck/driver-claude-code'
-import { listModelCredentials, withTenant } from '@clouddeck/db'
+import { createModelCredential, listModelCredentials, withTenant } from '@clouddeck/db'
+import { decryptSecret, deriveMasterKey, encryptSecret } from '@clouddeck/secrets'
 import { registerDriver, runOnce, signWebhook } from '@clouddeck/job-runner'
 import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
 import { createFakeProvider, createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
@@ -34,6 +35,14 @@ let assetId = ''
 let completedJobId = ''
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+let serverUrl: string | null = null
+async function ensureListening(): Promise<string> {
+  if (!serverUrl) {
+    serverUrl = await ctx.app.listen({ port: 0, host: '127.0.0.1' })
+  }
+  return serverUrl
+}
 
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -575,6 +584,33 @@ describe('M1 端到端', () => {
     expect(removed.statusCode).toBe(200)
   })
 
+  it('凭据主密钥轮换后可解密', async () => {
+    const oldKey = deriveMasterKey('old-credentials-key')
+    const credential = await withTenant(ctx.db, tenantId, (tx) =>
+      createModelCredential(tx, {
+        tenantId,
+        provider: 'dashscope',
+        label: '待轮换凭据',
+        encryptedSecret: encryptSecret('sk-rotate-me', oldKey),
+        keyHint: '****-me',
+      }),
+    )
+
+    const rotated = await api('/v1/model-credentials/rotate', { method: 'POST', payload: {} })
+    expect(rotated.statusCode).toBe(200)
+    expect(rotated.json().data.rotated).toBeGreaterThanOrEqual(1)
+
+    const rows = await withTenant(ctx.db, tenantId, (tx) =>
+      listModelCredentials(tx, tenantId),
+    )
+    const stored = rows.find((row: { id: string }) => row.id === credential.id)
+    const plaintext = decryptSecret(
+      stored?.encrypted_secret ?? '',
+      deriveMasterKey('test-credentials-key'),
+    )
+    expect(plaintext).toBe('sk-rotate-me')
+  })
+
   it('模型凭据加密存储、列表脱敏并可删除', async () => {
     const created = await api('/v1/model-credentials', {
       method: 'POST',
@@ -621,6 +657,115 @@ describe('M1 端到端', () => {
       after.json().data.some((comment: { id: string }) => comment.id === commentId),
     ).toBe(false)
   })
+
+  it('对账与账单快照可重复生成', async () => {
+    const reconciliation = await api('/v1/billing/reconciliation')
+    expect(reconciliation.statusCode).toBe(200)
+    expect(reconciliation.json().data.jobs.length).toBeGreaterThan(0)
+    expect(reconciliation.json().data.totals.actualCostUsd).toBeGreaterThan(0)
+
+    const created = await api('/v1/billing/invoices', { method: 'POST', payload: {} })
+    expect([200, 201]).toContain(created.statusCode)
+    expect(created.json().data.totalUsd).toBeGreaterThan(0)
+    const invoiceId = created.json().data.id
+
+    const again = await api('/v1/billing/invoices', { method: 'POST', payload: {} })
+    expect(again.json().data.id).toBe(invoiceId)
+
+    const list = await api('/v1/billing/invoices')
+    expect(list.json().data.some((item: { id: string }) => item.id === invoiceId)).toBe(true)
+
+    const detail = await api(`/v1/billing/invoices/${invoiceId}`)
+    expect(detail.json().data.snapshot).toBeTruthy()
+  })
+
+  it('指标端点暴露任务与请求计数', async () => {
+    const metrics = await api('/metrics', { token: null })
+    expect(metrics.statusCode).toBe(200)
+    expect(metrics.body).toContain('clouddeck_up 1')
+    expect(metrics.body).toContain('clouddeck_jobs{status=')
+    expect(metrics.body).toContain('clouddeck_http_requests_total')
+  })
+
+  it('模板可公开并被其他租户导入', async () => {
+    const created = await api('/v1/templates', {
+      method: 'POST',
+      payload: { name: '市场模板', description: '公开测试模板' },
+    })
+    const templateId = created.json().data.id
+
+    const published = await api(`/v1/templates/${templateId}/public`, {
+      method: 'PATCH',
+      payload: { isPublic: true },
+    })
+    expect(published.statusCode).toBe(200)
+
+    const other = await api('/v1/auth/register', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'market@example.com', password: 'password123', displayName: 'Market' },
+    })
+    const otherToken = other.json().data.accessToken
+
+    const publicList = await api('/v1/templates/public', { token: otherToken })
+    expect(
+      publicList.json().data.some((item: { id: string }) => item.id === templateId),
+    ).toBe(true)
+
+    const imported = await api(`/v1/templates/public/${templateId}/import`, {
+      method: 'POST',
+      token: otherToken,
+      payload: {},
+    })
+    expect(imported.statusCode).toBe(201)
+    expect(imported.json().data.name).toBe('市场模板')
+
+    const otherTemplates = await api('/v1/templates', { token: otherToken })
+    expect(
+      otherTemplates
+        .json()
+        .data.some((item: { id: string }) => item.id === imported.json().data.id),
+    ).toBe(true)
+  })
+
+  it('评论 SSE 可回放评论', async () => {
+    await api(`/v1/projects/${projectId}/comments`, {
+      method: 'POST',
+      payload: { body: '实时评论测试' },
+    })
+
+    const url = await ensureListening()
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+
+    let text = ''
+    try {
+      const response = await fetch(
+        `${url}/v1/projects/${projectId}/comments/stream?after=1970-01-01T00:00:00.000Z`,
+        {
+          headers: { authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        },
+      )
+      expect(response.status).toBe(200)
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('无评论流')
+      while (!text.includes('实时评论测试')) {
+        const { done, value } = await reader.read()
+        if (done) break
+        text += new TextDecoder().decode(value)
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') throw error
+    } finally {
+      clearTimeout(timer)
+      controller.abort()
+    }
+
+    expect(text).toContain('event: comment')
+    expect(text).toContain('实时评论测试')
+  }, 15_000)
 
   it('月度账单汇总总额与明细一致', async () => {
     const statement = await api('/v1/billing/statement')
@@ -682,7 +827,7 @@ describe('M1 端到端', () => {
   })
 
   it('SSE 从 0 补发事件并以 job.end 结束', async () => {
-    const url = await ctx.app.listen({ port: 0, host: '127.0.0.1' })
+    const url = await ensureListening()
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 5000)
 

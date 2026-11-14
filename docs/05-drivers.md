@@ -135,6 +135,8 @@ M2 实现两种沙箱，由 runner 通过 `SANDBOX_DRIVER` 选择：
 
 - `local`：本地子进程 + 独立进程组 + 环境白名单。**不是安全边界**，仅用于开发与 CI，网络权限不生效。
 - `docker`：`--rm --init --read-only --tmpfs /tmp --user 1000:1000 --memory --cpus`，只挂载工作区根目录，网络默认 `none`。
+  - `SANDBOX_RUNTIME=runsc` 可切换到 gVisor；`pnpm sandbox:check` 预检 Docker 与运行时注册状态。
+  - 代码路径已就绪，但本机未安装 `runsc`，gVisor 尚未做真实逃逸/兼容性验证。
 
 每个 job 一个容器：
 

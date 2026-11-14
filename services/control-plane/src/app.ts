@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import cors from '@fastify/cors'
 import multipart from '@fastify/multipart'
 import Fastify, { type FastifyInstance } from 'fastify'
+import { globalJobStatusCounts, globalUsageTotal } from '@clouddeck/db'
 import { authGuard } from './auth'
 import type { AppDeps } from './deps'
 import { AppError, errorEnvelope } from './errors'
@@ -39,8 +40,45 @@ export function buildServer(deps: AppDeps, options: BuildServerOptions = {}): Fa
     limits: { fileSize: 100 * 1024 * 1024, files: 1 },
   })
 
+  const requestCounts = new Map<string, number>()
+
   app.addHook('onRequest', async (request, reply) => {
     reply.header('x-request-id', request.id)
+  })
+
+  app.addHook('onResponse', async (request, reply) => {
+    const key = `${request.method}|${reply.statusCode}`
+    requestCounts.set(key, (requestCounts.get(key) ?? 0) + 1)
+  })
+
+  app.get('/metrics', async (request, reply) => {
+    const [statuses, usageTotal] = await Promise.all([
+      globalJobStatusCounts(deps.db),
+      globalUsageTotal(deps.db),
+    ])
+
+    const lines = [
+      '# HELP clouddeck_up 服务存活',
+      '# TYPE clouddeck_up gauge',
+      'clouddeck_up 1',
+      '# HELP clouddeck_jobs 任务数量（按状态）',
+      '# TYPE clouddeck_jobs gauge',
+      ...statuses.map(
+        (row) => `clouddeck_jobs{status="${row.status}"} ${row.count}`,
+      ),
+      '# HELP clouddeck_usage_usd_total 平台累计用量金额',
+      '# TYPE clouddeck_usage_usd_total counter',
+      `clouddeck_usage_usd_total ${usageTotal.toFixed(4)}`,
+      '# HELP clouddeck_http_requests_total HTTP 请求数',
+      '# TYPE clouddeck_http_requests_total counter',
+      ...[...requestCounts.entries()].map(([key, count]) => {
+        const [method, status] = key.split('|')
+        return `clouddeck_http_requests_total{method="${method}",status="${status}"} ${count}`
+      }),
+    ]
+
+    reply.type('text/plain; version=0.0.4; charset=utf-8')
+    return lines.join('\n')
   })
 
   app.setErrorHandler((error, request, reply) => {

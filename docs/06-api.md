@@ -136,6 +136,16 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET | `/billing/invoices` | 账单（M5） |
 | GET/POST/DELETE | `/model-credentials` | 租户自有模型密钥（BYOK） |
 | GET | `/model-credentials/:id/verify` | 验证密文可解密（不返回明文） |
+| POST | `/model-credentials/rotate` | 用当前主密钥重加密全部凭据 |
+| GET | `/billing/reconciliation` | 按任务比较预估与实际用量 |
+| POST | `/billing/invoices` | 生成/获取月度账单快照 |
+| GET | `/billing/invoices` | 账单列表 |
+| GET | `/billing/invoices/:id` | 账单详情与快照 |
+| GET | `/templates/public` | 公开模板市场 |
+| POST | `/templates/public/:id/import` | 导入公开模板 |
+| PATCH | `/templates/:id/public` | 公开/取消公开（owner/admin） |
+| GET | `/projects/:id/comments/stream` | 评论 SSE 增量流 |
+| GET | `/metrics` | Prometheus 文本指标 |
 
 ## SSE
 
