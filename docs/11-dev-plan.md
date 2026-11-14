@@ -117,6 +117,8 @@
 
 ## 第 12–15 周：M4 剧本 / 分镜 / 视频
 
+> 状态：已完成（2026-11-14）。`script.generate`、`storyboard.plan`、`video.render`、内容链 API/UI、Webhook 投递与 GPU/ffmpeg 路径已落地；启发式生成兜底，真实模型通过 OpenAI 兼容接口配置；字幕输出为独立 SRT（当前 ffmpeg 无 libass）。
+
 | ID | 任务 | 产出 | 验收 | 依赖 | 估时 |
 |---|---|---|---|---|---|
 | P4-01 | script.generate | 能力包 + 格式校验 | 角色一致率 100% | P2-05 | 3 |

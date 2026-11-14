@@ -63,6 +63,7 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET | `/assets/:id/versions/:v/download` | 302 到签名 URL |
 | POST | `/assets/:id/versions` | 新增版本 |
 | GET | `/assets/:id/links` | 上下游关系 |
+| GET | `/projects/:id/graph` | 内容链：资产节点与派生边 |
 
 上传流程：
 1. `POST /projects/:id/assets` 带 `{name,type,mime,size}` → 返回 `uploadUrl` 与 `assetId`。
@@ -144,7 +145,13 @@ Last-Event-ID: 1042
 
 ## Webhook（M4）
 
-`job.succeeded` / `job.failed` / `asset.created` 可订阅。签名 `X-CloudDeck-Signature`（HMAC-SHA256 + 时间戳），重试 5 次指数退避。
+`job.succeeded` / `job.failed` / `job.cancelled` 可订阅。签名 `X-CloudDeck-Signature`（HMAC-SHA256，`timestamp + "." + body`），当前重试 3 次。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET/POST | `/webhooks` | 列出 / 创建（secret 仅创建时返回） |
+| DELETE | `/webhooks/:id` | 删除 |
+| GET | `/webhook-deliveries` | 最近 100 条投递记录 |
 
 ## OpenAPI
 

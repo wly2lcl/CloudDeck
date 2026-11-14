@@ -1,0 +1,43 @@
+id: script.generate
+version: 1.0.0
+name: 剧本生成
+description: 将小说改编为分幕分场的剧本
+category: script
+icon: scroll-text
+inputs:
+  - name: manuscript
+    label: 小说稿件
+    assetTypes: [novel_manuscript]
+    required: true
+outputs:
+  - name: script
+    assetType: script
+execution:
+  mode: async
+  resumable: false
+  maxDurationMs: 1800000
+  maxCostUsd: 2
+  concurrency: 1
+credentials:
+  policy: tenant
+driver:
+  kind: llm
+  ref: workers/llm
+  routing:
+    - driver: workers/llm
+permissions:
+  network: [api.openai.com, api.anthropic.com]
+  filesystem: workspace-only
+  secrets: [LLM_HTTP_TOKEN]
+  allowShell: false
+resources:
+  cpu: 1
+  memory: 1Gi
+billing:
+  unit: per_token
+  priceKey: script_generate
+  estimate: 0.2
+ui:
+  form: ui/form.json
+  result: text
+tags: [剧本]

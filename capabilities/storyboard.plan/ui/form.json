@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "shotsPerScene": {
+      "type": "integer",
+      "title": "每场镜头数",
+      "default": 2,
+      "minimum": 1,
+      "maximum": 5
+    }
+  }
+}

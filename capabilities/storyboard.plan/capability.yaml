@@ -1,0 +1,43 @@
+id: storyboard.plan
+version: 1.0.0
+name: 分镜规划
+description: 将剧本拆解为结构化分镜
+category: video
+icon: clapperboard
+inputs:
+  - name: script
+    label: 剧本
+    assetTypes: [script]
+    required: true
+outputs:
+  - name: storyboard
+    assetType: storyboard
+execution:
+  mode: async
+  resumable: false
+  maxDurationMs: 1800000
+  maxCostUsd: 2
+  concurrency: 1
+credentials:
+  policy: tenant
+driver:
+  kind: llm
+  ref: workers/llm
+  routing:
+    - driver: workers/llm
+permissions:
+  network: [api.openai.com, api.anthropic.com]
+  filesystem: workspace-only
+  secrets: [LLM_HTTP_TOKEN]
+  allowShell: false
+resources:
+  cpu: 1
+  memory: 1Gi
+billing:
+  unit: per_token
+  priceKey: storyboard_plan
+  estimate: 0.2
+ui:
+  form: ui/form.json
+  result: storyboard
+tags: [分镜]

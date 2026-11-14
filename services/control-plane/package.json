@@ -22,7 +22,9 @@
   "devDependencies": {
     "@clouddeck/driver-claude-code": "workspace:*",
     "@clouddeck/job-runner": "workspace:*",
+    "@clouddeck/worker-llm": "workspace:*",
     "@clouddeck/worker-tts": "workspace:*",
+    "@clouddeck/worker-video": "workspace:*",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.1.0"

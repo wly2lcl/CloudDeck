@@ -272,6 +272,40 @@ export const auditLogs = pgTable('audit_logs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
 })
 
+export const webhooks = pgTable(
+  'webhooks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    url: text('url').notNull(),
+    secret: text('secret').notNull(),
+    events: jsonb('events').$type<string[]>().notNull().default([]),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [index('webhooks_tenant_idx').on(table.tenantId, table.createdAt)],
+)
+
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    webhookId: uuid('webhook_id').notNull(),
+    event: text('event').notNull(),
+    payload: jsonb('payload').notNull().default({}),
+    status: text('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('webhook_deliveries_tenant_idx').on(table.tenantId, table.createdAt),
+    index('webhook_deliveries_webhook_idx').on(table.webhookId, table.createdAt),
+  ],
+)
+
 export const schemaMigrations = pgTable('schema_migrations', {
   version: text('version').primaryKey(),
   appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().default(now),
@@ -295,5 +329,7 @@ export const schema = {
   quotaLimits,
   quotaUsage,
   auditLogs,
+  webhooks,
+  webhookDeliveries,
   schemaMigrations,
 }

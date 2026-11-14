@@ -108,6 +108,10 @@ runner → 队列(step) → worker → 输出目录 → runner 收集
 
 `workers/tts` 的 provider 通过 `TTS_PROVIDER` 选择：`fake`（默认，确定性 WAV）或 `http`（`TTS_HTTP_URL` + `TTS_HTTP_TOKEN`）。CosyVoice 本地服务与 DashScope 网关都按同一 HTTP 契约接入；未验证的云接口不在代码里硬编码。
 
+`workers/llm`：`script.generate` 与 `storyboard.plan` 共用。默认启发式生成，配置 `LLM_HTTP_URL` / `LLM_MODEL` 后走 OpenAI 兼容接口并解析 JSON；输出格式见能力包 README。
+
+`workers/video`：消费分镜 JSON，生成 BMP 画面、调用 ffmpeg 合成 MP4 与 SRT；`FFMPEG_BIN`、`VIDEO_WIDTH/HEIGHT/FPS` 可配置。ffmpeg 缺失时返回 `FFMPEG_UNAVAILABLE`。
+
 断点与续作：
 
 - 工作区固定为 `<workspaceRoot>/clouddeck-job-<jobId>`，`resumable` 能力失败时保留。

@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "剧本标题（可选）",
+      "default": ""
+    },
+    "style": {
+      "type": "string",
+      "title": "风格提示",
+      "default": "写实、克制，保留原作叙事视角"
+    }
+  }
+}

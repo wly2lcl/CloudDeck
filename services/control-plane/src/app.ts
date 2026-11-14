@@ -10,6 +10,7 @@ import { registerCapabilityRoutes } from './routes/capabilities'
 import { registerJobRoutes } from './routes/jobs'
 import { registerProjectRoutes } from './routes/projects'
 import { registerStorageRoutes } from './routes/storage'
+import { registerWebhookRoutes } from './routes/webhooks'
 
 export interface BuildServerOptions {
   logger?: boolean
@@ -75,6 +76,7 @@ export function buildServer(deps: AppDeps, options: BuildServerOptions = {}): Fa
   registerProjectRoutes(app, deps, guard)
   registerCapabilityRoutes(app, deps, guard)
   registerJobRoutes(app, deps, guard)
+  registerWebhookRoutes(app, deps, guard)
   registerStorageRoutes(app, deps)
 
   return app

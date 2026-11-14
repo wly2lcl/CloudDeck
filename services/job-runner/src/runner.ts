@@ -28,7 +28,13 @@ import {
 import { createMockDriver, MOCK_DRIVER_ID } from '@clouddeck/driver-mock'
 import { LocalSandbox } from '@clouddeck/sandbox'
 import { storageKeyFor, type Storage } from '@clouddeck/storage'
+import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
 import { createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
+import { createVideoDriver, VIDEO_DRIVER_ID } from '@clouddeck/worker-video'
+import { dispatchJobWebhooks, type WebhookDispatchOptions } from './webhooks'
+
+export { dispatchJobWebhooks, signWebhook } from './webhooks'
+export type { WebhookDispatchOptions } from './webhooks'
 
 export type DriverFactory = () => Driver
 
@@ -49,6 +55,13 @@ const DRIVERS: Record<string, DriverFactory> = {
       pricePer1kUsd: Number(process.env.TTS_PRICE_PER_1K_USD ?? 0.002),
       failAtChunk: process.env.TTS_FAIL_AT ? Number(process.env.TTS_FAIL_AT) : undefined,
     }),
+  [LLM_DRIVER_ID]: () => createLlmDriver(),
+  [VIDEO_DRIVER_ID]: () =>
+    createVideoDriver({
+      width: Number(process.env.VIDEO_WIDTH ?? 640),
+      height: Number(process.env.VIDEO_HEIGHT ?? 360),
+      fps: Number(process.env.VIDEO_FPS ?? 25),
+    }),
 }
 
 export function registerDriver(id: string, factory: DriverFactory): void {
@@ -62,6 +75,7 @@ export interface RunnerDeps {
   capabilitiesDir?: string
   env?: NodeJS.ProcessEnv
   workspaceRoot?: string
+  webhooks?: WebhookDispatchOptions
 }
 
 interface Failure {
@@ -78,6 +92,19 @@ async function emit(
   event: JobEvent,
 ): Promise<void> {
   await appendJobEvent(db, job.tenant_id, job.id, event)
+}
+
+async function safeDispatch(
+  deps: RunnerDeps,
+  job: JobRow,
+  event: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await dispatchJobWebhooks(deps.db, job, event, payload, deps.webhooks)
+  } catch (error) {
+    console.error('webhook 投递失败', error)
+  }
 }
 
 async function downloadInputs(
@@ -337,6 +364,7 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
       failure = null
     } else if (!failure && streamEnded) {
       await finalize(deps, job, driver, ctx)
+      await safeDispatch(deps, job, 'job.succeeded', { status: 'succeeded' })
       return { jobId: job.id, status: 'succeeded' }
     } else if (!failure) {
       failure = { code: 'DRIVER_ERROR', message: '驱动未返回 done 事件', retryable: true }
@@ -363,6 +391,7 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
   if (cancelled) {
     await setJobStatus(deps.db, job.id, 'cancelled')
     await emit(deps.db, job, { type: 'log', level: 'warn', message: '任务已取消', at: now() })
+    await safeDispatch(deps, job, 'job.cancelled', { status: 'cancelled' })
     return { jobId: job.id, status: 'cancelled' }
   }
 
@@ -376,6 +405,7 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
     retryable: failure?.retryable ?? true,
     at: now(),
   })
+  await safeDispatch(deps, job, 'job.failed', { status: 'failed', errorCode: code, errorMessage: message })
   return { jobId: job.id, status: 'failed', errorCode: code }
 }
 

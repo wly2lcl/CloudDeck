@@ -762,6 +762,149 @@ export async function setJobOutputs(
   )
 }
 
+export interface AssetLinkRow {
+  from_asset_id: string
+  from_version: number
+  to_asset_id: string
+  to_version: number
+  relation: string
+}
+
+export async function listAssetLinks(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+): Promise<AssetLinkRow[]> {
+  return rows<AssetLinkRow>(
+    db,
+    sql`SELECT from_asset_id, from_version, to_asset_id, to_version, relation
+        FROM asset_links WHERE tenant_id = ${tenantId} AND project_id = ${projectId}`,
+  )
+}
+
+export async function listProjectGraph(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+): Promise<{ assets: AssetRow[]; links: AssetLinkRow[] }> {
+  const [assets, links] = await Promise.all([
+    listAssets(db, tenantId, projectId),
+    listAssetLinks(db, tenantId, projectId),
+  ])
+  return { assets, links }
+}
+
+// ---------------------------------------------------------------------------
+// Webhook
+// ---------------------------------------------------------------------------
+
+export interface WebhookRow {
+  id: string
+  tenant_id: string
+  url: string
+  secret: string
+  events: string[]
+  enabled: boolean
+  created_at: Date
+}
+
+export interface WebhookDeliveryRow {
+  id: string
+  tenant_id: string
+  webhook_id: string
+  event: string
+  payload: Record<string, unknown>
+  status: string
+  attempts: number
+  last_error: string | null
+  created_at: Date
+  delivered_at: Date | null
+}
+
+export async function createWebhook(
+  db: Database,
+  input: { tenantId: string; url: string; secret: string; events: string[] },
+): Promise<WebhookRow> {
+  const row = await one<WebhookRow>(
+    db,
+    sql`INSERT INTO webhooks (tenant_id, url, secret, events)
+        VALUES (${input.tenantId}, ${input.url}, ${input.secret}, ${json(input.events)})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建 webhook 失败')
+  return row
+}
+
+export async function listWebhooks(db: Database, tenantId: string): Promise<WebhookRow[]> {
+  return rows<WebhookRow>(
+    db,
+    sql`SELECT * FROM webhooks WHERE tenant_id = ${tenantId} ORDER BY created_at DESC`,
+  )
+}
+
+export async function deleteWebhook(
+  db: Database,
+  tenantId: string,
+  webhookId: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM webhooks WHERE id = ${webhookId} AND tenant_id = ${tenantId} RETURNING id`,
+  )
+  return row !== null
+}
+
+export async function listEnabledWebhooks(
+  db: Database,
+  tenantId: string,
+  event: string,
+): Promise<WebhookRow[]> {
+  return rows<WebhookRow>(
+    db,
+    sql`SELECT * FROM webhooks
+        WHERE tenant_id = ${tenantId} AND enabled = true
+          AND (events = '[]'::jsonb OR events @> ${json([event])}::jsonb)`,
+  )
+}
+
+export async function createWebhookDelivery(
+  db: Database,
+  input: { tenantId: string; webhookId: string; event: string; payload: Record<string, unknown> },
+): Promise<WebhookDeliveryRow> {
+  const row = await one<WebhookDeliveryRow>(
+    db,
+    sql`INSERT INTO webhook_deliveries (tenant_id, webhook_id, event, payload)
+        VALUES (${input.tenantId}, ${input.webhookId}, ${input.event}, ${json(input.payload)})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建 webhook 投递失败')
+  return row
+}
+
+export async function finishWebhookDelivery(
+  db: Database,
+  input: { deliveryId: string; status: string; attempts: number; lastError?: string | null },
+): Promise<void> {
+  await db.execute(
+    sql`UPDATE webhook_deliveries
+        SET status = ${input.status}, attempts = ${input.attempts},
+            last_error = ${input.lastError ?? null},
+            delivered_at = CASE WHEN ${input.status} = 'delivered' THEN now() ELSE delivered_at END
+        WHERE id = ${input.deliveryId}`,
+  )
+}
+
+export async function listWebhookDeliveries(
+  db: Database,
+  tenantId: string,
+): Promise<WebhookDeliveryRow[]> {
+  return rows<WebhookDeliveryRow>(
+    db,
+    sql`SELECT * FROM webhook_deliveries WHERE tenant_id = ${tenantId}
+        ORDER BY created_at DESC LIMIT 100`,
+  )
+}
+
 export function periodOf(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }

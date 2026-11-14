@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { ContentGraph } from '../../../components/content-graph'
 import { Nav } from '../../../components/nav'
 import {
   ApiError,
@@ -11,10 +12,12 @@ import {
   downloadAsset,
   getAssetContent,
   getAssetUrl,
+  getProjectGraph,
   getToken,
   type Asset,
   type CapabilitySummary,
   type Project,
+  type ProjectGraph,
 } from '../../../lib/api'
 
 const ASSET_TYPES = [
@@ -35,6 +38,7 @@ export default function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
   const [capabilities, setCapabilities] = useState<CapabilitySummary[]>([])
+  const [graph, setGraph] = useState<ProjectGraph>({ assets: [], links: [] })
   const [assetType, setAssetType] = useState('novel_manuscript')
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -48,14 +52,16 @@ export default function ProjectPage() {
 
   const load = useCallback(async () => {
     try {
-      const [projectData, assetData, capabilityData] = await Promise.all([
+      const [projectData, assetData, capabilityData, graphData] = await Promise.all([
         api<Project>(`/v1/projects/${projectId}`),
         api<Asset[]>(`/v1/projects/${projectId}/assets`),
         api<CapabilitySummary[]>('/v1/capabilities'),
+        getProjectGraph(projectId),
       ])
       setProject(projectData)
       setAssets(assetData)
       setCapabilities(capabilityData)
+      setGraph(graphData)
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         clearTokens()
@@ -148,6 +154,17 @@ export default function ProjectPage() {
               {busy ? '上传中…' : '上传'}
             </button>
           </form>
+        </section>
+
+        <section className="panel">
+          <h2>内容链</h2>
+          <ContentGraph
+            graph={graph}
+            onSelect={(assetId) => {
+              const asset = assets.find((item) => item.assetId === assetId)
+              if (asset) void previewAsset(asset)
+            }}
+          />
         </section>
 
         <section className="panel">

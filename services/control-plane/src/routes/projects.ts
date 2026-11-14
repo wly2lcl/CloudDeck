@@ -12,6 +12,7 @@ import {
   linkAssets,
   listAssets,
   listAssetVersions,
+  listProjectGraph,
   listProjects,
   softDeleteProject,
   withTenant,
@@ -117,6 +118,33 @@ export function registerProjectRoutes(
     })
     if (!assets) throw new AppError('NOT_FOUND', '项目不存在')
     return ok(request, assets.map(serializeAsset))
+  })
+
+  app.get('/v1/projects/:id/graph', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const projectId = param(request, 'id')
+    const graph = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const project = await getProject(tx, auth.tenantId, projectId)
+      if (!project) return null
+      return listProjectGraph(tx, auth.tenantId, projectId)
+    })
+    if (!graph) throw new AppError('NOT_FOUND', '项目不存在')
+
+    return ok(request, {
+      assets: graph.assets.map((asset) => ({
+        assetId: asset.id,
+        type: asset.type,
+        name: asset.name,
+        latestVersion: asset.latest_version,
+      })),
+      links: graph.links.map((link) => ({
+        fromAssetId: link.from_asset_id,
+        fromVersion: link.from_version,
+        toAssetId: link.to_asset_id,
+        toVersion: link.to_version,
+        relation: link.relation,
+      })),
+    })
   })
 
   app.post('/v1/projects/:id/assets', { preHandler: guard }, async (request, reply) => {

@@ -1,0 +1,47 @@
+id: video.render
+version: 1.0.0
+name: 视频合成
+description: 将分镜与音频合成为带镜头的视频
+category: video
+icon: video
+inputs:
+  - name: storyboard
+    label: 分镜
+    assetTypes: [storyboard]
+    required: true
+  - name: audio
+    label: 配音
+    assetTypes: [audio_track]
+    required: false
+outputs:
+  - name: video
+    assetType: video
+execution:
+  mode: async
+  resumable: false
+  maxDurationMs: 7200000
+  maxCostUsd: 8
+  concurrency: 1
+credentials:
+  policy: tenant
+driver:
+  kind: pipeline
+  ref: workers/video
+  routing:
+    - driver: workers/video
+permissions:
+  network: []
+  filesystem: workspace-only
+  secrets: []
+  allowShell: true
+resources:
+  cpu: 4
+  memory: 4Gi
+billing:
+  unit: per_minute
+  priceKey: video_render
+  estimate: 0.05
+ui:
+  form: ui/form.json
+  result: video_player
+tags: [视频]

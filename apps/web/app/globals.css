@@ -427,3 +427,37 @@ button:disabled {
   border-radius: 10px;
   background: #0a1017;
 }
+
+.graph-scroll {
+  overflow-x: auto;
+}
+
+.graph {
+  display: block;
+  min-width: 100%;
+}
+
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node rect {
+  fill: #0d131b;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.graph-node:hover rect {
+  stroke: var(--accent);
+}
+
+.graph-title {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.graph-subtitle {
+  fill: var(--muted);
+  font-size: 10px;
+}

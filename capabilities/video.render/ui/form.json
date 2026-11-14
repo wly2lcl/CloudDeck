@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "quality": {
+      "type": "string",
+      "title": "清晰度",
+      "enum": ["360p", "720p"],
+      "default": "360p"
+    }
+  }
+}

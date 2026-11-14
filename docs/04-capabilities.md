@@ -78,6 +78,8 @@ steps:
 | 关键步骤 | 抽取主线与角色 → 分幕 → 分场 → 对白 → 格式校验 |
 | 验收 | 1 万字小说 → 3 幕 12 场剧本，角色名与设定库一致率 100%，场次可按章回溯到原文 |
 
+M4 实现：未配置模型时使用确定性启发式（章节 → 幕/场、提取对白与角色）；配置 `LLM_HTTP_URL` 后走 OpenAI 兼容 `chat/completions` 并要求 JSON。输出 Markdown，场景标题固定为 `### 第 N 场 标题`，供分镜解析。
+
 ## 3. audiobook.render 有声小说生成
 
 | 项 | 内容 |
@@ -109,6 +111,8 @@ M3 实现（`workers/tts`）：
 | 关键步骤 | 场次拆镜 → 镜头描述结构化（景别/机位/时长/画面）→ 一致性校验（角色/服装/场景） |
 | 验收 | 12 场剧本产出 ≥ 40 镜，角色与场景引用 100% 可解析为结构化字段 |
 
+M4 实现：输出 JSON `{title, shots:[{index, scene, description, shotSize, camera, durationMs}]}`；未配置模型时按剧本场景与对白生成每场 N 个镜头。
+
 ## 5. video.render 视频合成
 
 | 项 | 内容 |
@@ -121,6 +125,8 @@ M3 实现（`workers/tts`）：
 | 验收 | 3 分钟成片，音画同步偏差 < 100ms，失败镜头可单独重跑 |
 
 **实现建议**：首版不追求生成式视频，先用「分镜图 + Ken Burns + 转场 + 配音」跑通链路；生成式模型作为可替换的镜头渲染 driver。
+
+M4 实现：逐镜生成 BMP 画面 → ffmpeg `zoompan` 缓推 → concat 拼接 → 可选混入配音；字幕输出独立 SRT（当前 ffmpeg 无 libass，不做烧录）。依赖宿主或镜像内的 ffmpeg（libx264 + aac）。
 
 ## 6. coding.assist AI 编程（M5 可选）
 

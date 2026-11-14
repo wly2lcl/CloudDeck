@@ -61,6 +61,26 @@ export interface JsonSchema {
   >
 }
 
+export interface GraphAsset {
+  assetId: string
+  type: string
+  name: string
+  latestVersion: number
+}
+
+export interface GraphLink {
+  fromAssetId: string
+  fromVersion: number
+  toAssetId: string
+  toVersion: number
+  relation: string
+}
+
+export interface ProjectGraph {
+  assets: GraphAsset[]
+  links: GraphLink[]
+}
+
 export interface Job {
   jobId: string
   projectId: string
@@ -175,6 +195,10 @@ export async function getHealth(): Promise<Envelope<HealthData>> {
   const response = await fetch(`${API_BASE}/healthz`, { cache: 'no-store' })
   if (!response.ok) throw new Error(`控制面返回 ${response.status}`)
   return (await response.json()) as Envelope<HealthData>
+}
+
+export async function getProjectGraph(projectId: string): Promise<ProjectGraph> {
+  return api<ProjectGraph>(`/v1/projects/${projectId}/graph`)
 }
 
 export async function getAssetContent(

@@ -11,16 +11,16 @@
 
 ## 当前状态
 
-M3 有声链路（2026-11-14）：
+M4 内容链（2026-11-14）：
 
-- `workers/tts`：章节/角色切分、音色映射、分块合成、checkpoint、WAV 拼接
-- Provider 契约：`fake`（默认，确定性 WAV）与 `http`（CosyVoice / DashScope 网关）
-- 断点续作：失败保留工作区，`resume` 复用同一 job 只补未完成块
-- 预算：按字符上报用量，沿用 M1 的预算熔断
-- 部署：GPU compose profile，任务页显示成本与进度
-- 测试：65 个后端/驱动用例 + Flutter analyze/test
+- `script.generate`：小说 → 分幕分场剧本（启发式兜底，可接 OpenAI 兼容 LLM）
+- `storyboard.plan`：剧本 → 结构化分镜 JSON
+- `video.render`：分镜 → 逐镜画面 → ffmpeg Ken Burns → MP4 + SRT（可选混入配音）
+- 内容链：`/projects/:id/graph` + Web 分层链路图，点击节点预览
+- Webhook：租户级订阅、HMAC 签名、投递记录与重试
+- 测试：79 个后端/驱动用例 + Flutter analyze/test
 
-实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）。
+实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）。
 
 ## 快速开始
 

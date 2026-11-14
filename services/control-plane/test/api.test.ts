@@ -1,9 +1,24 @@
+import { execFileSync } from 'node:child_process'
+import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CLAUDE_DRIVER_ID, createClaudeCodeDriver } from '@clouddeck/driver-claude-code'
-import { registerDriver, runOnce } from '@clouddeck/job-runner'
+import { registerDriver, runOnce, signWebhook } from '@clouddeck/job-runner'
+import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
 import { createFakeProvider, createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
+import { createVideoDriver, VIDEO_DRIVER_ID } from '@clouddeck/worker-video'
 import { createTestContext, multipartFile, type TestContext } from './helpers'
+
+function hasFfmpeg(): boolean {
+  try {
+    execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+const FFMPEG = hasFfmpeg()
 
 const FAKE_CLAUDE = fileURLToPath(
   new URL('../../../drivers/claude-code/test/fixtures/fake-claude.mjs', import.meta.url),
@@ -348,6 +363,139 @@ describe('M1 端到端', () => {
           event.payload?.message?.includes('跳过已完成'),
         ),
     ).toBe(true)
+  })
+
+  it('script.generate 与 storyboard.plan 串起内容链', async () => {
+    registerDriver(LLM_DRIVER_ID, () => createLlmDriver())
+
+    const scriptJob = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'script.generate',
+        inputs: [{ assetId, version: 1 }],
+        params: {},
+      },
+    })
+    expect(scriptJob.statusCode).toBe(201)
+    expect((await runOnce({ db: ctx.db, storage: ctx.storage }))?.status).toBe('succeeded')
+
+    const afterScript = await api(`/v1/projects/${projectId}/assets`)
+    const scriptAsset = afterScript
+      .json()
+      .data.find((item: { type: string }) => item.type === 'script')
+    expect(scriptAsset).toBeTruthy()
+
+    const storyboardJob = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'storyboard.plan',
+        inputs: [{ assetId: scriptAsset.assetId, version: scriptAsset.latestVersion }],
+        params: { shotsPerScene: 2 },
+      },
+    })
+    expect(storyboardJob.statusCode).toBe(201)
+    expect((await runOnce({ db: ctx.db, storage: ctx.storage }))?.status).toBe('succeeded')
+
+    const afterStoryboard = await api(`/v1/projects/${projectId}/assets`)
+    expect(
+      afterStoryboard.json().data.some((item: { type: string }) => item.type === 'storyboard'),
+    ).toBe(true)
+
+    const graph = await api(`/v1/projects/${projectId}/graph`)
+    expect(graph.json().data.assets.length).toBeGreaterThan(3)
+    expect(graph.json().data.links.length).toBeGreaterThan(0)
+  })
+
+  it.skipIf(!FFMPEG)('video.render 合成可播放视频', async () => {
+    registerDriver(VIDEO_DRIVER_ID, () =>
+      createVideoDriver({ width: 160, height: 90, fps: 10 }),
+    )
+
+    const storyboard = {
+      title: '测试分镜',
+      shots: [
+        { index: 1, description: '雨夜街道', shotSize: '全景', durationMs: 400 },
+        { index: 2, description: '主角特写', shotSize: '特写', durationMs: 400 },
+      ],
+    }
+    const file = multipartFile(JSON.stringify(storyboard), 'storyboard.json')
+    const uploaded = await api(
+      `/v1/projects/${projectId}/assets?type=storyboard&name=storyboard.json`,
+      {
+        method: 'POST',
+        payload: file.body,
+        headers: { 'content-type': file.contentType },
+      },
+    )
+    const storyboardId = uploaded.json().data.assetId
+
+    const created = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'video.render',
+        inputs: [{ assetId: storyboardId, version: 1 }],
+        params: {},
+      },
+    })
+    expect(created.statusCode).toBe(201)
+    expect((await runOnce({ db: ctx.db, storage: ctx.storage }))?.status).toBe('succeeded')
+
+    const assets = await api(`/v1/projects/${projectId}/assets`)
+    expect(assets.json().data.some((item: { type: string }) => item.type === 'video')).toBe(true)
+  }, 60_000)
+
+  it('任务终态触发 webhook 并记录投递', async () => {
+    const received: { body: string; signature: string; timestamp: string }[] = []
+    const server = createServer((request, response) => {
+      let body = ''
+      request.on('data', (chunk) => {
+        body += chunk
+      })
+      request.on('end', () => {
+        received.push({
+          body,
+          signature: String(request.headers['x-clouddeck-signature'] ?? ''),
+          timestamp: String(request.headers['x-clouddeck-timestamp'] ?? ''),
+        })
+        response.writeHead(200)
+        response.end('{}')
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+
+    try {
+      const hook = await api('/v1/webhooks', {
+        method: 'POST',
+        payload: {
+          url: `http://127.0.0.1:${port}/hook`,
+          events: ['job.succeeded'],
+        },
+      })
+      expect(hook.statusCode).toBe(201)
+      const secret = hook.json().data.secret as string
+
+      const created = await api(`/v1/projects/${projectId}/jobs`, {
+        method: 'POST',
+        payload: {
+          capabilityId: 'demo.echo',
+          inputs: [{ assetId, version: 1 }],
+          params: { steps: 2, sleepMs: 5 },
+        },
+      })
+      expect(created.statusCode).toBe(201)
+      expect((await runOnce({ db: ctx.db, storage: ctx.storage }))?.status).toBe('succeeded')
+
+      expect(received).toHaveLength(1)
+      const payload = received[0] as (typeof received)[number]
+      expect(payload.signature).toBe(signWebhook(secret, payload.timestamp, payload.body))
+
+      const deliveries = await api('/v1/webhook-deliveries')
+      expect(deliveries.json().data[0].status).toBe('delivered')
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
   })
 
   it('跨租户访问返回 404', async () => {
