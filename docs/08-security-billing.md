@@ -83,6 +83,9 @@
 - 按 `tenant + period + capability + driver` 聚合。
 - 平台成本（模型采购价）与用户价分离，两者都可能变化，账单只展示用户价。
 - 退款仅针对平台故障导致的全额失败，需管理员审批。
+- 支付回调：`x-payment-signature` 为 `HMAC-SHA256(secret, JSON.stringify(body))`；校验失败返回 403。
+- 限流：全局 `RATE_LIMIT_MAX`（默认 300/分钟），登录/注册 20/分钟，公开分享 120/分钟。
+- 安全头：Helmet 全量响应头；`/metrics` 无鉴权，必须限制在内网或网关后。
 
 ## 只读分享
 

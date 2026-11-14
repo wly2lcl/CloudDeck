@@ -141,6 +141,11 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | POST | `/billing/invoices` | 生成/获取月度账单快照 |
 | GET | `/billing/invoices` | 账单列表 |
 | GET | `/billing/invoices/:id` | 账单详情与快照 |
+| GET | `/billing/invoices/:id/html` | 可打印账单 HTML |
+| POST | `/billing/checkout` | 创建套餐支付单（owner/admin） |
+| POST | `/billing/webhook/:provider` | 支付回调（HMAC 签名，无登录态） |
+| GET | `/billing/payments` | 支付单列表 |
+| POST/DELETE | `/devices`、`/devices/:token` | 注册/删除设备推送令牌 |
 | GET | `/templates/public` | 公开模板市场 |
 | POST | `/templates/public/:id/import` | 导入公开模板 |
 | PATCH | `/templates/:id/public` | 公开/取消公开（owner/admin） |

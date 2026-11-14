@@ -99,7 +99,10 @@ export function registerShareRoutes(
     return ok(request, { revoked: true })
   })
 
-  app.get('/v1/public/shares/:token', async (request) => {
+  app.get(
+    '/v1/public/shares/:token',
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (request) => {
     const share = await resolvePublicShare(deps, param(request, 'token'))
     const data = await withTenant(deps.db, share.tenant_id, async (tx) => {
       const project = await getProject(tx, share.tenant_id, share.project_id)
@@ -110,27 +113,31 @@ export function registerShareRoutes(
     })
     if (!data) throw new AppError('NOT_FOUND', '项目不存在')
 
-    return ok(request, {
-      project: {
-        id: data.project.id,
-        name: data.project.name,
-        description: data.project.description,
-      },
-      assets: data.assets.map((asset) => ({
-        assetId: asset.id,
-        type: asset.type,
-        name: asset.name,
-        latestVersion: asset.latest_version,
-      })),
-      links: data.links.map((link) => ({
-        fromAssetId: link.from_asset_id,
-        toAssetId: link.to_asset_id,
-        relation: link.relation,
-      })),
-    })
-  })
+      return ok(request, {
+        project: {
+          id: data.project.id,
+          name: data.project.name,
+          description: data.project.description,
+        },
+        assets: data.assets.map((asset) => ({
+          assetId: asset.id,
+          type: asset.type,
+          name: asset.name,
+          latestVersion: asset.latest_version,
+        })),
+        links: data.links.map((link) => ({
+          fromAssetId: link.from_asset_id,
+          toAssetId: link.to_asset_id,
+          relation: link.relation,
+        })),
+      })
+    },
+  )
 
-  app.get('/v1/public/shares/:token/assets/:assetId/content', async (request) => {
+  app.get(
+    '/v1/public/shares/:token/assets/:assetId/content',
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (request) => {
     const share = await resolvePublicShare(deps, param(request, 'token'))
     const assetId = param(request, 'assetId')
 
@@ -157,7 +164,8 @@ export function registerShareRoutes(
       throw new AppError('VALIDATION_FAILED', '文件超过 1MB')
     }
 
-    const data = await deps.storage.get(detail.storage_key)
-    return ok(request, { name: result.asset.name, mime: detail.mime, text: data.toString('utf8') })
-  })
+      const data = await deps.storage.get(detail.storage_key)
+      return ok(request, { name: result.asset.name, mime: detail.mime, text: data.toString('utf8') })
+    },
+  )
 }

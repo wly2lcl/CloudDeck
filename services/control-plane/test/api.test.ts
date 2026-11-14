@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { createHmac } from 'node:crypto'
 import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -9,6 +10,7 @@ import { registerDriver, runOnce, signWebhook } from '@clouddeck/job-runner'
 import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
 import { createFakeProvider, createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
 import { createVideoDriver, VIDEO_DRIVER_ID } from '@clouddeck/worker-video'
+import { buildServer } from '../src/app'
 import { createTestContext, multipartFile, type TestContext } from './helpers'
 
 function hasFfmpeg(): boolean {
@@ -677,6 +679,96 @@ describe('M1 端到端', () => {
 
     const detail = await api(`/v1/billing/invoices/${invoiceId}`)
     expect(detail.json().data.snapshot).toBeTruthy()
+  })
+
+  it('支付下单与回调升级套餐', async () => {
+    const checkout = await api('/v1/billing/checkout', {
+      method: 'POST',
+      payload: { tier: 'team' },
+    })
+    expect(checkout.statusCode).toBe(200)
+    const externalId = checkout.json().data.externalId as string
+    expect(externalId).toBeTruthy()
+
+    const body = { externalId, status: 'paid', tier: 'team' }
+    const signature = createHmac('sha256', 'test-payment-secret')
+      .update(JSON.stringify(body))
+      .digest('hex')
+    const webhook = await api('/v1/billing/webhook/mock', {
+      method: 'POST',
+      token: null,
+      payload: body,
+      headers: { 'x-payment-signature': signature },
+    })
+    expect(webhook.statusCode).toBe(200)
+
+    const tenant = await api('/v1/tenant')
+    expect(tenant.json().data.tier).toBe('team')
+
+    const payments = await api('/v1/billing/payments')
+    expect(
+      payments.json().data.some(
+        (item: { externalId?: string; status: string }) => item.status === 'paid',
+      ),
+    ).toBe(true)
+
+    const invalid = await api('/v1/billing/webhook/mock', {
+      method: 'POST',
+      token: null,
+      payload: body,
+      headers: { 'x-payment-signature': 'bad-signature' },
+    })
+    expect(invalid.statusCode).toBe(403)
+  })
+
+  it('设备令牌可注册与删除', async () => {
+    const token = `device-token-${Date.now()}`
+    const created = await api('/v1/devices', {
+      method: 'POST',
+      payload: { platform: 'android', token },
+    })
+    expect(created.statusCode).toBe(201)
+
+    const removed = await api(`/v1/devices/${encodeURIComponent(token)}`, {
+      method: 'DELETE',
+    })
+    expect(removed.statusCode).toBe(200)
+  })
+
+  it('账单可输出可打印 HTML', async () => {
+    const created = await api('/v1/billing/invoices', { method: 'POST', payload: {} })
+    const invoiceId = created.json().data.id
+    const html = await api(`/v1/billing/invoices/${invoiceId}/html`)
+    expect(html.statusCode).toBe(200)
+    expect(html.headers['content-type']).toContain('text/html')
+    expect(html.body).toContain('CloudDeck 月度账单')
+    expect(html.body).toContain('合计')
+  })
+
+  it('安全响应头与登录限流生效', async () => {
+    const health = await api('/healthz', { token: null })
+    expect(health.headers['x-content-type-options']).toBe('nosniff')
+
+    const limited = await buildServer({
+      db: ctx.db,
+      storage: ctx.storage,
+      config: ctx.config,
+    })
+    await limited.ready()
+    try {
+      let limitedStatus = 0
+      for (let i = 0; i < 25; i += 1) {
+        const response = await limited.inject({
+          method: 'POST',
+          url: '/v1/auth/login',
+          payload: { email: 'nobody@example.com', password: 'wrong-password' },
+        })
+        limitedStatus = response.statusCode
+      }
+      expect(limitedStatus).toBe(429)
+    } finally {
+      await limited.close()
+    }
   })
 
   it('指标端点暴露任务与请求计数', async () => {

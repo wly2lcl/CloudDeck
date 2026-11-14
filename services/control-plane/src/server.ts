@@ -39,7 +39,7 @@ async function main(): Promise<void> {
       : undefined,
   })
 
-  const app = buildServer({ db, storage, config }, { logger: true })
+  const app = await buildServer({ db, storage, config }, { logger: true })
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, '正在关闭控制面')

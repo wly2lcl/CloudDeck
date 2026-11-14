@@ -34,6 +34,7 @@ import { storageKeyFor, type Storage } from '@clouddeck/storage'
 import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
 import { createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
 import { createVideoDriver, VIDEO_DRIVER_ID } from '@clouddeck/worker-video'
+import { dispatchJobPush, type PushOptions } from './push'
 import { dispatchJobWebhooks, type WebhookDispatchOptions } from './webhooks'
 
 export { dispatchJobWebhooks, signWebhook } from './webhooks'
@@ -80,6 +81,7 @@ export interface RunnerDeps {
   workspaceRoot?: string
   credentialsKey?: string
   webhooks?: WebhookDispatchOptions
+  push?: PushOptions
 }
 
 const PROVIDER_ENV: Record<string, string[]> = {
@@ -155,6 +157,22 @@ async function safeDispatch(
     await dispatchJobWebhooks(deps.db, job, event, payload, deps.webhooks)
   } catch (error) {
     console.error('webhook 投递失败', error)
+  }
+
+  try {
+    const succeeded = event === 'job.succeeded'
+    await dispatchJobPush(
+      deps.db,
+      job,
+      {
+        title: succeeded ? '任务完成' : event === 'job.cancelled' ? '任务已取消' : '任务失败',
+        body: `${job.capability_id} ${succeeded ? '已完成' : event === 'job.cancelled' ? '已取消' : '执行失败'}`,
+        event,
+      },
+      deps.push,
+    )
+  } catch (error) {
+    console.error('推送投递失败', error)
   }
 }
 

@@ -1498,6 +1498,122 @@ export async function globalUsageTotal(db: Database): Promise<number> {
   return Number(row?.total ?? 0)
 }
 
+export interface PaymentRow {
+  id: string
+  tenant_id: string
+  provider: string
+  external_id: string
+  tier: string
+  amount_usd: string
+  status: string
+  created_at: Date
+  updated_at: Date
+}
+
+export async function createPayment(
+  db: Database,
+  input: {
+    tenantId: string
+    provider: string
+    externalId: string
+    tier: string
+    amountUsd: number
+  },
+): Promise<PaymentRow> {
+  const row = await one<PaymentRow>(
+    db,
+    sql`INSERT INTO payments (tenant_id, provider, external_id, tier, amount_usd)
+        VALUES (${input.tenantId}, ${input.provider}, ${input.externalId}, ${input.tier}, ${input.amountUsd})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建支付单失败')
+  return row
+}
+
+export interface PublicPaymentRow {
+  id: string
+  tenant_id: string
+  tier: string
+  status: string
+}
+
+export async function getPaymentByExternalId(
+  db: Database,
+  provider: string,
+  externalId: string,
+): Promise<PublicPaymentRow | null> {
+  return one<PublicPaymentRow>(
+    db,
+    sql`SELECT * FROM find_payment_by_external(${provider}, ${externalId})`,
+  )
+}
+
+export async function listPayments(db: Database, tenantId: string): Promise<PaymentRow[]> {
+  return rows<PaymentRow>(
+    db,
+    sql`SELECT * FROM payments WHERE tenant_id = ${tenantId} ORDER BY created_at DESC LIMIT 100`,
+  )
+}
+
+export async function updatePaymentStatus(
+  db: Database,
+  paymentId: string,
+  status: string,
+): Promise<void> {
+  await db.execute(
+    sql`UPDATE payments SET status = ${status}, updated_at = now() WHERE id = ${paymentId}`,
+  )
+}
+
+export interface DeviceTokenRow {
+  id: string
+  tenant_id: string
+  user_id: string
+  platform: string
+  token: string
+  created_at: Date
+  last_seen_at: Date
+}
+
+export async function upsertDeviceToken(
+  db: Database,
+  input: { tenantId: string; userId: string; platform: string; token: string },
+): Promise<DeviceTokenRow> {
+  const row = await one<DeviceTokenRow>(
+    db,
+    sql`INSERT INTO device_tokens (tenant_id, user_id, platform, token)
+        VALUES (${input.tenantId}, ${input.userId}, ${input.platform}, ${input.token})
+        ON CONFLICT (token) DO UPDATE SET
+          tenant_id = EXCLUDED.tenant_id, user_id = EXCLUDED.user_id,
+          platform = EXCLUDED.platform, last_seen_at = now()
+        RETURNING *`,
+  )
+  if (!row) throw new Error('注册设备失败')
+  return row
+}
+
+export async function deleteDeviceToken(
+  db: Database,
+  tenantId: string,
+  token: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM device_tokens WHERE tenant_id = ${tenantId} AND token = ${token} RETURNING id`,
+  )
+  return row !== null
+}
+
+export async function listDeviceTokens(
+  db: Database,
+  tenantId: string,
+): Promise<DeviceTokenRow[]> {
+  return rows<DeviceTokenRow>(
+    db,
+    sql`SELECT * FROM device_tokens WHERE tenant_id = ${tenantId} ORDER BY last_seen_at DESC`,
+  )
+}
+
 export function periodOf(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }

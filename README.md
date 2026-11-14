@@ -29,7 +29,11 @@ M5 商业化核心（2026-11-14）：
 - 可观测性：`/metrics` 暴露任务、用量与请求计数
 - 沙箱：支持 `SANDBOX_RUNTIME=runsc`（gVisor），`pnpm sandbox:check` 预检
 - 模板市场：公开/导入模板；评论支持 SSE 实时流
-- 测试：105 个后端/驱动用例 + Flutter analyze/test
+- 支付：mock/http provider、回调签名、套餐升级；账单可打印 HTML
+- 推送：设备令牌注册，任务终态推送（mock/http 网关）
+- 安全：Helmet、全局与登录/公开分享限流
+- 负载：`pnpm load:test`，本机单实例实测 4,053 rps、p95 7ms、0 错误
+- 测试：110 个后端/驱动用例 + Flutter analyze/test
 
 实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）、[ADR-0013](docs/adr/0013-m5-commercial.md)（商业化核心）。
 
@@ -112,6 +116,7 @@ flutter run --dart-define=API_BASE=http://<你的局域网IP>:4310
 | [10 路线图](docs/10-roadmap.md) | M0–M5 里程碑与退出标准 |
 | [11 开发计划](docs/11-dev-plan.md) | 迭代任务、验收标准、工期 |
 | [12 风险与待决策](docs/12-risks.md) | 风险登记、触发信号、待确认事项 |
+| [13 合规评审](docs/13-compliance.md) | 协议、版权、声音授权、审核、开票现状 |
 
 架构决策记录见 [docs/adr/](docs/adr/)。
 

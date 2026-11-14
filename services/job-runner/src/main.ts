@@ -51,6 +51,11 @@ async function main(): Promise<void> {
     workspaceRoot: process.env.WORKSPACE_ROOT ?? tmpdir(),
     credentialsKey: process.env.CREDENTIALS_KEY ?? process.env.AUTH_SECRET,
     env: process.env,
+    push: {
+      provider: process.env.PUSH_PROVIDER === 'http' ? 'http' : 'mock',
+      url: process.env.PUSH_HTTP_URL,
+      token: process.env.PUSH_HTTP_TOKEN,
+    },
   })
   console.log('job-runner 已启动')
 

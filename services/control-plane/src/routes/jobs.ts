@@ -439,6 +439,40 @@ export function registerJobRoutes(
     })
   })
 
+  app.get('/v1/billing/invoices/:id/html', { preHandler: guard }, async (request, reply) => {
+    const auth = requireAuth(request)
+    const invoice = await withTenant(deps.db, auth.tenantId, (tx) =>
+      getInvoice(tx, auth.tenantId, param(request, 'id')),
+    )
+    if (!invoice) throw new AppError('NOT_FOUND', '账单不存在')
+
+    const snapshot = invoice.snapshot as {
+      items?: { capabilityId: string; driverId: string; quantity: number; amountUsd: number }[]
+    }
+    const escape = (value: unknown) =>
+      String(value).replace(/[&<>"']/g, (char) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] as string,
+      )
+    const rows = (snapshot.items ?? [])
+      .map(
+        (item) =>
+          `<tr><td>${escape(item.capabilityId)}</td><td>${escape(item.driverId)}</td><td>${escape(item.quantity)}</td><td>${escape(item.amountUsd)}</td></tr>`,
+      )
+      .join('')
+
+    reply.type('text/html; charset=utf-8')
+    return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>账单 ${escape(invoice.period)}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;color:#111}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}</style>
+</head><body>
+<h1>CloudDeck 月度账单</h1>
+<p>账期：${escape(invoice.period)} · 任务数：${invoice.job_count} · 状态：${escape(invoice.status)}</p>
+<table><thead><tr><th>能力</th><th>驱动</th><th>数量</th><th>金额（USD）</th></tr></thead><tbody>${rows}</tbody></table>
+<p style="margin-top:24px"><strong>合计：${Number(invoice.total_usd).toFixed(4)} USD</strong></p>
+<p style="color:#666">本页可直接打印为 PDF；税务发票需通过合规开票服务生成。</p>
+</body></html>`
+  })
+
   app.get('/v1/billing/summary', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
     const period = queryString(request, 'period') ?? periodOf()

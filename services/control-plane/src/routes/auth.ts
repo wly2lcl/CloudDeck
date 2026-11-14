@@ -73,7 +73,10 @@ export function registerAuthRoutes(
   deps: AppDeps,
   guard: (request: FastifyRequest) => Promise<void>,
 ): void {
-  app.post('/v1/auth/register', async (request, reply) => {
+  app.post(
+    '/v1/auth/register',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
     const body = parseBody(registerSchema, request.body)
     if (await findUserByEmail(deps.db, body.email)) {
       throw new AppError('VALIDATION_FAILED', '邮箱已注册')
@@ -102,15 +105,19 @@ export function registerAuthRoutes(
       ip: request.ip,
     })
 
-    reply.status(201)
-    return ok(request, {
-      user: { id: user.id, email: user.email, displayName: user.display_name },
-      tenants: [{ ...tenant, role: 'owner' }],
-      ...tokens,
-    })
-  })
+      reply.status(201)
+      return ok(request, {
+        user: { id: user.id, email: user.email, displayName: user.display_name },
+        tenants: [{ ...tenant, role: 'owner' }],
+        ...tokens,
+      })
+    },
+  )
 
-  app.post('/v1/auth/login', async (request) => {
+  app.post(
+    '/v1/auth/login',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
     const body = parseBody(loginSchema, request.body)
     const user = await findUserByEmail(deps.db, body.email)
     if (!user || !verifyPassword(body.password, user.password_hash)) {
@@ -131,18 +138,19 @@ export function registerAuthRoutes(
       ip: request.ip,
     })
 
-    return ok(request, {
-      user: { id: user.id, email: user.email, displayName: user.display_name },
-      tenant: {
-        id: membership.tenant_id,
-        name: membership.name,
-        slug: membership.slug,
-        tier: membership.tier,
-        role: membership.role,
-      },
-      ...tokens,
-    })
-  })
+      return ok(request, {
+        user: { id: user.id, email: user.email, displayName: user.display_name },
+        tenant: {
+          id: membership.tenant_id,
+          name: membership.name,
+          slug: membership.slug,
+          tier: membership.tier,
+          role: membership.role,
+        },
+        ...tokens,
+      })
+    },
+  )
 
   app.post('/v1/auth/refresh', async (request) => {
     const body = parseBody(refreshSchema, request.body)

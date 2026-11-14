@@ -36,6 +36,10 @@ export async function createTestContext(): Promise<TestContext> {
     databaseUrl: 'unused',
     storageLocalSecret: 'test-secret',
     storageDir: storageRoot,
+    paymentProvider: 'mock',
+    paymentSecret: 'test-payment-secret',
+    pushProvider: 'mock',
+    rateLimitMax: 10_000,
   }
 
   await syncCapabilities(db, CAPABILITIES_DIR)
@@ -45,7 +49,7 @@ export async function createTestContext(): Promise<TestContext> {
     secret: config.storageLocalSecret,
     publicBase: config.publicApiBase,
   })
-  const app = buildServer({ db, storage, config })
+  const app = await buildServer({ db, storage, config })
   await app.ready()
 
   return {

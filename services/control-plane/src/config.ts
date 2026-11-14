@@ -12,6 +12,14 @@ export interface AppConfig {
   databaseUrl: string
   storageLocalSecret: string
   storageDir: string
+  paymentProvider: 'mock' | 'http'
+  paymentSecret: string
+  paymentHttpUrl?: string
+  paymentHttpToken?: string
+  pushProvider: 'mock' | 'http'
+  pushHttpUrl?: string
+  pushHttpToken?: string
+  rateLimitMax: number
 }
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
@@ -36,5 +44,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       env.DATABASE_URL ?? 'postgres://clouddeck:clouddeck@localhost:5432/clouddeck',
     storageLocalSecret: env.STORAGE_LOCAL_SECRET ?? env.AUTH_SECRET ?? 'dev-secret-change-me',
     storageDir: env.STORAGE_DIR ?? `${REPO_ROOT}.data/storage`,
+    paymentProvider: env.PAYMENT_PROVIDER === 'http' ? 'http' : 'mock',
+    paymentSecret: env.PAYMENT_WEBHOOK_SECRET ?? env.AUTH_SECRET ?? 'dev-secret-change-me',
+    paymentHttpUrl: env.PAYMENT_HTTP_URL,
+    paymentHttpToken: env.PAYMENT_HTTP_TOKEN,
+    pushProvider: env.PUSH_PROVIDER === 'http' ? 'http' : 'mock',
+    pushHttpUrl: env.PUSH_HTTP_URL,
+    pushHttpToken: env.PUSH_HTTP_TOKEN,
+    rateLimitMax: Number(env.RATE_LIMIT_MAX ?? 300),
   }
 }

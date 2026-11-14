@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -363,6 +364,42 @@ export const modelCredentials = pgTable(
   ],
 )
 
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    provider: text('provider').notNull(),
+    externalId: text('external_id').notNull(),
+    tier: text('tier').notNull(),
+    amountUsd: numeric('amount_usd', { precision: 12, scale: 4 }).notNull().default('0'),
+    status: text('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [
+    index('payments_tenant_idx').on(table.tenantId, table.createdAt),
+    uniqueIndex('payments_external_idx').on(table.provider, table.externalId),
+  ],
+)
+
+export const deviceTokens = pgTable(
+  'device_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    platform: text('platform').notNull(),
+    token: text('token').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [
+    index('device_tokens_tenant_idx').on(table.tenantId, table.userId),
+    uniqueIndex('device_tokens_token_idx').on(table.token),
+  ],
+)
+
 export const invoices = pgTable(
   'invoices',
   {
@@ -423,5 +460,7 @@ export const schema = {
   comments,
   modelCredentials,
   invoices,
+  payments,
+  deviceTokens,
   schemaMigrations,
 }

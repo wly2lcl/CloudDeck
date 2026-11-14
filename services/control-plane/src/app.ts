@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
+import rateLimit from '@fastify/rate-limit'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { globalJobStatusCounts, globalUsageTotal } from '@clouddeck/db'
 import { authGuard } from './auth'
@@ -10,6 +12,8 @@ import { registerAuthRoutes } from './routes/auth'
 import { registerCapabilityRoutes } from './routes/capabilities'
 import { registerCommentRoutes } from './routes/comments'
 import { registerCredentialRoutes } from './routes/credentials'
+import { registerDeviceRoutes } from './routes/devices'
+import { registerPaymentRoutes } from './routes/payments'
 import { registerJobRoutes } from './routes/jobs'
 import { registerProjectRoutes } from './routes/projects'
 import { registerShareRoutes } from './routes/shares'
@@ -22,7 +26,10 @@ export interface BuildServerOptions {
   logger?: boolean
 }
 
-export function buildServer(deps: AppDeps, options: BuildServerOptions = {}): FastifyInstance {
+export async function buildServer(
+  deps: AppDeps,
+  options: BuildServerOptions = {},
+): Promise<FastifyInstance> {
   const app = Fastify({
     logger: options.logger ?? false,
     genReqId: () => randomUUID(),
@@ -31,13 +38,19 @@ export function buildServer(deps: AppDeps, options: BuildServerOptions = {}): Fa
 
   app.decorateRequest('auth', null)
 
-  app.register(cors, {
+  await app.register(cors, {
     origin: deps.config.webOrigin,
     credentials: true,
   })
 
-  app.register(multipart, {
+  await app.register(multipart, {
     limits: { fileSize: 100 * 1024 * 1024, files: 1 },
+  })
+
+  await app.register(helmet, { contentSecurityPolicy: false })
+  await app.register(rateLimit, {
+    max: deps.config.rateLimitMax,
+    timeWindow: '1 minute',
   })
 
   const requestCounts = new Map<string, number>()
@@ -122,6 +135,8 @@ export function buildServer(deps: AppDeps, options: BuildServerOptions = {}): Fa
   registerTenantRoutes(app, deps, guard)
   registerCommentRoutes(app, deps, guard)
   registerCredentialRoutes(app, deps, guard)
+  registerDeviceRoutes(app, deps, guard)
+  registerPaymentRoutes(app, deps, guard)
   registerTemplateRoutes(app, deps, guard)
   registerShareRoutes(app, deps, guard)
   registerWebhookRoutes(app, deps, guard)

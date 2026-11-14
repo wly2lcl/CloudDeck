@@ -15,7 +15,9 @@
     "@clouddeck/secrets": "workspace:*",
     "@clouddeck/storage": "workspace:*",
     "@fastify/cors": "^11.4.3",
+    "@fastify/helmet": "^13.2.0",
     "@fastify/multipart": "^10.1.8",
+    "@fastify/rate-limit": "^11.2.2",
     "fastify": "^5.12.8",
     "jose": "^6.2.17",
     "zod": "^4.6.7"
