@@ -1,5 +1,7 @@
 # CloudDeck
 
+[![CI](https://github.com/wly2lcl/CloudDeck/actions/workflows/ci.yml/badge.svg)](https://github.com/wly2lcl/CloudDeck/actions/workflows/ci.yml)
+
 面向创作者与内容团队的 AI 内容生产工作台，Web 与移动端同源。
 
 核心主张两条：
