@@ -1,0 +1,30 @@
+id: storyboard.plan
+version: 1.0.0
+name: 分镜规划
+description: 将剧本拆解为分镜
+category: video
+inputs:
+  - name: script
+    assetTypes: [script]
+outputs:
+  - name: storyboard
+    assetType: storyboard
+execution:
+  mode: async
+  maxDurationMs: 3600000
+  maxCostUsd: 1
+credentials: {}
+driver:
+  kind: llm
+  ref: workers/llm
+  routing:
+    - driver: llm-default
+permissions: {}
+resources: {}
+billing:
+  unit: per_token
+  priceKey: storyboard
+  estimate: 0.1
+ui:
+  form: ui/form.json
+  result: storyboard

@@ -1,0 +1,30 @@
+id: video.render
+version: 1.0.0
+name: 非法资产类型
+description: outputs 使用了不存在的 assetType
+category: video
+inputs:
+  - name: storyboard
+    assetTypes: [storyboard]
+outputs:
+  - name: video
+    assetType: audio
+execution:
+  mode: async
+  maxDurationMs: 1000
+  maxCostUsd: 1
+credentials: {}
+driver:
+  kind: pipeline
+  ref: workers/video
+  routing:
+    - driver: video
+permissions: {}
+resources: {}
+billing:
+  unit: per_minute
+  priceKey: video
+  estimate: 0
+ui:
+  form: ui/form.json
+  result: video_player

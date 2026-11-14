@@ -11,7 +11,33 @@
 
 ## 当前状态
 
-文档阶段（2026-11-14）。代码尚未开始，仓库中只有本文档体系。
+M0 骨架（2026-11-14）：契约包、控制面健康检查与错误信封、Web 占位页、本地 compose、CI 与依赖边界规则已落地。业务功能尚未开始。
+
+## 快速开始
+
+环境：Node >= 22、pnpm 10；Docker 可选，用于本地依赖。
+
+```sh
+pnpm install
+pnpm dev        # 控制面 :4310 + Web :3000
+```
+
+本地依赖（Postgres / Redis / MinIO）：
+
+```sh
+cd infra/compose && cp .env.example .env && docker compose up -d
+```
+
+常用命令：
+
+| 命令 | 说明 |
+|---|---|
+| `pnpm dev` | 并行启动控制面与 Web |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | 全仓类型检查 |
+| `pnpm test` | 单元/契约测试 + 边界自测 |
+| `pnpm boundaries` | 依赖边界扫描 |
+| `pnpm check` | 以上全部 |
 
 ## 文档索引
 

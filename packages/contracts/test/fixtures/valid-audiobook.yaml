@@ -1,0 +1,52 @@
+id: audiobook.render
+version: 1.2.0
+name: 有声小说生成
+description: 将稿件按章节合成为多角色有声书
+category: audio
+icon: audio-book
+inputs:
+  - name: manuscript
+    label: 稿件
+    assetTypes: [novel_manuscript, script]
+    required: true
+  - name: voiceMap
+    label: 角色音色映射
+    assetTypes: [voice_profile]
+    required: false
+outputs:
+  - name: audio
+    assetType: audio_track
+    multiple: true
+execution:
+  mode: async
+  resumable: true
+  maxDurationMs: 21600000
+  maxCostUsd: 5
+  concurrency: 4
+credentials:
+  policy: tenant
+driver:
+  kind: pipeline
+  ref: workers/tts
+  routing:
+    - when: { tenantTier: pro, gpu: true }
+      driver: tts-local
+    - driver: tts-cloud
+permissions:
+  network: [dashscope.aliyuncs.com]
+  filesystem: workspace-only
+  secrets: [DASHSCOPE_API_KEY]
+  allowShell: false
+resources:
+  cpu: 2
+  memory: 4Gi
+  gpu: optional
+billing:
+  unit: per_1k_chars
+  priceKey: audiobook_tts
+  estimate: 0.002
+ui:
+  form: ui/form.json
+  result: audio_player
+  preview: ui/preview.md
+tags: [有声, 批量]

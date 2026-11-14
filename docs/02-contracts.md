@@ -54,8 +54,7 @@ driver:
   routing:
     - when: { tenantTier: pro, gpu: true }
       driver: tts-local
-    - default:
-      driver: tts-cloud
+    - driver: tts-cloud
 
 permissions:
   network: [dashscope.aliyuncs.com]
@@ -161,7 +160,7 @@ export interface ArtifactSpec {
 export type JobEvent =
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; message: string; at: string }
   | { type: 'progress'; percent: number; message?: string; at: string }
-  | { type: 'partial'; name: string; type: AssetType; path: string; index?: number; at: string }
+  | { type: 'partial'; name: string; assetType: AssetType; path: string; index?: number; at: string }
   | { type: 'artifact'; spec: ArtifactSpec; at: string }
   | { type: 'usage'; inputTokens?: number; outputTokens?: number; chars?: number; costUsd: number; at: string }
   | { type: 'error'; code: string; message: string; retryable: boolean; at: string }
@@ -202,7 +201,7 @@ export interface AssetRef {
 
 ## 5. Job 状态机
 
-```
+```text
 queued → provisioning → running → finalizing → succeeded
    │           │            │           │
    ├───────────┴────────────┴───────────┴──→ failed
@@ -216,7 +215,7 @@ queued → provisioning → running → finalizing → succeeded
 
 ## 6. SSE 帧
 
-```
+```text
 id: 1042
 event: job.event
 data: {"seq":1042,"type":"progress","percent":37,"at":"2026-11-14T09:12:03Z"}

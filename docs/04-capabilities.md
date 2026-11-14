@@ -126,7 +126,7 @@ steps:
 
 ## 内容链优先级
 
-```
+```text
 story_bible ─→ novel_manuscript ─→ script ─→ storyboard ─→ video
                         └────────→ voice_profile ─→ audio_track ─┘
 ```

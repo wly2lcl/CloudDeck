@@ -1,0 +1,31 @@
+id: audiobook.render
+version: 1.0.0
+name: 缺少默认路由
+description: routing 只有条件项，没有默认项
+category: audio
+inputs:
+  - name: manuscript
+    assetTypes: [novel_manuscript]
+outputs:
+  - name: audio
+    assetType: audio_track
+execution:
+  mode: async
+  maxDurationMs: 1000
+  maxCostUsd: 1
+credentials: {}
+driver:
+  kind: pipeline
+  ref: workers/tts
+  routing:
+    - when: { gpu: true }
+      driver: tts-local
+permissions: {}
+resources: {}
+billing:
+  unit: per_1k_chars
+  priceKey: demo
+  estimate: 0
+ui:
+  form: ui/form.json
+  result: audio_player

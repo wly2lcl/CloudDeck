@@ -67,7 +67,7 @@ claude -p \
 
 数据流：
 
-```
+```text
 runner → 队列(step) → worker → 输出目录 → runner 收集
 ```
 

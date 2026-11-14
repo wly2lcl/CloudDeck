@@ -1,0 +1,43 @@
+id: novel.edit
+version: 1.0.0
+name: 小说编辑协助
+description: 续写、改写与一致性检查
+category: writing
+inputs:
+  - name: manuscript
+    assetTypes: [novel_manuscript]
+  - name: storyBible
+    assetTypes: [story_bible]
+    required: false
+outputs:
+  - name: manuscript
+    assetType: novel_manuscript
+  - name: annotations
+    assetType: document
+execution:
+  mode: async
+  resumable: false
+  maxDurationMs: 1800000
+  maxCostUsd: 2
+credentials:
+  policy: tenant
+driver:
+  kind: agent-cli
+  ref: drivers/claude-code
+  routing:
+    - when: { tenantTier: team }
+      driver: claude-code
+    - driver: llm-default
+permissions:
+  network: []
+  secrets: [ANTHROPIC_API_KEY]
+resources:
+  cpu: 1
+  memory: 2Gi
+billing:
+  unit: per_token
+  priceKey: novel_edit
+  estimate: 0.5
+ui:
+  form: ui/form.json
+  result: text_diff

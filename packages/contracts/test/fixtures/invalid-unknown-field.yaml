@@ -1,0 +1,32 @@
+id: novel.edit
+version: 1.0.0
+name: 未知字段
+description: 能力包不得声明平台未支持的字段
+category: writing
+inputs:
+  - name: manuscript
+    assetTypes: [novel_manuscript]
+outputs:
+  - name: manuscript
+    assetType: novel_manuscript
+execution:
+  mode: async
+  maxDurationMs: 1000
+  maxCostUsd: 1
+credentials: {}
+driver:
+  kind: llm
+  ref: workers/llm
+  routing:
+    - driver: llm
+permissions: {}
+resources: {}
+billing:
+  unit: per_token
+  priceKey: demo
+  estimate: 0
+ui:
+  form: ui/form.json
+  result: text_diff
+unknownSection:
+  enabled: true

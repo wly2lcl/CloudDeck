@@ -118,7 +118,7 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 
 ## SSE
 
-```
+```text
 GET /v1/jobs/:id/events
 Accept: text/event-stream
 Last-Event-ID: 1042

@@ -1,0 +1,30 @@
+id: Audiobook.Render
+version: 1.0.0
+name: 非法 ID
+description: id 必须是小写点分格式
+category: audio
+inputs:
+  - name: manuscript
+    assetTypes: [novel_manuscript]
+outputs:
+  - name: audio
+    assetType: audio_track
+execution:
+  mode: async
+  maxDurationMs: 1000
+  maxCostUsd: 1
+credentials: {}
+driver:
+  kind: pipeline
+  ref: workers/tts
+  routing:
+    - driver: tts
+permissions: {}
+resources: {}
+billing:
+  unit: per_job
+  priceKey: demo
+  estimate: 0
+ui:
+  form: ui/form.json
+  result: audio_player

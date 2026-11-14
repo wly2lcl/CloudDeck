@@ -21,6 +21,8 @@
 
 ## 第 1 周：M0 骨架
 
+> 状态：已完成（2026-11-14）。P0-01～P0-06 与契约/边界测试已落地；ADR 共 9 条（含追加的 Flutter、商业化为、第三方合规）。
+
 | ID | 任务 | 产出 | 验收 | 估时 |
 |---|---|---|---|---|
 | P0-01 | monorepo 脚手架 | pnpm workspace、tsconfig、eslint、prettier | `pnpm lint/typecheck` 通过 | 1 |
