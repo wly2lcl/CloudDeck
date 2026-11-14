@@ -1,62 +1,50 @@
-import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
-import cors from '@fastify/cors'
-import Fastify, { type FastifyInstance } from 'fastify'
-import { loadConfig } from './config.js'
-import { AppError, errorEnvelope } from './errors.js'
-
-export interface BuildServerOptions {
-  logger?: boolean
-  webOrigin?: string
-}
-
-export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
-  const config = loadConfig()
-  const app = Fastify({ logger: options.logger ?? false, genReqId: () => randomUUID() })
-
-  app.register(cors, {
-    origin: options.webOrigin ?? config.webOrigin,
-    credentials: true,
-  })
-
-  app.addHook('onRequest', async (request, reply) => {
-    reply.header('x-request-id', request.id)
-  })
-
-  app.setErrorHandler((error, request, reply) => {
-    if (error instanceof AppError) {
-      reply.status(error.statusCode).send(errorEnvelope(error.code, error.message, request.id, error.details))
-      return
-    }
-
-    request.log.error({ err: error }, '未处理错误')
-    reply.status(500).send(errorEnvelope('INTERNAL', '服务器内部错误', request.id))
-  })
-
-  app.setNotFoundHandler((request, reply) => {
-    reply.status(404).send(errorEnvelope('NOT_FOUND', '资源不存在', request.id))
-  })
-
-  app.get('/healthz', async (request) => ({
-    data: {
-      status: 'ok',
-      service: 'control-plane',
-      version: '0.1.0',
-      time: new Date().toISOString(),
-    },
-    requestId: request.id,
-  }))
-
-  return app
-}
+import { createDb, migrate } from '@clouddeck/db'
+import { createStorage } from '@clouddeck/storage'
+import { buildServer } from './app'
+import { loadConfig } from './config'
+import { syncCapabilities } from './registry'
 
 async function main(): Promise<void> {
   const config = loadConfig()
-  const app = buildServer({ logger: true, webOrigin: config.webOrigin })
+  const { db, close } = createDb(config.databaseUrl)
+
+  await migrate(db)
+
+  const sync = await syncCapabilities(db, config.capabilitiesDir)
+  if (sync.errors.length > 0) {
+    for (const error of sync.errors) {
+      console.error(`能力加载失败 ${error.directory}: ${error.message}`)
+    }
+    await close()
+    process.exit(1)
+  }
+  console.log(`已加载能力: ${sync.loaded.join(', ') || '(无)'}`)
+
+  const useS3 = Boolean(process.env.S3_BUCKET)
+  const storage = createStorage({
+    driver: useS3 ? 's3' : 'local',
+    localRoot: config.storageDir,
+    secret: config.storageLocalSecret,
+    publicBase: config.publicApiBase,
+    s3: useS3
+      ? {
+          endpoint: process.env.S3_ENDPOINT,
+          region: process.env.S3_REGION ?? 'us-east-1',
+          bucket: process.env.S3_BUCKET ?? 'clouddeck',
+          accessKeyId: process.env.S3_ACCESS_KEY ?? '',
+          secretAccessKey: process.env.S3_SECRET_KEY ?? '',
+          forcePathStyle: true,
+        }
+      : undefined,
+  })
+
+  const app = buildServer({ db, storage, config }, { logger: true })
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, '正在关闭控制面')
     await app.close()
+    await close()
     process.exit(0)
   }
 

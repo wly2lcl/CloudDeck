@@ -10,12 +10,242 @@ export interface HealthData {
   time: string
 }
 
+export interface Project {
+  id: string
+  name: string
+  description: string | null
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Asset {
+  assetId: string
+  projectId: string
+  type: string
+  name: string
+  mime: string
+  size: number
+  latestVersion: number
+  createdAt: string
+}
+
+export interface CapabilitySummary {
+  id: string
+  version: string
+  name: string
+  category: string
+  description: string
+  icon: string | null
+  tags: string[]
+  estimate: number
+  unit: string
+  ui: { form: string; result: string }
+}
+
+export interface CapabilityDetail extends CapabilitySummary {
+  manifest: {
+    inputs: { name: string; label?: string; assetTypes: string[]; required: boolean }[]
+    outputs: { name: string; assetType: string; multiple: boolean }[]
+    execution: { mode: string; maxDurationMs: number; maxCostUsd: number }
+    billing: { unit: string; estimate: number }
+  }
+  form: JsonSchema | null
+}
+
+export interface JsonSchema {
+  type: string
+  properties?: Record<
+    string,
+    { type?: string; title?: string; default?: unknown; minimum?: number; maximum?: number; enum?: string[] }
+  >
+}
+
+export interface Job {
+  jobId: string
+  projectId: string
+  capabilityId: string
+  capabilityVersion: string
+  status: string
+  driverId: string
+  params: Record<string, unknown>
+  inputs: { assetId: string; version: number }[]
+  outputs: { assetId: string; version: number; name: string; type: string }[]
+  estimatedCostUsd: number
+  actualCostUsd: number
+  errorCode: string | null
+  errorMessage: string | null
+  cancelRequested: boolean
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface JobEvent {
+  seq: number
+  type: 'log' | 'progress' | 'partial' | 'artifact' | 'usage' | 'error' | 'done'
+  percent?: number
+  message?: string
+  level?: string
+  costUsd?: number
+  code?: string
+  at: string
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:4310'
+const ACCESS_KEY = 'clouddeck.access'
+const REFRESH_KEY = 'clouddeck.refresh'
+
+export class ApiError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+export function setTokens(accessToken: string, refreshToken: string): void {
+  localStorage.setItem(ACCESS_KEY, accessToken)
+  localStorage.setItem(REFRESH_KEY, refreshToken)
+}
+
+export function clearTokens(): void {
+  localStorage.removeItem(ACCESS_KEY)
+  localStorage.removeItem(REFRESH_KEY)
+}
+
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(ACCESS_KEY)
+}
+
+export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(REFRESH_KEY)
+}
+
+interface RequestOptions {
+  method?: 'GET' | 'POST' | 'DELETE'
+  body?: unknown
+  formData?: FormData
+  auth?: boolean
+}
+
+export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (options.auth !== false) {
+    const token = getToken()
+    if (token) headers.authorization = `Bearer ${token}`
+  }
+
+  let body: BodyInit | undefined
+  if (options.formData) {
+    body = options.formData
+  } else if (options.body !== undefined) {
+    headers['content-type'] = 'application/json'
+    body = JSON.stringify(options.body)
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: options.method ?? 'GET',
+    headers,
+    body,
+    cache: 'no-store',
+  })
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    data?: T
+    error?: { code?: string; message?: string }
+  }
+  if (!response.ok) {
+    throw new ApiError(
+      payload.error?.code ?? 'INTERNAL',
+      payload.error?.message ?? `请求失败（${response.status}）`,
+      response.status,
+    )
+  }
+  return payload.data as T
+}
 
 export async function getHealth(): Promise<Envelope<HealthData>> {
   const response = await fetch(`${API_BASE}/healthz`, { cache: 'no-store' })
-  if (!response.ok) {
-    throw new Error(`控制面返回 ${response.status}`)
-  }
+  if (!response.ok) throw new Error(`控制面返回 ${response.status}`)
   return (await response.json()) as Envelope<HealthData>
+}
+
+export async function downloadAsset(assetId: string, version: number): Promise<void> {
+  const token = getToken()
+  const response = await fetch(`${API_BASE}/v1/assets/${assetId}/versions/${version}/download`, {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    redirect: 'follow',
+  })
+  if (!response.ok) throw new Error(`下载失败（${response.status}）`)
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `${assetId}-v${version}`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+export function streamJobEvents(
+  jobId: string,
+  onEvent: (event: JobEvent) => void,
+  onEnd: () => void,
+): () => void {
+  const controller = new AbortController()
+  const token = getToken()
+
+  void (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/v1/jobs/${jobId}/events`, {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      })
+      if (!response.ok || !response.body) throw new Error('事件流连接失败')
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        let index = buffer.indexOf('\n\n')
+        while (index >= 0) {
+          const chunk = buffer.slice(0, index)
+          buffer = buffer.slice(index + 2)
+          index = buffer.indexOf('\n\n')
+
+          let eventName = 'message'
+          let data = ''
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('event: ')) eventName = line.slice(7).trim()
+            if (line.startsWith('data: ')) data += line.slice(6)
+          }
+          if (eventName === 'job.end') {
+            onEnd()
+            controller.abort()
+            return
+          }
+          if (eventName === 'job.event' && data) {
+            try {
+              onEvent(JSON.parse(data) as JobEvent)
+            } catch {
+              // 忽略无法解析的事件
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') console.error(error)
+    }
+  })()
+
+  return () => controller.abort()
 }

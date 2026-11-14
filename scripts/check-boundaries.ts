@@ -40,7 +40,7 @@ interface BoundaryRule {
   forbidden: (resolved: string, file: string) => boolean
 }
 
-const isControlPlane = (file: string) => file.startsWith('services/control-plane/')
+const isControlPlane = (file: string) => file.startsWith('services/control-plane/src/')
 const isContracts = (file: string) => file.startsWith('packages/contracts/')
 const isApp = (file: string) => file.startsWith('apps/')
 
@@ -56,7 +56,7 @@ export const RULES: BoundaryRule[] = [
     forbidden: (resolved) =>
       /^(drivers|workers|capabilities)\//.test(resolved) ||
       /^services\/job-runner\//.test(resolved) ||
-      /^@clouddeck\/(driver-|worker-|capability-)/.test(resolved),
+      /^@clouddeck\/(driver-|worker-|capability-|job-runner)/.test(resolved),
   },
   {
     name: '契约包不得依赖任何业务包',

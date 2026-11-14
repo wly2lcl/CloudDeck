@@ -1,0 +1,354 @@
+import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, join } from 'node:path'
+import type { Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
+import {
+  appendJobEvent,
+  claimNextJob,
+  createAsset,
+  getAssetVersionDetail,
+  getCapability,
+  insertJobArtifact,
+  insertUsage,
+  isCancelRequested,
+  linkAssets,
+  periodOf,
+  setJobOutputs,
+  setJobStatus,
+  sumJobUsage,
+  type Database,
+  type JobRow,
+} from '@clouddeck/db'
+import { createMockDriver, MOCK_DRIVER_ID } from '@clouddeck/driver-mock'
+import { storageKeyFor, type Storage } from '@clouddeck/storage'
+
+export type DriverFactory = () => Driver
+
+const DRIVERS: Record<string, DriverFactory> = {
+  [MOCK_DRIVER_ID]: createMockDriver,
+}
+
+export function registerDriver(id: string, factory: DriverFactory): void {
+  DRIVERS[id] = factory
+}
+
+export interface RunnerDeps {
+  db: Database
+  storage: Storage
+}
+
+interface Failure {
+  code: string
+  message: string
+  retryable: boolean
+}
+
+const now = () => new Date().toISOString()
+
+async function emit(
+  db: Database,
+  job: JobRow,
+  event: JobEvent,
+): Promise<void> {
+  await appendJobEvent(db, job.tenant_id, job.id, event)
+}
+
+async function downloadInputs(
+  deps: RunnerDeps,
+  job: JobRow,
+  workspace: string,
+): Promise<TaskContext['inputs']> {
+  const inputs: TaskContext['inputs'] = []
+  for (const ref of job.input_assets) {
+    const detail = await getAssetVersionDetail(
+      deps.db,
+      job.tenant_id,
+      ref.assetId,
+      ref.version,
+    )
+    if (!detail) throw new Error(`输入资产不存在: ${ref.assetId}@${ref.version}`)
+    const data = await deps.storage.get(detail.storage_key)
+    const filename = basename(detail.name).replace(/[^A-Za-z0-9._-]/g, '_') || 'input.bin'
+    const path = join(workspace, filename)
+    await writeFile(path, data)
+    inputs.push({
+      assetId: ref.assetId,
+      version: ref.version,
+      type: detail.type as TaskContext['inputs'][number]['type'],
+      path,
+      mime: detail.mime,
+    })
+  }
+  return inputs
+}
+
+async function finalize(
+  deps: RunnerDeps,
+  job: JobRow,
+  driver: Driver,
+  ctx: TaskContext,
+): Promise<void> {
+  const specs = await driver.collect(ctx)
+  const outputs: { assetId: string; version: number; name: string; type: string }[] = []
+
+  for (const spec of specs) {
+    const data = await readFile(spec.path)
+    const checksum = createHash('sha256').update(data).digest('hex')
+    const size = data.byteLength
+    const assetId = crypto.randomUUID()
+    const version = 1
+    const key = storageKeyFor(job.tenant_id, job.project_id, assetId, version, spec.name)
+    await deps.storage.put(key, data, spec.mime)
+
+    const asset = await createAsset(deps.db, {
+      id: assetId,
+      tenantId: job.tenant_id,
+      projectId: job.project_id,
+      type: spec.type,
+      name: `${job.capability_id}.${spec.name}`,
+      mime: spec.mime,
+      sizeBytes: size,
+      checksumSha256: checksum,
+      storageKey: key,
+      meta: spec.meta ?? {},
+    })
+
+    for (const input of job.input_assets) {
+      await linkAssets(deps.db, {
+        tenantId: job.tenant_id,
+        projectId: job.project_id,
+        fromAssetId: input.assetId,
+        fromVersion: input.version,
+        toAssetId: asset.id,
+        toVersion: version,
+        relation: 'derived_from',
+      })
+    }
+
+    await insertJobArtifact(deps.db, {
+      tenantId: job.tenant_id,
+      jobId: job.id,
+      assetId: asset.id,
+      version,
+      name: spec.name,
+      type: spec.type,
+      mime: spec.mime,
+      sizeBytes: size,
+    })
+
+    outputs.push({ assetId: asset.id, version, name: spec.name, type: spec.type })
+  }
+
+  const cost = await sumJobUsage(deps.db, job.id)
+  await setJobOutputs(deps.db, job.id, outputs, cost)
+  await setJobStatus(deps.db, job.id, 'succeeded')
+  await emit(deps.db, job, { type: 'done', at: now() })
+}
+
+export interface RunResult {
+  jobId: string
+  status: JobRow['status']
+  errorCode?: string
+}
+
+export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
+  const job = await claimNextJob(deps.db)
+  if (!job) return null
+
+  const workspace = await mkdtemp(join(tmpdir(), 'clouddeck-job-'))
+  const outputDir = join(workspace, 'output')
+  await mkdir(outputDir, { recursive: true })
+
+  let failure: Failure | null = null
+  let cancelled = false
+
+  try {
+    const capability = await getCapability(deps.db, job.capability_id, job.capability_version)
+    if (!capability) {
+      failure = { code: 'CAPABILITY_UNAVAILABLE', message: '能力版本不存在', retryable: false }
+      throw new Error(failure.message)
+    }
+
+    const factory = DRIVERS[job.driver_id]
+    if (!factory) {
+      failure = { code: 'DRIVER_ERROR', message: `未注册的 driver: ${job.driver_id}`, retryable: false }
+      throw new Error(failure.message)
+    }
+
+    const driver = factory()
+    const inputs = await downloadInputs(deps, job, workspace)
+
+    const controller = new AbortController()
+    let abortReason: 'CANCELLED' | 'TIMEOUT' | 'BUDGET_EXCEEDED' | null = null
+    const stop = (reason: typeof abortReason) => {
+      if (controller.signal.aborted) return
+      abortReason = reason
+      controller.abort()
+    }
+
+    const durationTimer = setTimeout(
+      () => stop('TIMEOUT'),
+      capability.manifest.execution.maxDurationMs,
+    )
+    const cancelTimer = setInterval(() => {
+      void isCancelRequested(deps.db, job.id).then((requested) => {
+        if (requested) stop('CANCELLED')
+      })
+    }, 250)
+
+    const ctx: TaskContext = {
+      jobId: job.id,
+      tenantId: job.tenant_id,
+      capability: { id: job.capability_id, version: job.capability_version },
+      params: job.params,
+      inputs,
+      workspace,
+      outputDir,
+      env: {},
+      limits: {
+        maxDurationMs: capability.manifest.execution.maxDurationMs,
+        maxCostUsd: capability.manifest.execution.maxCostUsd,
+        maxOutputBytes: 512 * 1024 * 1024,
+      },
+      signal: controller.signal,
+    }
+
+    await setJobStatus(deps.db, job.id, 'running')
+    await emit(deps.db, job, {
+      type: 'log',
+      level: 'info',
+      message: `开始执行 ${job.capability_id}@${job.capability_version}`,
+      at: now(),
+    })
+
+    await driver.submit(ctx)
+    let budget = 0
+    let streamEnded = false
+
+    for await (const event of driver.events(ctx)) {
+      if (abortReason) break
+
+      if (event.type === 'usage') {
+        budget += event.costUsd
+        await insertUsage(deps.db, {
+          tenantId: job.tenant_id,
+          jobId: job.id,
+          capabilityId: job.capability_id,
+          driverId: job.driver_id,
+          unit: capability.manifest.billing.unit,
+          quantity: 1,
+          unitPrice: event.costUsd,
+          amountUsd: event.costUsd,
+          period: periodOf(),
+        })
+        if (budget > ctx.limits.maxCostUsd) {
+          stop('BUDGET_EXCEEDED')
+        }
+      }
+
+      await emit(deps.db, job, event)
+
+      if (event.type === 'error') {
+        failure = { code: event.code, message: event.message, retryable: event.retryable }
+        break
+      }
+      if (event.type === 'done') {
+        streamEnded = true
+        break
+      }
+    }
+
+    clearTimeout(durationTimer)
+    clearInterval(cancelTimer)
+
+    if (abortReason) {
+      await driver.cancel(ctx)
+      if (abortReason === 'CANCELLED') {
+        cancelled = true
+      } else {
+        failure = {
+          code: abortReason,
+          message: abortReason === 'TIMEOUT' ? '任务超时' : '任务超出预算',
+          retryable: abortReason === 'TIMEOUT',
+        }
+      }
+    } else if (failure?.code === 'CANCELLED') {
+      cancelled = true
+      failure = null
+    } else if (!failure && streamEnded) {
+      await finalize(deps, job, driver, ctx)
+      return { jobId: job.id, status: 'succeeded' }
+    } else if (!failure) {
+      failure = { code: 'DRIVER_ERROR', message: '驱动未返回 done 事件', retryable: true }
+    }
+  } catch (error) {
+    if (!failure) {
+      failure = {
+        code: 'DRIVER_ERROR',
+        message: error instanceof Error ? error.message : '未知错误',
+        retryable: true,
+      }
+    }
+    await emit(deps.db, job, {
+      type: 'log',
+      level: 'error',
+      message: failure.message,
+      at: now(),
+    })
+  } finally {
+    await rm(workspace, { recursive: true, force: true })
+  }
+
+  if (cancelled) {
+    await setJobStatus(deps.db, job.id, 'cancelled')
+    await emit(deps.db, job, { type: 'log', level: 'warn', message: '任务已取消', at: now() })
+    return { jobId: job.id, status: 'cancelled' }
+  }
+
+  const code = failure?.code ?? 'DRIVER_ERROR'
+  const message = failure?.message ?? '任务失败'
+  await setJobStatus(deps.db, job.id, 'failed', { errorCode: code, errorMessage: message })
+  await emit(deps.db, job, {
+    type: 'error',
+    code,
+    message,
+    retryable: failure?.retryable ?? true,
+    at: now(),
+  })
+  return { jobId: job.id, status: 'failed', errorCode: code }
+}
+
+export interface WorkerOptions {
+  pollIntervalMs?: number
+}
+
+export async function startWorker(
+  deps: RunnerDeps,
+  options: WorkerOptions = {},
+): Promise<() => void> {
+  const interval = options.pollIntervalMs ?? 500
+  let stopped = false
+  let timer: NodeJS.Timeout | null = null
+
+  const tick = async (): Promise<void> => {
+    if (stopped) return
+    try {
+      const result = await runOnce(deps)
+      if (!result) {
+        timer = setTimeout(() => void tick(), interval)
+        return
+      }
+    } catch (error) {
+      console.error('job-runner 执行失败', error)
+    }
+    if (!stopped) timer = setTimeout(() => void tick(), 10)
+  }
+
+  void tick()
+
+  return () => {
+    stopped = true
+    if (timer) clearTimeout(timer)
+  }
+}

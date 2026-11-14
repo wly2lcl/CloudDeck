@@ -58,6 +58,8 @@
 
 平台在提交与启动两个阶段各校验一次；运行中出现越权（网络/文件）直接终止并标记 `SECURITY_VIOLATION`。
 
+> 数据库连接约定：控制面连接以租户事务设置 `app.tenant_id`，RLS 策略据此过滤；job-runner 需要跨租户领取任务，生产环境应使用带 `BYPASSRLS` 的专用角色，开发环境可使用表所有者连接。RLS 的策略测试见 `packages/db/test/rls.test.ts`。
+
 ## 计量与计费
 
 计量点：

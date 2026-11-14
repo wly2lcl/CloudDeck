@@ -35,5 +35,8 @@ jobs:
       - name: 依赖边界
         run: pnpm boundaries
 
+      - name: 构建 Web
+        run: pnpm --filter @clouddeck/web build
+
       - name: 校验 compose 配置
         run: docker compose -f infra/compose/docker-compose.yml config --quiet

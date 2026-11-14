@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @clouddeck/control-plane --filter @clouddeck/web dev",
+    "dev": "pnpm --parallel --filter @clouddeck/control-plane --filter @clouddeck/job-runner --filter @clouddeck/web dev",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test && pnpm test:boundaries",

@@ -1,0 +1,43 @@
+id: demo.echo
+version: 1.0.0
+name: 回显示例
+description: 读取输入文件并输出带前缀的副本，用于验证任务链路
+category: writing
+icon: repeat
+inputs:
+  - name: source
+    label: 源文件
+    assetTypes: [document, novel_manuscript]
+    required: true
+outputs:
+  - name: result
+    assetType: document
+execution:
+  mode: async
+  resumable: false
+  maxDurationMs: 60000
+  maxCostUsd: 1
+  concurrency: 1
+credentials:
+  policy: tenant
+driver:
+  kind: pipeline
+  ref: drivers/mock
+  routing:
+    - driver: drivers/mock
+permissions:
+  network: []
+  filesystem: workspace-only
+  secrets: []
+  allowShell: false
+resources:
+  cpu: 1
+  memory: 512Mi
+billing:
+  unit: per_job
+  priceKey: demo_echo
+  estimate: 0.01
+ui:
+  form: ui/form.json
+  result: text
+tags: [示例]

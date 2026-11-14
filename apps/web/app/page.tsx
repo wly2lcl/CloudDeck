@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { JOB_TRANSITIONS } from '@clouddeck/contracts'
 import { getHealth, type Envelope, type HealthData } from '../lib/api'
 
@@ -40,6 +41,10 @@ export default async function HomePage() {
         <p className="hint">
           启动方式：<code>pnpm dev</code>，控制面默认 <code>:4310</code>，Web 默认 <code>:3000</code>。
         </p>
+
+        <Link href="/projects" className="cta">
+          进入工作台
+        </Link>
       </section>
     </main>
   )

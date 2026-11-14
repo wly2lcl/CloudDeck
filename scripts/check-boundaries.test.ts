@@ -23,6 +23,13 @@ describe('依赖边界', () => {
     expect(violations[0]?.rule).toContain('控制面')
   })
 
+  it('控制面引用 job-runner 时报告违规', () => {
+    const violations = check([
+      { path: 'services/control-plane/src/x.ts', content: "import { runOnce } from '@clouddeck/job-runner'" },
+    ])
+    expect(violations).toHaveLength(1)
+  })
+
   it('控制面引用能力包时报告违规', () => {
     const violations = check([
       { path: 'services/control-plane/src/x.ts', content: "import { m } from '@clouddeck/capability-audiobook'" },

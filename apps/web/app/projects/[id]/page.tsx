@@ -1,0 +1,186 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useParams, useRouter } from 'next/navigation'
+import { Nav } from '../../../components/nav'
+import {
+  ApiError,
+  api,
+  clearTokens,
+  downloadAsset,
+  getToken,
+  type Asset,
+  type CapabilitySummary,
+  type Project,
+} from '../../../lib/api'
+
+const ASSET_TYPES = [
+  'novel_manuscript',
+  'document',
+  'script',
+  'story_bible',
+  'image',
+  'audio_track',
+  'video',
+]
+
+export default function ProjectPage() {
+  const params = useParams<{ id: string }>()
+  const router = useRouter()
+  const projectId = params.id
+
+  const [project, setProject] = useState<Project | null>(null)
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [capabilities, setCapabilities] = useState<CapabilitySummary[]>([])
+  const [assetType, setAssetType] = useState('novel_manuscript')
+  const [file, setFile] = useState<File | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const [projectData, assetData, capabilityData] = await Promise.all([
+        api<Project>(`/v1/projects/${projectId}`),
+        api<Asset[]>(`/v1/projects/${projectId}/assets`),
+        api<CapabilitySummary[]>('/v1/capabilities'),
+      ])
+      setProject(projectData)
+      setAssets(assetData)
+      setCapabilities(capabilityData)
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        clearTokens()
+        router.replace('/login')
+        return
+      }
+      setError(caught instanceof Error ? caught.message : '加载失败')
+    }
+  }, [projectId, router])
+
+  useEffect(() => {
+    if (!getToken()) {
+      router.replace('/login')
+      return
+    }
+    void load()
+  }, [load, router])
+
+  const upload = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!file) {
+      setError('请选择文件')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const query = `?type=${encodeURIComponent(assetType)}&name=${encodeURIComponent(file.name)}`
+      await api<Asset>(`/v1/projects/${projectId}/assets${query}`, {
+        method: 'POST',
+        formData: form,
+      })
+      setFile(null)
+      await load()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '上传失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <Nav />
+      <main className="page">
+        <header className="page-head">
+          <div>
+            <p className="eyebrow">项目</p>
+            <h1>{project?.name ?? '加载中…'}</h1>
+            {project?.description && <p className="muted">{project.description}</p>}
+          </div>
+          <Link href="/projects" className="ghost">
+            返回项目列表
+          </Link>
+        </header>
+
+        {error && <p className="error">{error}</p>}
+
+        <section className="panel">
+          <h2>上传资产</h2>
+          <form className="row" onSubmit={upload}>
+            <select value={assetType} onChange={(event) => setAssetType(event.target.value)}>
+              {ASSET_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <input
+              type="file"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+            <button type="submit" disabled={busy}>
+              {busy ? '上传中…' : '上传'}
+            </button>
+          </form>
+        </section>
+
+        <section className="panel">
+          <h2>资产（{assets.length}）</h2>
+          {assets.length === 0 ? (
+            <p className="muted">还没有资产。</p>
+          ) : (
+            <ul className="list">
+              {assets.map((asset) => (
+                <li key={asset.assetId} className="list-item">
+                  <span>
+                    <strong>{asset.name}</strong>
+                    <small className="muted">
+                      {asset.type} · v{asset.latestVersion} · {Math.ceil(asset.size / 1024)} KB
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void downloadAsset(asset.assetId, asset.latestVersion)}
+                  >
+                    下载
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2>运行能力</h2>
+          {capabilities.length === 0 ? (
+            <p className="muted">没有可用能力，检查 capabilities 目录。</p>
+          ) : (
+            <ul className="list">
+              {capabilities.map((capability) => (
+                <li key={`${capability.id}@${capability.version}`} className="list-item">
+                  <span>
+                    <strong>{capability.name}</strong>
+                    <small className="muted">
+                      {capability.description} · 预估 {capability.estimate} USD
+                    </small>
+                  </span>
+                  <Link
+                    href={`/projects/${projectId}/run/${capability.id}`}
+                    className="ghost"
+                  >
+                    运行
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </main>
+    </>
+  )
+}

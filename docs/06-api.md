@@ -69,6 +69,8 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 2. 客户端直传对象存储。
 3. `POST /assets/:id/versions/confirm` 带 checksum → 服务端校验后生成版本。
 
+> M1 实现说明：当前采用控制面中转的 `multipart/form-data` 上传（`POST /projects/:id/assets?type=&name=`），预签名直传在 M2 接入。接口路径与资产语义保持不变，客户端后续只需切换上传通道。
+
 ### 能力
 
 | 方法 | 路径 | 说明 |

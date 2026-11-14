@@ -11,21 +11,27 @@
 
 ## 当前状态
 
-M0 骨架（2026-11-14）：契约包、控制面健康检查与错误信封、Web 占位页、本地 compose、CI 与依赖边界规则已落地。业务功能尚未开始。
+M1 平台核心（2026-11-14）：多租户、鉴权、项目/资产版本、能力注册表、任务队列与 runner、SSE 事件、计量配额、Web 全流程页面均已落地。示例能力 `demo.echo` 可跑通「上传 → 提交 → 执行 → 产物入库 → 内容链」。
+
+M1 的两处实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)：任务队列使用 Postgres `SKIP LOCKED`，事件流使用数据库轮询 + SSE，Redis/BullMQ 推迟。
 
 ## 快速开始
 
-环境：Node >= 22、pnpm 10；Docker 可选，用于本地依赖。
+环境：Node >= 22、pnpm 10、Docker（用于本地 Postgres）。
 
 ```sh
 pnpm install
-pnpm dev        # 控制面 :4310 + Web :3000
+cd infra/compose && cp .env.example .env && docker compose up -d postgres
+cd ../..
+pnpm dev        # 控制面 :4310 + job-runner + Web :3000
 ```
 
-本地依赖（Postgres / Redis / MinIO）：
+打开 <http://localhost:3000>，注册后创建项目、上传 txt、运行 `demo.echo`。
+
+只想跑检查与测试（测试使用进程内 PGlite，不依赖 Docker）：
 
 ```sh
-cd infra/compose && cp .env.example .env && docker compose up -d
+pnpm check
 ```
 
 常用命令：
