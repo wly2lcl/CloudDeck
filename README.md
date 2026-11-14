@@ -120,7 +120,7 @@ docs/               architecture, contracts, API, ADRs, deployment
 | [Deployment](docs/deployment.md) | compose, production, GPU, keys |
 | [Limitations](docs/limitations.md) | known gaps and unblock conditions |
 | [Compliance](docs/13-compliance.md) | legal and content checklist |
-| [ADRs](docs/adr/) | 18 architecture decisions |
+| [ADRs](docs/adr/) | 17 architecture decisions |
 
 ## Limitations
 
