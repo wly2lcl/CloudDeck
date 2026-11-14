@@ -14,6 +14,7 @@ import {
   listJobs,
   periodOf,
   requestCancel,
+  resumeJob,
   retryJob,
   withTenant,
   type JobRow,
@@ -43,8 +44,9 @@ function resolveDriver(manifest: CapabilityManifest): string {
   return manifest.driver.ref
 }
 
-export function serializeJob(row: JobRow) {
+export function serializeJob(row: JobRow, resumable = false) {
   return {
+    resumable,
     jobId: row.id,
     projectId: row.project_id,
     capabilityId: row.capability_id,
@@ -141,16 +143,19 @@ export function registerJobRoutes(
     const jobs = await withTenant(deps.db, auth.tenantId, (tx) =>
       listJobs(tx, auth.tenantId, projectId),
     )
-    return ok(request, jobs.map(serializeJob))
+    return ok(request, jobs.map((job) => serializeJob(job)))
   })
 
   app.get('/v1/jobs/:id', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
-    const job = await withTenant(deps.db, auth.tenantId, (tx) =>
-      getJob(tx, auth.tenantId, param(request, 'id')),
-    )
-    if (!job) throw new AppError('NOT_FOUND', '任务不存在')
-    return ok(request, serializeJob(job))
+    const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const job = await getJob(tx, auth.tenantId, param(request, 'id'))
+      if (!job) return null
+      const capability = await getCapability(tx, job.capability_id, job.capability_version)
+      return { job, resumable: capability?.manifest.execution.resumable ?? false }
+    })
+    if (!result) throw new AppError('NOT_FOUND', '任务不存在')
+    return ok(request, serializeJob(result.job, result.resumable))
   })
 
   app.post('/v1/jobs/:id/cancel', { preHandler: guard }, async (request) => {
@@ -160,6 +165,26 @@ export function registerJobRoutes(
     )
     if (!job) throw new AppError('NOT_FOUND', '任务不存在或已结束')
     return ok(request, serializeJob(job))
+  })
+
+  app.post('/v1/jobs/:id/resume', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const job = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const existing = await getJob(tx, auth.tenantId, param(request, 'id'))
+      if (!existing) throw new AppError('NOT_FOUND', '任务不存在')
+      const capability = await getCapability(
+        tx,
+        existing.capability_id,
+        existing.capability_version,
+      )
+      if (!capability?.manifest.execution.resumable) {
+        throw new AppError('VALIDATION_FAILED', '该能力不支持续作')
+      }
+      const resumed = await resumeJob(tx, auth.tenantId, existing.id)
+      if (!resumed) throw new AppError('NOT_FOUND', '任务当前状态不可续作')
+      return resumed
+    })
+    return ok(request, serializeJob(job, true))
   })
 
   app.post('/v1/jobs/:id/retry', { preHandler: guard }, async (request, reply) => {

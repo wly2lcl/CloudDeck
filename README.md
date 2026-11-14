@@ -11,16 +11,16 @@
 
 ## 当前状态
 
-M2 智能驱动（2026-11-14）：
+M3 有声链路（2026-11-14）：
 
-- 沙箱抽象（本地进程 / Docker），驱动通过 `CommandRunner` 启动子进程
-- Claude Code driver：stream-json 映射、用量与取消、产物收集
-- `novel.edit` 能力：续写 / 改写 / 一致性检查，提示词随能力包维护
-- Web：文本与音视频预览、任务重试
-- 移动端 Flutter：登录、项目与资产、运行能力、任务进度、音频播放
-- 测试：49 个后端/驱动用例 + Flutter analyze/test
+- `workers/tts`：章节/角色切分、音色映射、分块合成、checkpoint、WAV 拼接
+- Provider 契约：`fake`（默认，确定性 WAV）与 `http`（CosyVoice / DashScope 网关）
+- 断点续作：失败保留工作区，`resume` 复用同一 job 只补未完成块
+- 预算：按字符上报用量，沿用 M1 的预算熔断
+- 部署：GPU compose profile，任务页显示成本与进度
+- 测试：65 个后端/驱动用例 + Flutter analyze/test
 
-M1 的两处实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)，M2 的沙箱与 driver 决策见 [ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)。
+实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）。
 
 ## 快速开始
 

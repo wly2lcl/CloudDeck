@@ -76,6 +76,7 @@ export interface Job {
   errorCode: string | null
   errorMessage: string | null
   cancelRequested: boolean
+  resumable: boolean
   createdAt: string
   startedAt: string | null
   finishedAt: string | null

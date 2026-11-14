@@ -147,6 +147,11 @@ class ApiClient {
     return Job.fromJson(data as Map<String, dynamic>);
   }
 
+  Future<Job> resume(String jobId) async {
+    final data = await _request('POST', '/v1/jobs/$jobId/resume');
+    return Job.fromJson(data as Map<String, dynamic>);
+  }
+
   Future<String> assetUrl(String assetId, int version) async {
     final data = await _request('GET', '/v1/assets/$assetId/versions/$version/url');
     return (data as Map<String, dynamic>)['url'] as String;

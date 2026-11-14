@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CLAUDE_DRIVER_ID, createClaudeCodeDriver } from '@clouddeck/driver-claude-code'
 import { registerDriver, runOnce } from '@clouddeck/job-runner'
+import { createFakeProvider, createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
 import { createTestContext, multipartFile, type TestContext } from './helpers'
 
 const FAKE_CLAUDE = fileURLToPath(
@@ -252,6 +253,101 @@ describe('M1 端到端', () => {
           item.name === 'novel.edit.manuscript' && item.type === 'novel_manuscript',
       )
     expect(produced).toBeTruthy()
+  })
+
+  it('audiobook.render 生成逐章音频与合并音频', async () => {
+    registerDriver(TTS_DRIVER_ID, () =>
+      createTtsDriver({
+        provider: createFakeProvider(),
+        pricePer1kUsd: 0.002,
+        failAtChunk: process.env.TTS_FAIL_AT ? Number(process.env.TTS_FAIL_AT) : undefined,
+      }),
+    )
+
+    const manuscript = Array.from({ length: 3 }, (_, index) =>
+      [
+        `第${index + 1}章 测试章节`,
+        '夜色沉下来，远处的灯一盏一盏亮起。',
+        '张三：“你终于来了，我等了很久。”',
+        '李四没有说话，只是把手里的伞递了过去。',
+      ].join('\n'),
+    ).join('\n')
+    const file = multipartFile(manuscript, 'audiobook-source.txt')
+    const uploaded = await api(`/v1/projects/${projectId}/assets?type=novel_manuscript&name=audiobook-source.txt`, {
+      method: 'POST',
+      payload: file.body,
+      headers: { 'content-type': file.contentType },
+    })
+    const sourceAssetId = uploaded.json().data.assetId
+
+    const created = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'audiobook.render',
+        inputs: [{ assetId: sourceAssetId, version: 1 }],
+        params: { defaultVoice: 'narrator', maxCharsPerChunk: 40 },
+      },
+    })
+    expect(created.statusCode).toBe(201)
+
+    const result = await runOnce({ db: ctx.db, storage: ctx.storage })
+    expect(result?.status).toBe('succeeded')
+
+    const assets = await api(`/v1/projects/${projectId}/assets`)
+    const audio = assets.json().data.filter((item: { type: string }) => item.type === 'audio_track')
+    expect(audio.length).toBeGreaterThanOrEqual(2)
+    expect(audio.some((item: { name: string }) => item.name.endsWith('.audiobook'))).toBe(true)
+  })
+
+  it('有声任务失败后可续作，只补未完成块', async () => {
+    const manuscript = Array.from({ length: 3 }, (_, index) =>
+      [
+        `第${index + 1}章 续作章节`,
+        '雨声敲着窗，像有人在门外轻轻叩门。',
+        '张三：“明天我们就出发。”',
+        '李四点了点头，把灯调暗了一些。',
+      ].join('\n'),
+    ).join('\n')
+    const file = multipartFile(manuscript, 'audiobook-resume.txt')
+    const uploaded = await api(`/v1/projects/${projectId}/assets?type=novel_manuscript&name=audiobook-resume.txt`, {
+      method: 'POST',
+      payload: file.body,
+      headers: { 'content-type': file.contentType },
+    })
+    const sourceAssetId = uploaded.json().data.assetId
+
+    process.env.TTS_FAIL_AT = '2'
+    const created = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'audiobook.render',
+        inputs: [{ assetId: sourceAssetId, version: 1 }],
+        params: { defaultVoice: 'narrator', maxCharsPerChunk: 40 },
+      },
+    })
+    const jobId = created.json().data.jobId
+
+    const failed = await runOnce({ db: ctx.db, storage: ctx.storage })
+    expect(failed?.status).toBe('failed')
+    expect(failed?.errorCode).toBe('TTS_FAILED')
+
+    delete process.env.TTS_FAIL_AT
+
+    const resumed = await api(`/v1/jobs/${jobId}/resume`, { method: 'POST' })
+    expect(resumed.statusCode).toBe(200)
+    expect(resumed.json().data.status).toBe('queued')
+
+    const succeeded = await runOnce({ db: ctx.db, storage: ctx.storage })
+    expect(succeeded?.status).toBe('succeeded')
+
+    const logs = await api(`/v1/jobs/${jobId}/logs`)
+    expect(
+      logs
+        .json()
+        .data.some((event: { type: string; payload: { message?: string } }) =>
+          event.payload?.message?.includes('跳过已完成'),
+        ),
+    ).toBe(true)
   })
 
   it('跨租户访问返回 404', async () => {

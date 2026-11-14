@@ -91,6 +91,14 @@ steps:
 | 限额 | 单 job 默认 6h / 5 USD；超限终止并保留已完成章节 |
 | 验收 | 10 万字、5 角色，30 分钟内完成；中断后恢复只重跑未完成块；AZ 与云端两种路由结果时长差 < 2% |
 
+M3 实现（`workers/tts`）：
+
+- Provider 契约：`synthesize({text, voice, format}) -> Buffer`；`fake` 生成确定性 WAV，`http` 对接兼容 TTS 服务（CosyVoice / DashScope 网关）。
+- 切分：章节标记或 Markdown 标题 → 段落 → 句子；识别旁白、引用对白与 `角色：内容` 形式。
+- 音色：`voiceMap`（角色 → 音色 JSON）+ `defaultVoice` 回落。
+- 断点：每块写 `checkpoint.json`；失败保留工作区，`POST /v1/jobs/:id/resume` 复用同一 job 续作。
+- 拼接：WAV 直接按 RIFF 头拼接，不依赖 ffmpeg。
+
 ## 4. storyboard.plan 分镜规划
 
 | 项 | 内容 |

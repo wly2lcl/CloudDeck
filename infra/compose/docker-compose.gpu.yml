@@ -1,0 +1,23 @@
+name: clouddeck-gpu
+
+services:
+  tts:
+    image: ${TTS_IMAGE:-clouddeck/tts:local}
+    profiles: ['gpu']
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      TTS_HTTP_PORT: '8188'
+    ports:
+      - '${TTS_PORT:-8188}:8188'
+    volumes:
+      - ttsmodels:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  ttsmodels:

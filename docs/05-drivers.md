@@ -101,10 +101,18 @@ runner → 队列(step) → worker → 输出目录 → runner 收集
 首版 worker：
 | worker | 语言 | 说明 |
 |---|---|---|
-| `workers/tts` | Python | 收编 NovelAudio 的双路线（CosyVoice 本地 / DashScope 云端） |
-| `workers/audio-post` | Python/FFmpeg | 响度归一、拼接、章节标记 |
-| `workers/video` | Node/FFmpeg | 分镜合成、字幕、转场、编码 |
+| `workers/tts` | TypeScript | 章节/角色切分、音色映射、分块合成、checkpoint、WAV 拼接 |
+| `workers/audio-post` | Python/FFmpeg | 响度归一、非 WAV 拼接、章节标记（M4） |
+| `workers/video` | Node/FFmpeg | 分镜合成、字幕、转场、编码（M4） |
 | `workers/llm` | Node | 统一走模型网关，不做 provider 特判 |
+
+`workers/tts` 的 provider 通过 `TTS_PROVIDER` 选择：`fake`（默认，确定性 WAV）或 `http`（`TTS_HTTP_URL` + `TTS_HTTP_TOKEN`）。CosyVoice 本地服务与 DashScope 网关都按同一 HTTP 契约接入；未验证的云接口不在代码里硬编码。
+
+断点与续作：
+
+- 工作区固定为 `<workspaceRoot>/clouddeck-job-<jobId>`，`resumable` 能力失败时保留。
+- 驱动按块写 `output/checkpoint.json`，重跑时校验块文件存在后跳过。
+- `POST /v1/jobs/:id/resume` 复用同一 jobId 与工作区，`resume_count` 递增。
 
 ## 5.5 沙箱规范
 

@@ -21,7 +21,8 @@
     "@clouddeck/driver-claude-code": "workspace:*",
     "@clouddeck/driver-mock": "workspace:*",
     "@clouddeck/sandbox": "workspace:*",
-    "@clouddeck/storage": "workspace:*"
+    "@clouddeck/storage": "workspace:*",
+    "@clouddeck/worker-tts": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.23.15",

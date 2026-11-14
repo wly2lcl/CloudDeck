@@ -119,6 +119,7 @@ class Job {
     required this.estimatedCostUsd,
     required this.actualCostUsd,
     required this.outputs,
+    required this.resumable,
     this.errorCode,
     this.errorMessage,
   });
@@ -130,6 +131,7 @@ class Job {
   final double estimatedCostUsd;
   final double actualCostUsd;
   final List<JobOutput> outputs;
+  final bool resumable;
   final String? errorCode;
   final String? errorMessage;
 
@@ -146,6 +148,7 @@ class Job {
         outputs: ((json['outputs'] as List<dynamic>?) ?? const [])
             .map((output) => JobOutput.fromJson(output as Map<String, dynamic>))
             .toList(),
+        resumable: (json['resumable'] as bool?) ?? false,
         errorCode: json['errorCode'] as String?,
         errorMessage: json['errorMessage'] as String?,
       );

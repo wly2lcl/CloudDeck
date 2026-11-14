@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,6 +28,7 @@ import {
 import { createMockDriver, MOCK_DRIVER_ID } from '@clouddeck/driver-mock'
 import { LocalSandbox } from '@clouddeck/sandbox'
 import { storageKeyFor, type Storage } from '@clouddeck/storage'
+import { createTtsDriver, TTS_DRIVER_ID } from '@clouddeck/worker-tts'
 
 export type DriverFactory = () => Driver
 
@@ -43,6 +44,11 @@ const DRIVERS: Record<string, DriverFactory> = {
       commandArgs: process.env.CLAUDE_ARGS ? (JSON.parse(process.env.CLAUDE_ARGS) as string[]) : undefined,
       skipPermissions: process.env.CLAUDE_SKIP_PERMISSIONS === 'true',
     }),
+  [TTS_DRIVER_ID]: () =>
+    createTtsDriver({
+      pricePer1kUsd: Number(process.env.TTS_PRICE_PER_1K_USD ?? 0.002),
+      failAtChunk: process.env.TTS_FAIL_AT ? Number(process.env.TTS_FAIL_AT) : undefined,
+    }),
 }
 
 export function registerDriver(id: string, factory: DriverFactory): void {
@@ -55,6 +61,7 @@ export interface RunnerDeps {
   commands?: CommandRunner
   capabilitiesDir?: string
   env?: NodeJS.ProcessEnv
+  workspaceRoot?: string
 }
 
 interface Failure {
@@ -175,12 +182,15 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
   const job = await claimNextJob(deps.db)
   if (!job) return null
 
-  const workspace = await mkdtemp(join(tmpdir(), 'clouddeck-job-'))
+  const workspaceRoot = deps.workspaceRoot ?? tmpdir()
+  const workspace = join(workspaceRoot, `clouddeck-job-${job.id}`)
   const outputDir = join(workspace, 'output')
   await mkdir(outputDir, { recursive: true })
 
   let failure: Failure | null = null
   let cancelled = false
+  let resumable = false
+  let keepWorkspace = false
 
   try {
     const capability = await getCapability(deps.db, job.capability_id, job.capability_version)
@@ -189,6 +199,7 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
       throw new Error(failure.message)
     }
 
+    resumable = capability.manifest.execution.resumable
     const factory = DRIVERS[job.driver_id]
     if (!factory) {
       failure = { code: 'DRIVER_ERROR', message: `未注册的 driver: ${job.driver_id}`, retryable: false }
@@ -345,7 +356,8 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
       at: now(),
     })
   } finally {
-    await rm(workspace, { recursive: true, force: true })
+    keepWorkspace = resumable && (failure !== null || cancelled)
+    if (!keepWorkspace) await rm(workspace, { recursive: true, force: true })
   }
 
   if (cancelled) {

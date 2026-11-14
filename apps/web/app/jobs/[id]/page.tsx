@@ -90,6 +90,15 @@ export default function JobPage() {
     }
   }
 
+  const resume = async () => {
+    try {
+      await api<Job>(`/v1/jobs/${jobId}/resume`, { method: 'POST' })
+      window.location.reload()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '续作失败')
+    }
+  }
+
   const terminal = job ? TERMINAL.has(job.status) : false
   const shownProgress = job?.status === 'succeeded' ? 100 : progress
 
@@ -119,6 +128,11 @@ export default function JobPage() {
             {!terminal && (
               <button type="button" className="ghost" onClick={() => void cancel()}>
                 取消任务
+              </button>
+            )}
+            {(job?.status === 'failed' || job?.status === 'cancelled') && job?.resumable && (
+              <button type="button" className="ghost" onClick={() => void resume()}>
+                续作
               </button>
             )}
             {(job?.status === 'failed' || job?.status === 'cancelled') && (

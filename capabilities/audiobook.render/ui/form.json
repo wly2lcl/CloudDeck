@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "defaultVoice": {
+      "type": "string",
+      "title": "默认音色",
+      "default": "narrator"
+    },
+    "voiceMap": {
+      "type": "string",
+      "title": "角色音色映射（JSON）",
+      "default": "{\"旁白\":\"narrator\"}"
+    },
+    "maxCharsPerChunk": {
+      "type": "integer",
+      "title": "每块最大字数",
+      "default": 200,
+      "minimum": 50,
+      "maximum": 1000
+    }
+  }
+}

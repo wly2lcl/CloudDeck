@@ -75,6 +75,17 @@ class _JobScreenState extends State<JobScreen> {
     }
   }
 
+  Future<void> resume() async {
+    try {
+      await widget.session.api.resume(widget.jobId);
+      timer?.cancel();
+      timer = Timer.periodic(const Duration(seconds: 1), (_) => refresh());
+      await refresh();
+    } on ApiException catch (caught) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(caught.message)));
+    }
+  }
+
   Future<void> retry() async {
     try {
       final next = await widget.session.api.retry(widget.jobId);
@@ -129,6 +140,10 @@ class _JobScreenState extends State<JobScreen> {
         actions: [
           if (current != null && !current.terminal)
             TextButton(onPressed: cancel, child: const Text('取消')),
+          if (current != null &&
+              current.resumable &&
+              (current.status == 'failed' || current.status == 'cancelled'))
+            TextButton(onPressed: resume, child: const Text('续作')),
           if (current != null && (current.status == 'failed' || current.status == 'cancelled'))
             TextButton(onPressed: retry, child: const Text('重试')),
         ],

@@ -98,6 +98,8 @@
 
 ## 第 8–11 周：M3 有声链路
 
+> 状态：已完成（2026-11-14）。TTS 流水线、音色映射、checkpoint、工作区保留、resume 接口、WAV 拼接与 GPU compose 已落地；真实 CosyVoice/DashScope 通过 HTTP provider 契约接入，需提供密钥与服务后冒烟。
+
 | ID | 任务 | 产出 | 验收 | 依赖 | 估时 |
 |---|---|---|---|---|---|
 | P3-01 | TTS worker 骨架 | 队列协议、checkpoint、进度事件 | 中断后只补未完成块 | P2-01 | 2 |

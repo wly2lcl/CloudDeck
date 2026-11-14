@@ -573,6 +573,23 @@ export async function claimNextJob(db: Database): Promise<JobRow | null> {
   )
 }
 
+export async function resumeJob(
+  db: Database,
+  tenantId: string,
+  jobId: string,
+): Promise<JobRow | null> {
+  return one<JobRow>(
+    db,
+    sql`UPDATE jobs
+        SET status = 'queued', resume_count = resume_count + 1,
+            error_code = NULL, error_message = NULL, cancel_requested = false,
+            finished_at = NULL, lease_until = NULL, updated_at = now()
+        WHERE id = ${jobId} AND tenant_id = ${tenantId}
+          AND status IN ('failed', 'cancelled')
+        RETURNING *`,
+  )
+}
+
 export async function retryJob(
   db: Database,
   tenantId: string,
