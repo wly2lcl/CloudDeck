@@ -16,11 +16,12 @@
     "mobile:test": "cd apps/mobile && flutter test",
     "boundaries": "tsx scripts/check-boundaries.ts",
     "smoke:llm": "pnpm --filter @clouddeck/worker-llm smoke",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries && pnpm openapi:check",
     "format": "prettier --write .",
     "smoke:tts": "pnpm --filter @clouddeck/worker-tts smoke",
     "sandbox:check": "tsx scripts/sandbox-preflight.ts",
-    "load:test": "tsx scripts/load-test.ts"
+    "load:test": "tsx scripts/load-test.ts",
+    "openapi:check": "tsx scripts/check-openapi.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
@@ -31,6 +32,18 @@
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "yaml": "^2.9.1"
+  },
+  "version": "0.1.0",
+  "description": "AI content production workbench with pluggable capabilities and a novel → script → storyboard → audiobook → video chain.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wly2lcl/CloudDeck.git"
+  },
+  "homepage": "https://github.com/wly2lcl/CloudDeck#readme",
+  "bugs": {
+    "url": "https://github.com/wly2lcl/CloudDeck/issues"
   }
 }

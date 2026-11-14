@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/wly2lcl/CloudDeck/tree/main/docs
+    about: Architecture, contracts, capabilities, deployment, and limitations.
+  - name: Security report
+    url: https://github.com/wly2lcl/CloudDeck/security/advisories/new
+    about: Report vulnerabilities privately.

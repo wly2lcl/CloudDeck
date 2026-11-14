@@ -18,6 +18,7 @@ services:
       retries: 10
 
   redis:
+    profiles: ['redis']
     image: redis:7-alpine
     ports:
       - '${REDIS_PORT:-6379}:6379'
@@ -30,6 +31,7 @@ services:
       retries: 10
 
   minio:
+    profiles: ['object-storage']
     image: minio/minio:latest
     command: server /data --console-address ':9001'
     environment:
@@ -46,7 +48,78 @@ services:
       timeout: 3s
       retries: 20
 
+  control-plane:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.control-plane
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-clouddeck}:${POSTGRES_PASSWORD:-clouddeck}@postgres:5432/${POSTGRES_DB:-clouddeck}
+      AUTH_SECRET: ${AUTH_SECRET:-dev-secret-change-me}
+      CREDENTIALS_KEY: ${CREDENTIALS_KEY:-dev-credentials-key-change-me}
+      STORAGE_DIR: /data/storage
+      CAPABILITIES_DIR: /app/capabilities
+      PUBLIC_API_BASE: ${PUBLIC_API_BASE:-http://localhost:4310}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      CONTROL_PLANE_PORT: 4310
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+    ports:
+      - '${CONTROL_PLANE_PORT:-4310}:4310'
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4310/healthz >/dev/null || exit 1']
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  job-runner:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.job-runner
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-clouddeck}:${POSTGRES_PASSWORD:-clouddeck}@postgres:5432/${POSTGRES_DB:-clouddeck}
+      AUTH_SECRET: ${AUTH_SECRET:-dev-secret-change-me}
+      CREDENTIALS_KEY: ${CREDENTIALS_KEY:-dev-credentials-key-change-me}
+      STORAGE_DIR: /data/storage
+      WORKSPACE_ROOT: /data/workspaces
+      CAPABILITIES_DIR: /app/capabilities
+      PUBLIC_API_BASE: ${PUBLIC_API_BASE:-http://localhost:4310}
+      TTS_PROVIDER: ${TTS_PROVIDER:-fake}
+      TTS_MODEL: ${TTS_MODEL:-qwen-audio-3.1-tts-flash}
+      TTS_DEFAULT_VOICE: ${TTS_DEFAULT_VOICE:-longanhuan_v3.1}
+      BAILIAN_API_KEY: ${BAILIAN_API_KEY:-}
+      LLM_HTTP_URL: ${LLM_HTTP_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_HTTP_TOKEN: ${LLM_HTTP_TOKEN:-}
+      PUSH_PROVIDER: ${PUSH_PROVIDER:-mock}
+      PUSH_HTTP_URL: ${PUSH_HTTP_URL:-}
+    volumes:
+      - storage:/data/storage
+      - workspaces:/data/workspaces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      control-plane:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:4310}
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    depends_on:
+      control-plane:
+        condition: service_healthy
+
 volumes:
   pgdata:
   redisdata:
   miniodata:
+  storage:
+  workspaces:

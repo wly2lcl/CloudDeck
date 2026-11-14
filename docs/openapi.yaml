@@ -1,0 +1,666 @@
+openapi: 3.1.0
+info:
+  title: CloudDeck API
+  version: 0.1.0
+  description: |
+    CloudDeck control-plane API. All authenticated endpoints require a bearer token.
+    List responses use the `{ data, requestId }` envelope; errors use `{ error: { code, message, details? }, requestId }`.
+servers:
+  - url: http://localhost:4310
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: auth
+  - name: tenant
+  - name: projects
+  - name: assets
+  - name: capabilities
+  - name: jobs
+  - name: billing
+  - name: templates
+  - name: comments
+  - name: shares
+  - name: webhooks
+  - name: credentials
+  - name: devices
+  - name: ops
+
+paths:
+  /healthz:
+    get:
+      tags: [ops]
+      security: []
+      summary: Liveness probe
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /metrics:
+    get:
+      tags: [ops]
+      security: []
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: Prometheus text format
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /v1/auth/register:
+    post:
+      tags: [auth]
+      security: []
+      summary: Create user and personal tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                displayName: { type: string }
+                tenantName: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+        '422': { $ref: '#/components/responses/Error' }
+  /v1/auth/login:
+    post:
+      tags: [auth]
+      security: []
+      summary: Email/password login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                tenantId: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/auth/refresh:
+    post:
+      tags: [auth]
+      security: []
+      summary: Rotate refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/me:
+    get:
+      tags: [auth]
+      summary: Current user and tenants
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/tenant:
+    get:
+      tags: [tenant]
+      summary: Current tenant
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    patch:
+      tags: [tenant]
+      summary: Change plan (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier: { type: string, enum: [free, pro, team] }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/projects:
+    get:
+      tags: [projects]
+      summary: List projects
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/projects/{id}:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [projects]
+      summary: Get project
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    delete:
+      tags: [projects]
+      summary: Soft-delete project
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/projects/{id}/graph:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [projects]
+      summary: Content chain graph
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/projects/{id}/assets:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [assets]
+      summary: List project assets
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [assets]
+      summary: Upload asset (multipart)
+      parameters:
+        - { name: type, in: query, schema: { type: string } }
+        - { name: name, in: query, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+
+  /v1/assets/{id}:
+    parameters: [{ $ref: '#/components/parameters/AssetId' }]
+    get:
+      tags: [assets]
+      summary: Asset metadata and versions
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/assets/{id}/versions/{version}/download:
+    parameters:
+      - { $ref: '#/components/parameters/AssetId' }
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [assets]
+      summary: Redirect to signed download URL
+      responses:
+        '302': { description: Signed URL redirect }
+  /v1/assets/{id}/versions/{version}/url:
+    parameters:
+      - { $ref: '#/components/parameters/AssetId' }
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [assets]
+      summary: Signed download URL as JSON
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/assets/{id}/versions/{version}/content:
+    parameters:
+      - { $ref: '#/components/parameters/AssetId' }
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [assets]
+      summary: Text preview (max 1 MiB)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/capabilities:
+    get:
+      tags: [capabilities]
+      summary: List enabled capabilities for the tenant
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/capabilities/states:
+    get:
+      tags: [capabilities]
+      summary: Capability toggle states
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/capabilities/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [capabilities]
+      summary: Capability manifest and form schema
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/Error' }
+  /v1/capabilities/{id}/enabled:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    put:
+      tags: [capabilities]
+      summary: Enable or disable a capability (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/projects/{id}/jobs:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    post:
+      tags: [jobs]
+      summary: Create a job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [capabilityId, inputs]
+              properties:
+                capabilityId: { type: string }
+                capabilityVersion: { type: string }
+                inputs:
+                  type: array
+                  items:
+                    type: object
+                    required: [assetId, version]
+                    properties:
+                      assetId: { type: string, format: uuid }
+                      version: { type: integer }
+                params: { type: object, additionalProperties: true }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/jobs:
+    get:
+      tags: [jobs]
+      summary: List jobs
+      parameters:
+        - { name: projectId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/jobs/{id}:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    get:
+      tags: [jobs]
+      summary: Job detail
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/jobs/{id}/events:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    get:
+      tags: [jobs]
+      summary: SSE event stream
+      responses:
+        '200':
+          description: Server-sent events
+          content:
+            text/event-stream:
+              schema: { type: string }
+  /v1/jobs/{id}/logs:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    get:
+      tags: [jobs]
+      summary: Job events as JSON
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/jobs/{id}/cancel:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    post:
+      tags: [jobs]
+      summary: Request cancellation
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/jobs/{id}/retry:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    post:
+      tags: [jobs]
+      summary: Retry a failed/cancelled job as a new job
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/jobs/{id}/resume:
+    parameters: [{ $ref: '#/components/parameters/JobId' }]
+    post:
+      tags: [jobs]
+      summary: Resume a resumable job in the same workspace
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/billing/quota:
+    get:
+      tags: [billing]
+      summary: Quota snapshot
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/billing/usage:
+    get:
+      tags: [billing]
+      summary: Period usage total
+      parameters: [{ name: period, in: query, schema: { type: string, example: '2026-11' } }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/billing/summary:
+    get:
+      tags: [billing]
+      summary: Usage grouped by capability and driver
+      parameters: [{ name: period, in: query, schema: { type: string } }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/billing/reconciliation:
+    get:
+      tags: [billing]
+      summary: Estimated vs actual cost per job
+      parameters: [{ name: period, in: query, schema: { type: string } }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/billing/statement:
+    get:
+      tags: [billing]
+      summary: Monthly statement
+      parameters: [{ name: period, in: query, schema: { type: string } }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/billing/invoices:
+    get:
+      tags: [billing]
+      summary: List invoices
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [billing]
+      summary: Create or fetch the period invoice snapshot
+      parameters: [{ name: period, in: query, schema: { type: string } }]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/billing/invoices/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [billing]
+      summary: Invoice detail
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/billing/invoices/{id}/html:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [billing]
+      summary: Printable invoice HTML
+      responses:
+        '200':
+          description: HTML
+          content:
+            text/html:
+              schema: { type: string }
+  /v1/billing/checkout:
+    post:
+      tags: [billing]
+      summary: Create a subscription checkout (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier: { type: string, enum: [pro, team] }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/billing/webhook/{provider}:
+    parameters: [{ name: provider, in: path, required: true, schema: { type: string } }]
+    post:
+      tags: [billing]
+      security: []
+      summary: Payment provider callback (HMAC signed)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '403': { $ref: '#/components/responses/Error' }
+  /v1/billing/payments:
+    get:
+      tags: [billing]
+      summary: List payments
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/templates:
+    get:
+      tags: [templates]
+      summary: List tenant templates
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [templates]
+      summary: Create template
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/templates/public:
+    get:
+      tags: [templates]
+      summary: Public template market
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/templates/public/{id}/import:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      tags: [templates]
+      summary: Import a public template
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/templates/{id}/public:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    patch:
+      tags: [templates]
+      summary: Publish or unpublish (owner/admin)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/projects/{id}/comments:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [comments]
+      summary: List comments
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [comments]
+      summary: Add comment
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/projects/{id}/comments/stream:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [comments]
+      summary: SSE comment stream
+      parameters: [{ name: after, in: query, schema: { type: string, format: date-time } }]
+      responses:
+        '200':
+          description: Server-sent events
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /v1/projects/{id}/shares:
+    parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+    get:
+      tags: [shares]
+      summary: List share links
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [shares]
+      summary: Create a read-only share link
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/shares/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    delete:
+      tags: [shares]
+      summary: Revoke a share link
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/public/shares/{token}:
+    parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [shares]
+      security: []
+      summary: Public read-only project view
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/Error' }
+  /v1/public/shares/{token}/assets/{assetId}/content:
+    parameters:
+      - { name: token, in: path, required: true, schema: { type: string } }
+      - { name: assetId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [shares]
+      security: []
+      summary: Public text preview
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/webhooks:
+    get:
+      tags: [webhooks]
+      summary: List webhooks
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [webhooks]
+      summary: Create webhook (secret returned once)
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/webhooks/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    delete:
+      tags: [webhooks]
+      summary: Delete webhook
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/webhook-deliveries:
+    get:
+      tags: [webhooks]
+      summary: Recent webhook deliveries
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/model-credentials:
+    get:
+      tags: [credentials]
+      summary: List tenant model credentials (masked)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [credentials]
+      summary: Store an encrypted model credential
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/model-credentials/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    delete:
+      tags: [credentials]
+      summary: Delete credential
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/model-credentials/rotate:
+    post:
+      tags: [credentials]
+      summary: Re-encrypt all credentials with the current master key
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /v1/devices:
+    post:
+      tags: [devices]
+      summary: Register a push device token
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/devices/{token}:
+    parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+    delete:
+      tags: [devices]
+      summary: Remove a device token
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AssetId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    JobId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Ok:
+      description: Success envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, requestId]
+            properties:
+              data: {}
+              requestId: { type: string }
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error, requestId]
+            properties:
+              error:
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    type: string
+                    enum:
+                      - UNAUTHENTICATED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - VALIDATION_FAILED
+                      - QUOTA_EXCEEDED
+                      - BUDGET_EXCEEDED
+                      - CAPABILITY_UNAVAILABLE
+                      - DRIVER_ERROR
+                      - RATE_LIMITED
+                      - INTERNAL
+                  message: { type: string }
+                  details: {}
+              requestId: { type: string }

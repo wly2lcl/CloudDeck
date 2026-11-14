@@ -39,6 +39,9 @@ jobs:
       - name: 依赖边界
         run: pnpm boundaries
 
+      - name: OpenAPI 校验
+        run: pnpm openapi:check
+
       - name: 构建 Web
         run: pnpm --filter @clouddeck/web build
 

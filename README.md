@@ -1,129 +1,142 @@
 # CloudDeck
 
 [![CI](https://github.com/wly2lcl/CloudDeck/actions/workflows/ci.yml/badge.svg)](https://github.com/wly2lcl/CloudDeck/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](package.json)
+[![pnpm](https://img.shields.io/badge/pnpm-10-F69220)](package.json)
 
-面向创作者与内容团队的 AI 内容生产工作台，Web 与移动端同源。
+**English** | [简体中文](README.zh.md)
 
-核心主张两条：
+CloudDeck is a self-hostable AI content production workbench. It turns one idea
+into a publishable novel, script, storyboard, audiobook, or video, and lets every
+step run on a different engine.
 
-1. **内容资产链**——小说、剧本、有声、视频不是四个独立工具，而是同一条内容链上的四道工序，共享项目、角色、设定与版本。
-2. **能力可插拔**——每个能力（capability）只声明契约，执行引擎（Claude Code、OpenCode、dsh、自研流水线）全部是适配器，可替换、可灰度、可降级。
+Two ideas define the project:
 
-平台自身不实现 agent，也不复用任何引擎的内部代码。平台只做编排、资产、任务、权限与计费。
+1. **Content asset chain** — novel, script, storyboard, audio, and video are
+   stages of one production line, sharing projects, characters, settings, and versions.
+2. **Pluggable capabilities** — every capability declares a contract; engines
+   (Claude Code, OpenCode, dsh, custom LLM/TTS/video pipelines) are adapters that
+   can be swapped, gray-released, or replaced without touching the platform or clients.
 
-## 当前状态
+![Architecture](docs/assets/architecture.svg)
 
-M5 商业化核心（2026-11-14）：
+## Features
 
-- 套餐与配额：free / pro / team 预设切换，用量按能力/驱动汇总
-- 能力开关：租户可停用能力，列表过滤、建任务拒绝
-- 项目模板：创建模板、用模板建项目
-- 只读分享：token 哈希存储、7 天有效、可撤销、公开文本预览
-- 项目评论：成员可写，作者或 owner/admin 可删
-- 月度对账单：明细 + 总额 + 任务数
-- `coding.assist`：代码工作区 → 补丁说明（Claude Code + 沙箱）
-- 设置页：套餐、配额、用量、能力开关、模板
-- 真实模型：`pnpm smoke:llm` 可跑通 OpenAI 兼容端点；429/5xx 自动退避重试
-- 真实 TTS：`pnpm smoke:tts` 可跑通百炼 `qwen-audio-3.1-tts-flash`
-- 租户凭据：AES-256-GCM 加密存储，支持主密钥轮换与 `last_used_at`
-- 真实部署：Docker Postgres 全链路已验证（剧本 → 分镜 → 有声 → 视频）
-- 对账与账单：按任务比较预估/实际，生成不可变月度账单快照
-- 可观测性：`/metrics` 暴露任务、用量与请求计数
-- 沙箱：支持 `SANDBOX_RUNTIME=runsc`（gVisor），`pnpm sandbox:check` 预检
-- 模板市场：公开/导入模板；评论支持 SSE 实时流
-- 支付：mock/http provider、回调签名、套餐升级；账单可打印 HTML
-- 推送：设备令牌注册，任务终态推送（mock/http 网关）
-- 安全：Helmet、全局与登录/公开分享限流
-- 负载：`pnpm load:test`，本机单实例实测 4,053 rps、p95 7ms、0 错误
-- 测试：110 个后端/驱动用例 + Flutter analyze/test
+- Multi-tenant workspace: accounts, roles, projects, versioned assets, content graph.
+- Capability registry: manifest, I/O schema, permissions, budget, driver routing.
+- Durable jobs: PostgreSQL queue, SSE progress, cancel, retry, checkpoint resume.
+- Sandboxes: local process or Docker (optional gVisor runtime), per-job workspace.
+- Drivers: Claude Code (stream-json), OpenAI-compatible LLM, DashScope TTS, ffmpeg video.
+- Commercial: plans and quotas, usage ledger, reconciliation, invoice snapshots,
+  capability toggles, templates and public template market, read-only shares.
+- Collaboration: project comments with an SSE stream.
+- Security: JWT with refresh rotation, AES-256-GCM model credentials, Helmet,
+  rate limiting, HMAC webhooks.
+- Clients: Next.js web app and Flutter mobile app.
 
-实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）、[ADR-0013](docs/adr/0013-m5-commercial.md)（商业化核心）。
+## Quick start
 
-## 快速开始
+### Full stack with Docker
 
-环境：Node >= 22、pnpm 10、Docker（用于本地 Postgres）。
+```sh
+git clone https://github.com/wly2lcl/CloudDeck.git
+cd CloudDeck
+cp infra/compose/.env.example infra/compose/.env
+docker compose -f infra/compose/docker-compose.yml up --build
+```
+
+- Web: <http://localhost:3000>
+- API: <http://localhost:4310>
+- Default storage is a named volume; Postgres data persists in `pgdata`.
+
+### Local development
 
 ```sh
 pnpm install
-cd infra/compose && cp .env.example .env && docker compose up -d postgres
-cd ../..
-pnpm dev        # 控制面 :4310 + job-runner + Web :3000
+docker compose -f infra/compose/docker-compose.yml up -d postgres
+pnpm dev        # control plane :4310, job-runner, web :3000
 ```
 
-打开 <http://localhost:3000>，注册后创建项目、上传 txt、运行 `demo.echo`。
-
-只想跑检查与测试（测试使用进程内 PGlite，不依赖 Docker）：
+Checks (tests use in-process PGlite and do not need Docker):
 
 ```sh
 pnpm check
+cd apps/mobile && flutter analyze && flutter test
 ```
 
-真实模型冒烟（密钥只走环境变量）：
+## Configure model engines
 
-```sh
-LLM_HTTP_URL='https://<your-openai-compatible>/v1' \
-LLM_MODEL='<model>' \
-LLM_HTTP_TOKEN='<your-key>' \
-LLM_MAX_ATTEMPTS=6 LLM_RETRY_BASE_MS=1500 \
-pnpm smoke:llm
-```
+CloudDeck works without external models for the demo capability. To use real engines:
 
-遇到 429 会自动按 `Retry-After` / 指数退避重试，耗尽后报可读错误。
-
-真实 TTS 冒烟：
-
-```sh
-TTS_PROVIDER=dashscope \
-TTS_MODEL='qwen-audio-3.1-tts-flash' \
-TTS_DEFAULT_VOICE='longanhuan_v3.1' \
-BAILIAN_API_KEY='<your-key>' \
-pnpm smoke:tts
-```
-
-移动端：
-
-```sh
-cd apps/mobile
-flutter pub get
-flutter run --dart-define=API_BASE=http://<你的局域网IP>:4310
-```
-
-真机不能用 `localhost`，请使用电脑的局域网地址；模拟器可用 `10.0.2.2`（Android）或 `localhost`（iOS）。
-
-常用命令：
-
-| 命令 | 说明 |
+| Engine | Environment |
 |---|---|
-| `pnpm dev` | 并行启动控制面与 Web |
-| `pnpm lint` | ESLint |
-| `pnpm typecheck` | 全仓类型检查 |
-| `pnpm test` | 单元/契约测试 + 边界自测 |
-| `pnpm boundaries` | 依赖边界扫描 |
-| `pnpm check` | 以上全部 |
+| OpenAI-compatible LLM | `LLM_HTTP_URL`, `LLM_MODEL`, `LLM_HTTP_TOKEN` (optional `LLM_MAX_ATTEMPTS`, `LLM_RETRY_BASE_MS`) |
+| Alibaba Bailian TTS | `TTS_PROVIDER=dashscope`, `TTS_MODEL=qwen-audio-3.1-tts-flash`, `BAILIAN_API_KEY` |
+| Claude Code | `ANTHROPIC_API_KEY`; optional `CLAUDE_BIN`, `SANDBOX_DRIVER=docker` |
+| Video | `ffmpeg` available on the host or inside the runner image |
 
-## 文档索引
+Tenants can also store their own keys under **Settings → Model credentials**;
+they are encrypted with AES-256-GCM and injected at job runtime.
 
-| 文档 | 内容 |
+## Capabilities
+
+| ID | What it does | Default driver |
+|---|---|---|
+| `novel.edit` | Continue, rewrite, or check a manuscript | Claude Code |
+| `script.generate` | Novel → acts/scenes script | LLM |
+| `storyboard.plan` | Script → structured shots | LLM |
+| `audiobook.render` | Multi-voice audiobook with resume | TTS |
+| `video.render` | Storyboard + audio → MP4 and SRT | ffmpeg |
+| `coding.assist` | Code workspace → patch notes | Claude Code |
+| `demo.echo` | End-to-end smoke capability | Mock |
+
+## Repository layout
+
+```text
+apps/web            Next.js client
+apps/mobile         Flutter client
+services/           control-plane, job-runner
+packages/           contracts, db, storage, sandbox, secrets, ui
+drivers/            engine adapters (mock, claude-code)
+workers/            tts, llm, video
+capabilities/       capability packages
+infra/              compose, Dockerfiles, deployment
+docs/               architecture, contracts, API, ADRs, deployment
+```
+
+## Documentation
+
+| Doc | Contents |
 |---|---|
-| [00 产品定义](docs/00-product.md) | 定位、用户、范围、非目标、成功指标、术语 |
-| [01 架构](docs/01-architecture.md) | 分层、四层契约、运行时拓扑、job 生命周期 |
-| [02 契约](docs/02-contracts.md) | CapabilityManifest、Driver、JobEvent、AssetRef、状态机 |
-| [03 数据模型](docs/03-data-model.md) | 多租户表结构、资产链、计量账本 |
-| [04 能力设计](docs/04-capabilities.md) | 五个能力的 manifest、步骤图、验收口径 |
-| [05 引擎适配](docs/05-drivers.md) | Claude Code / OpenCode / dsh / 自研流水线 |
-| [06 API](docs/06-api.md) | REST、SSE、错误码、幂等、限流 |
-| [07 客户端](docs/07-clients.md) | Web、移动端、schema 驱动 UI |
-| [08 安全与计费](docs/08-security-billing.md) | 沙箱、密钥、权限、配额、计费、合规 |
-| [09 仓库与规范](docs/09-repo-conventions.md) | monorepo、边界规则、CI 门禁、测试策略 |
-| [10 路线图](docs/10-roadmap.md) | M0–M5 里程碑与退出标准 |
-| [11 开发计划](docs/11-dev-plan.md) | 迭代任务、验收标准、工期 |
-| [12 风险与待决策](docs/12-risks.md) | 风险登记、触发信号、待确认事项 |
-| [13 合规评审](docs/13-compliance.md) | 协议、版权、声音授权、审核、开票现状 |
+| [Product](docs/00-product.md) | scope, users, success metrics |
+| [Architecture](docs/01-architecture.md) | layers, contracts, runtime |
+| [Contracts](docs/02-contracts.md) | manifest, driver, events, assets |
+| [Data model](docs/03-data-model.md) | multi-tenant schema, content chain |
+| [Capabilities](docs/04-capabilities.md) | capability designs and acceptance |
+| [Drivers](docs/05-drivers.md) | Claude Code, ACP, pipeline, sandbox |
+| [API](docs/06-api.md) · [OpenAPI](docs/openapi.yaml) | REST, SSE, error codes |
+| [Security & billing](docs/08-security-billing.md) | sandbox, secrets, quotas |
+| [Deployment](docs/deployment.md) | compose, production, GPU, keys |
+| [Limitations](docs/limitations.md) | known gaps and unblock conditions |
+| [Compliance](docs/13-compliance.md) | legal and content checklist |
+| [ADRs](docs/adr/) | 18 architecture decisions |
 
-架构决策记录见 [docs/adr/](docs/adr/)。
+## Limitations
 
-## 文档约定
+Real model quality depends on the endpoint you configure. The TTS and video
+pipelines are verified with real services only when credentials are supplied.
+gVisor support exists in code but requires installing `runsc`. Payment, mobile
+push, and tax invoices ship with mock/HTTP providers; real channels need external
+accounts. See [docs/limitations.md](docs/limitations.md).
 
-- 契约（schema、接口、状态机）是唯一事实源；实现与文档冲突时以契约为准，改契约必须走版本变更。
-- 每个能力必须有可自动化的验收口径，不做「看起来能用」的验收。
-- 未决事项统一记入 [12 风险与待决策](docs/12-risks.md)，不在正文里含糊带过。
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through
+[GitHub Security Advisories](SECURITY.md). By participating you agree to the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+[MIT](LICENSE). Third-party components and engine terms are listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

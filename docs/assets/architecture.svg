@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="560" viewBox="0 0 920 560" role="img" aria-labelledby="title">
+  <title id="title">CloudDeck architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b7186"/>
+    </marker>
+    <style>
+      .bg { fill: #0b0f14; }
+      .box { fill: #121821; stroke: #26384a; stroke-width: 1.2; rx: 10; }
+      .accent { fill: #0f1d22; stroke: #2dd4bf; stroke-width: 1.4; }
+      .title { fill: #e6edf5; font: 600 15px ui-sans-serif, system-ui, sans-serif; }
+      .sub { fill: #8b9bb0; font: 12px ui-sans-serif, system-ui, sans-serif; }
+      .label { fill: #5eead4; font: 600 12px ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; }
+      .line { stroke: #5b7186; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="920" height="560"/>
+
+  <text x="40" y="42" class="label">CLIENTS</text>
+  <rect x="40" y="56" width="240" height="72" class="box"/>
+  <text x="60" y="88" class="title">Web · Next.js</text>
+  <text x="60" y="108" class="sub">projects · jobs · content graph</text>
+
+  <rect x="300" y="56" width="240" height="72" class="box"/>
+  <text x="320" y="88" class="title">Mobile · Flutter</text>
+  <text x="320" y="108" class="sub">progress · playback</text>
+
+  <text x="40" y="176" class="label">CONTROL PLANE</text>
+  <rect x="40" y="190" width="500" height="110" class="accent"/>
+  <text x="60" y="220" class="title">Fastify API · auth · tenants · assets</text>
+  <text x="60" y="244" class="sub">capability registry · job orchestration · billing</text>
+  <text x="60" y="266" class="sub">SSE events · shares · comments · webhooks</text>
+
+  <rect x="580" y="190" width="300" height="110" class="box"/>
+  <text x="600" y="220" class="title">PostgreSQL</text>
+  <text x="600" y="244" class="sub">multi-tenant data · RLS</text>
+  <text x="600" y="266" class="sub">jobs queue (SKIP LOCKED) · usage ledger</text>
+
+  <rect x="580" y="320" width="300" height="80" class="box"/>
+  <text x="600" y="350" class="title">Object storage</text>
+  <text x="600" y="372" class="sub">S3 / MinIO · local driver for dev</text>
+
+  <text x="40" y="340" class="label">EXECUTION PLANE</text>
+  <rect x="40" y="354" width="500" height="76" class="accent"/>
+  <text x="60" y="384" class="title">job-runner</text>
+  <text x="60" y="406" class="sub">sandbox lifecycle · driver events · artifacts · resume</text>
+
+  <text x="40" y="470" class="label">DRIVERS &amp; WORKERS</text>
+  <rect x="40" y="484" width="110" height="48" class="box"/>
+  <text x="58" y="513" class="title">Claude Code</text>
+  <rect x="160" y="484" width="100" height="48" class="box"/>
+  <text x="178" y="513" class="title">LLM</text>
+  <rect x="270" y="484" width="100" height="48" class="box"/>
+  <text x="288" y="513" class="title">TTS</text>
+  <rect x="380" y="484" width="100" height="48" class="box"/>
+  <text x="398" y="513" class="title">Video</text>
+  <rect x="490" y="484" width="100" height="48" class="box"/>
+  <text x="508" y="513" class="title">Mock</text>
+
+  <path class="line" d="M160 128 L160 190"/>
+  <path class="line" d="M420 128 L420 190"/>
+  <path class="line" d="M540 245 L580 245"/>
+  <path class="line" d="M420 300 L420 354"/>
+  <path class="line" d="M540 392 L580 360"/>
+  <path class="line" d="M290 430 L290 484"/>
+  <path class="line" d="M540 430 L540 484"/>
+  <path class="line" d="M580 360 L540 392" />
+</svg>
