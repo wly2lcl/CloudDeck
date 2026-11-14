@@ -8,6 +8,8 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/dist/**',
       '**/.next/**',
+      '**/build/**',
+      '**/.dart_tool/**',
       '**/coverage/**',
       '**/next-env.d.ts',
       'pnpm-lock.yaml',
@@ -15,6 +17,18 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    files: ['**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

@@ -18,7 +18,9 @@
   "dependencies": {
     "@clouddeck/contracts": "workspace:*",
     "@clouddeck/db": "workspace:*",
+    "@clouddeck/driver-claude-code": "workspace:*",
     "@clouddeck/driver-mock": "workspace:*",
+    "@clouddeck/sandbox": "workspace:*",
     "@clouddeck/storage": "workspace:*"
   },
   "devDependencies": {

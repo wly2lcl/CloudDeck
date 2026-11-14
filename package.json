@@ -12,6 +12,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test && pnpm test:boundaries",
     "test:boundaries": "vitest run scripts",
+    "mobile:analyze": "cd apps/mobile && flutter analyze",
+    "mobile:test": "cd apps/mobile && flutter test",
     "boundaries": "tsx scripts/check-boundaries.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries",
     "format": "prettier --write ."

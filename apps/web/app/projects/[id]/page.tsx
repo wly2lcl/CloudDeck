@@ -9,6 +9,8 @@ import {
   api,
   clearTokens,
   downloadAsset,
+  getAssetContent,
+  getAssetUrl,
   getToken,
   type Asset,
   type CapabilitySummary,
@@ -37,6 +39,12 @@ export default function ProjectPage() {
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState<{
+    name: string
+    text?: string
+    url?: string
+    mime?: string
+  } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +73,20 @@ export default function ProjectPage() {
     }
     void load()
   }, [load, router])
+
+  const previewAsset = async (asset: Asset) => {
+    try {
+      if (asset.mime.startsWith('audio/') || asset.mime.startsWith('video/') || asset.mime.startsWith('image/')) {
+        const { url, mime } = await getAssetUrl(asset.assetId, asset.latestVersion)
+        setPreview({ name: asset.name, url, mime })
+        return
+      }
+      const { text, mime } = await getAssetContent(asset.assetId, asset.latestVersion)
+      setPreview({ name: asset.name, text, mime })
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '预览失败')
+    }
+  }
 
   const upload = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -142,18 +164,47 @@ export default function ProjectPage() {
                       {asset.type} · v{asset.latestVersion} · {Math.ceil(asset.size / 1024)} KB
                     </small>
                   </span>
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => void downloadAsset(asset.assetId, asset.latestVersion)}
-                  >
-                    下载
-                  </button>
+                  <span className="row">
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => void previewAsset(asset)}
+                    >
+                      预览
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => void downloadAsset(asset.assetId, asset.latestVersion)}
+                    >
+                      下载
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>
           )}
         </section>
+
+        {preview && (
+          <section className="panel">
+            <div className="page-head">
+              <h2>预览 · {preview.name}</h2>
+              <button type="button" className="ghost" onClick={() => setPreview(null)}>
+                关闭
+              </button>
+            </div>
+            {preview.text !== undefined ? (
+              <pre className="preview-text">{preview.text}</pre>
+            ) : preview.mime?.startsWith('audio/') ? (
+              <audio controls autoPlay src={preview.url} className="preview-media" />
+            ) : preview.mime?.startsWith('video/') ? (
+              <video controls autoPlay src={preview.url} className="preview-media" />
+            ) : preview.url ? (
+              <img src={preview.url} alt={preview.name} className="preview-media" />
+            ) : null}
+          </section>
+        )}
 
         <section className="panel">
           <h2>运行能力</h2>

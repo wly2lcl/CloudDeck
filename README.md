@@ -11,9 +11,16 @@
 
 ## 当前状态
 
-M1 平台核心（2026-11-14）：多租户、鉴权、项目/资产版本、能力注册表、任务队列与 runner、SSE 事件、计量配额、Web 全流程页面均已落地。示例能力 `demo.echo` 可跑通「上传 → 提交 → 执行 → 产物入库 → 内容链」。
+M2 智能驱动（2026-11-14）：
 
-M1 的两处实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)：任务队列使用 Postgres `SKIP LOCKED`，事件流使用数据库轮询 + SSE，Redis/BullMQ 推迟。
+- 沙箱抽象（本地进程 / Docker），驱动通过 `CommandRunner` 启动子进程
+- Claude Code driver：stream-json 映射、用量与取消、产物收集
+- `novel.edit` 能力：续写 / 改写 / 一致性检查，提示词随能力包维护
+- Web：文本与音视频预览、任务重试
+- 移动端 Flutter：登录、项目与资产、运行能力、任务进度、音频播放
+- 测试：49 个后端/驱动用例 + Flutter analyze/test
+
+M1 的两处实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)，M2 的沙箱与 driver 决策见 [ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)。
 
 ## 快速开始
 
@@ -33,6 +40,16 @@ pnpm dev        # 控制面 :4310 + job-runner + Web :3000
 ```sh
 pnpm check
 ```
+
+移动端：
+
+```sh
+cd apps/mobile
+flutter pub get
+flutter run --dart-define=API_BASE=http://<你的局域网IP>:4310
+```
+
+真机不能用 `localhost`，请使用电脑的局域网地址；模拟器可用 `10.0.2.2`（Android）或 `localhost`（iOS）。
 
 常用命令：
 

@@ -11,5 +11,6 @@
 | [0007](0007-mobile-flutter.md) | 移动端选用 Flutter | 已接受 |
 | [0008](0008-commercial-phasing.md) | 商业化与部署分阶段（A → B → C） | 已接受 |
 | [0009](0009-m1-queue-and-events.md) | M1 使用 Postgres 队列与轮询事件流 | 已接受（M1 临时） |
+| [0010](0010-m2-sandbox-and-agent-driver.md) | M2 沙箱抽象与 agent driver 接入 | 已接受 |
 
 约定：ADR 只记录有争议且影响面大的决策；决策变更时新增编号并标注取代关系，不修改历史记录。

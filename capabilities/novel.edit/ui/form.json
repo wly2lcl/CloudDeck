@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "title": "模式",
+      "enum": ["continue", "rewrite", "check"],
+      "default": "continue"
+    },
+    "instruction": {
+      "type": "string",
+      "title": "写作指令",
+      "default": "续写下一段，保持原有叙事视角、人称与节奏。"
+    },
+    "chapter": {
+      "type": "string",
+      "title": "目标章节（可选）",
+      "default": ""
+    }
+  }
+}

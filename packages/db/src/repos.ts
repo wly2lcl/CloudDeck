@@ -432,6 +432,8 @@ export interface JobRow {
   error_message: string | null
   cancel_requested: boolean
   attempts: number
+  retried_from_job_id: string | null
+  created_by: string | null
   created_at: Date
   started_at: Date | null
   finished_at: Date | null
@@ -567,6 +569,28 @@ export async function claimNextJob(db: Database): Promise<JobRow | null> {
           SELECT id FROM jobs WHERE status = 'queued'
           ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED
         )
+        RETURNING *`,
+  )
+}
+
+export async function retryJob(
+  db: Database,
+  tenantId: string,
+  jobId: string,
+): Promise<JobRow | null> {
+  const job = await one<JobRow>(
+    db,
+    sql`SELECT * FROM jobs WHERE id = ${jobId} AND tenant_id = ${tenantId}`,
+  )
+  if (!job || (job.status !== 'failed' && job.status !== 'cancelled')) return null
+
+  return one<JobRow>(
+    db,
+    sql`INSERT INTO jobs (tenant_id, project_id, capability_id, capability_version, driver_id,
+                         params, input_assets, estimated_cost_usd, created_by, retried_from_job_id)
+        VALUES (${tenantId}, ${job.project_id}, ${job.capability_id}, ${job.capability_version},
+                ${job.driver_id}, ${json(job.params)}, ${json(job.input_assets)},
+                ${job.estimated_cost_usd}, ${job.created_by}, ${job.id})
         RETURNING *`,
   )
 }

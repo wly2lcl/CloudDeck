@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import type { Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
+import { fileURLToPath } from 'node:url'
+import type { CommandRunner, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
 import {
   appendJobEvent,
   claimNextJob,
@@ -20,13 +21,28 @@ import {
   type Database,
   type JobRow,
 } from '@clouddeck/db'
+import {
+  CLAUDE_DRIVER_ID,
+  createClaudeCodeDriver,
+} from '@clouddeck/driver-claude-code'
 import { createMockDriver, MOCK_DRIVER_ID } from '@clouddeck/driver-mock'
+import { LocalSandbox } from '@clouddeck/sandbox'
 import { storageKeyFor, type Storage } from '@clouddeck/storage'
 
 export type DriverFactory = () => Driver
 
+const DEFAULT_CAPABILITIES_DIR = fileURLToPath(
+  new URL('../../../capabilities/', import.meta.url),
+)
+
 const DRIVERS: Record<string, DriverFactory> = {
   [MOCK_DRIVER_ID]: createMockDriver,
+  [CLAUDE_DRIVER_ID]: () =>
+    createClaudeCodeDriver({
+      command: process.env.CLAUDE_BIN,
+      commandArgs: process.env.CLAUDE_ARGS ? (JSON.parse(process.env.CLAUDE_ARGS) as string[]) : undefined,
+      skipPermissions: process.env.CLAUDE_SKIP_PERMISSIONS === 'true',
+    }),
 }
 
 export function registerDriver(id: string, factory: DriverFactory): void {
@@ -36,6 +52,9 @@ export function registerDriver(id: string, factory: DriverFactory): void {
 export interface RunnerDeps {
   db: Database
   storage: Storage
+  commands?: CommandRunner
+  capabilitiesDir?: string
+  env?: NodeJS.ProcessEnv
 }
 
 interface Failure {
@@ -179,6 +198,29 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
     const driver = factory()
     const inputs = await downloadInputs(deps, job, workspace)
 
+    const capabilitiesDir = deps.capabilitiesDir ?? DEFAULT_CAPABILITIES_DIR
+    const systemPromptPath = capability.manifest.prompts?.system
+    let systemPrompt: string | undefined
+    if (systemPromptPath) {
+      try {
+        systemPrompt = await readFile(
+          join(capabilitiesDir, capability.id, systemPromptPath),
+          'utf8',
+        )
+      } catch {
+        systemPrompt = undefined
+      }
+    }
+
+    const envSource = deps.env ?? process.env
+    const env: Record<string, string> = {}
+    for (const secret of capability.manifest.permissions.secrets) {
+      const value = envSource[secret]
+      if (value) env[secret] = value
+    }
+
+    const commands = deps.commands ?? new LocalSandbox()
+
     const controller = new AbortController()
     let abortReason: 'CANCELLED' | 'TIMEOUT' | 'BUDGET_EXCEEDED' | null = null
     const stop = (reason: typeof abortReason) => {
@@ -200,18 +242,24 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
     const ctx: TaskContext = {
       jobId: job.id,
       tenantId: job.tenant_id,
-      capability: { id: job.capability_id, version: job.capability_version },
+      capability: {
+        id: job.capability_id,
+        version: job.capability_version,
+        outputs: capability.manifest.outputs,
+        ...(systemPrompt ? { systemPrompt } : {}),
+      },
       params: job.params,
       inputs,
       workspace,
       outputDir,
-      env: {},
+      env,
       limits: {
         maxDurationMs: capability.manifest.execution.maxDurationMs,
         maxCostUsd: capability.manifest.execution.maxCostUsd,
         maxOutputBytes: 512 * 1024 * 1024,
       },
       signal: controller.signal,
+      commands,
     }
 
     await setJobStatus(deps.db, job.id, 'running')

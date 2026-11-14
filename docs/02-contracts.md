@@ -116,7 +116,12 @@ export interface Driver {
 export interface TaskContext {
   jobId: string
   tenantId: string
-  capability: { id: string; version: string }
+  capability: {
+    id: string
+    version: string
+    outputs?: OutputSpec[]              // 驱动据此决定产物类型
+    systemPrompt?: string               // 来自能力包 prompts.system
+  }
   params: Record<string, unknown>       // 已按 form schema 校验
   inputs: LocalAsset[]                  // 已下载到 workspace 的本地文件
   workspace: string                     // 可读写，job 结束销毁
@@ -128,6 +133,7 @@ export interface TaskContext {
     maxOutputBytes: number
   }
   signal: AbortSignal
+  commands: CommandRunner               // 沙箱注入的命令执行器
 }
 
 export interface LocalAsset {
@@ -144,6 +150,16 @@ export interface ArtifactSpec {
   path: string
   mime: string
   meta?: Record<string, unknown>
+}
+```
+
+命令执行器（runner 注入，driver 不直接 spawn）：
+
+```ts
+export interface CommandRunner {
+  run(command: string, args: string[], options: CommandOptions): Promise<CommandResult>
+  runStream?(command: string, args: string[], options: CommandOptions,
+             onStdout: (chunk: string) => void): Promise<CommandResult>
 }
 ```
 

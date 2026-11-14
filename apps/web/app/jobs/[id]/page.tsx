@@ -81,6 +81,15 @@ export default function JobPage() {
     }
   }
 
+  const retry = async () => {
+    try {
+      const next = await api<Job>(`/v1/jobs/${jobId}/retry`, { method: 'POST' })
+      router.push(`/jobs/${next.jobId}`)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '重试失败')
+    }
+  }
+
   const terminal = job ? TERMINAL.has(job.status) : false
   const shownProgress = job?.status === 'succeeded' ? 100 : progress
 
@@ -110,6 +119,11 @@ export default function JobPage() {
             {!terminal && (
               <button type="button" className="ghost" onClick={() => void cancel()}>
                 取消任务
+              </button>
+            )}
+            {(job?.status === 'failed' || job?.status === 'cancelled') && (
+              <button type="button" onClick={() => void retry()}>
+                重试
               </button>
             )}
           </div>

@@ -49,6 +49,27 @@ claude -p \
 
 **风险**：CLI 版本变动、输出事件结构变动、商用与托管条款（见 12 待决策）。缓解：版本固定 + 事件映射契约测试 + 每版本回归样例。
 
+### M2 实现
+
+- 实际命令：`claude -p --output-format stream-json --include-partial-messages --add-dir <workspace> --permission-mode acceptEdits`，可选 `--model`、`--session-id`。
+- 提示词通过 stdin 传入；能力包 `prompts.system` 由 runner 读取并注入，输入文件仅给出路径，由 agent 自行读取。
+- 事件映射：
+
+| CLI 事件 | 平台事件 |
+|---|---|
+| `system` | `log`（debug） |
+| `assistant.text` | `log`（info，截断） |
+| `assistant.tool_use` | `log`（info，工具名） |
+| `result` success | `usage`（cost/tokens） |
+| `result` 非 success | `error`（`AGENT_FAILED`） |
+| 进程非零退出 | `error`（`DRIVER_ERROR`） |
+| 缺少 `output/result.md` | `error`（`NO_ARTIFACT`） |
+
+- 产物约定：agent 必须写 `output/result.md`，驱动按 manifest 首个 output 声明资产类型。
+- 取消：runner 通过 `AbortSignal` 让沙箱终止整个进程组。
+- 测试：`test/fixtures/fake-claude.mjs` 覆盖成功、失败、取消、缺产物；真实 CLI 冒烟需要 `ANTHROPIC_API_KEY`，不进入 CI。
+- OpenCode：本机未安装，server/run 接口未验证，M2 不交付未经验证的适配器，M3 再接入。
+
 ## 5.2 OpenCode driver
 
 - 优先使用常驻 server 模式（一个沙箱一个进程），通过 HTTP + 事件流驱动，避免每 job 冷启动。
@@ -86,6 +107,11 @@ runner → 队列(step) → worker → 输出目录 → runner 收集
 | `workers/llm` | Node | 统一走模型网关，不做 provider 特判 |
 
 ## 5.5 沙箱规范
+
+M2 实现两种沙箱，由 runner 通过 `SANDBOX_DRIVER` 选择：
+
+- `local`：本地子进程 + 独立进程组 + 环境白名单。**不是安全边界**，仅用于开发与 CI，网络权限不生效。
+- `docker`：`--rm --init --read-only --tmpfs /tmp --user 1000:1000 --memory --cpus`，只挂载工作区根目录，网络默认 `none`。
 
 每个 job 一个容器：
 

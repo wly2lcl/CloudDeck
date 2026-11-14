@@ -1,6 +1,11 @@
+import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { createDb } from '@clouddeck/db'
+import { createCommandRunner } from '@clouddeck/sandbox'
 import { createStorage } from '@clouddeck/storage'
 import { startWorker } from './runner'
+
+const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 
 async function main(): Promise<void> {
   const databaseUrl =
@@ -25,7 +30,25 @@ async function main(): Promise<void> {
       : undefined,
   })
 
-  const stop = await startWorker({ db, storage })
+  const commands =
+    process.env.SANDBOX_DRIVER === 'docker'
+      ? createCommandRunner({
+          driver: 'docker',
+          image: process.env.SANDBOX_IMAGE ?? 'node:22-alpine',
+          workspaceRoot: process.env.SANDBOX_WORKSPACE_ROOT ?? tmpdir(),
+          network: process.env.SANDBOX_NETWORK === 'bridge' ? 'bridge' : 'none',
+          memory: process.env.SANDBOX_MEMORY ?? '2g',
+          cpus: Number(process.env.SANDBOX_CPUS ?? 2),
+        })
+      : createCommandRunner({ driver: 'local' })
+
+  const stop = await startWorker({
+    db,
+    storage,
+    commands,
+    capabilitiesDir: process.env.CAPABILITIES_DIR ?? `${REPO_ROOT}capabilities`,
+    env: process.env,
+  })
   console.log('job-runner 已启动')
 
   const shutdown = async (signal: string): Promise<void> => {

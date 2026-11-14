@@ -1,6 +1,12 @@
+import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { runOnce } from '@clouddeck/job-runner'
+import { CLAUDE_DRIVER_ID, createClaudeCodeDriver } from '@clouddeck/driver-claude-code'
+import { registerDriver, runOnce } from '@clouddeck/job-runner'
 import { createTestContext, multipartFile, type TestContext } from './helpers'
+
+const FAKE_CLAUDE = fileURLToPath(
+  new URL('../../../drivers/claude-code/test/fixtures/fake-claude.mjs', import.meta.url),
+)
 
 let ctx: TestContext
 let accessToken = ''
@@ -197,6 +203,55 @@ describe('M1 端到端', () => {
 
     const detail = await api(`/v1/jobs/${jobId}`)
     expect(detail.json().data.errorCode).toBe('BUDGET_EXCEEDED')
+  })
+
+  it('失败任务可重试', async () => {
+    const created = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'demo.echo',
+        inputs: [{ assetId, version: 1 }],
+        params: { steps: 3, sleepMs: 10, failAtStep: 2 },
+      },
+    })
+    const jobId = created.json().data.jobId
+    const failed = await runOnce({ db: ctx.db, storage: ctx.storage })
+    expect(failed?.status).toBe('failed')
+
+    const retried = await api(`/v1/jobs/${jobId}/retry`, { method: 'POST' })
+    expect(retried.statusCode).toBe(201)
+    expect(retried.json().data.jobId).not.toBe(jobId)
+    expect(retried.json().data.status).toBe('queued')
+
+    await runOnce({ db: ctx.db, storage: ctx.storage })
+  })
+
+  it('novel.edit 通过 Claude Code driver 产出稿件', async () => {
+    registerDriver(CLAUDE_DRIVER_ID, () =>
+      createClaudeCodeDriver({ command: process.execPath, commandArgs: [FAKE_CLAUDE] }),
+    )
+
+    const created = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'novel.edit',
+        inputs: [{ assetId, version: 1 }],
+        params: { mode: 'continue', instruction: '续写下一段' },
+      },
+    })
+    expect(created.statusCode).toBe(201)
+
+    const result = await runOnce({ db: ctx.db, storage: ctx.storage })
+    expect(result?.status).toBe('succeeded')
+
+    const assets = await api(`/v1/projects/${projectId}/assets`)
+    const produced = assets
+      .json()
+      .data.find(
+        (item: { name: string; type: string }) =>
+          item.name === 'novel.edit.manuscript' && item.type === 'novel_manuscript',
+      )
+    expect(produced).toBeTruthy()
   })
 
   it('跨租户访问返回 404', async () => {

@@ -229,6 +229,46 @@ export function registerProjectRoutes(
     return reply.redirect(url)
   })
 
+  app.get('/v1/assets/:id/versions/:version/url', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const assetId = param(request, 'id')
+    const version = Number.parseInt(param(request, 'version'), 10)
+    if (!Number.isInteger(version) || version <= 0) {
+      throw new AppError('VALIDATION_FAILED', '版本号非法')
+    }
+    const detail = await withTenant(deps.db, auth.tenantId, (tx) =>
+      getAssetVersionDetail(tx, auth.tenantId, assetId, version),
+    )
+    if (!detail) throw new AppError('NOT_FOUND', '资产版本不存在')
+    const url = await deps.storage.signedDownloadUrl(detail.storage_key, 300)
+    return ok(request, { url, mime: detail.mime })
+  })
+
+  app.get('/v1/assets/:id/versions/:version/content', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const assetId = param(request, 'id')
+    const version = Number.parseInt(param(request, 'version'), 10)
+    if (!Number.isInteger(version) || version <= 0) {
+      throw new AppError('VALIDATION_FAILED', '版本号非法')
+    }
+    const detail = await withTenant(deps.db, auth.tenantId, (tx) =>
+      getAssetVersionDetail(tx, auth.tenantId, assetId, version),
+    )
+    if (!detail) throw new AppError('NOT_FOUND', '资产版本不存在')
+
+    const isText =
+      detail.mime.startsWith('text/') ||
+      detail.mime === 'application/json' ||
+      detail.mime.includes('markdown')
+    if (!isText) throw new AppError('VALIDATION_FAILED', '该资产不支持文本预览')
+    if (Number(detail.size_bytes) > 1024 * 1024) {
+      throw new AppError('VALIDATION_FAILED', '文件超过 1MB，请直接下载')
+    }
+
+    const data = await deps.storage.get(detail.storage_key)
+    return ok(request, { mime: detail.mime, text: data.toString('utf8') })
+  })
+
   app.post('/v1/assets/:id/links', { preHandler: guard }, async (request, reply) => {
     const auth = requireAuth(request)
     const body = parseBody(

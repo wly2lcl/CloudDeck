@@ -14,6 +14,7 @@ import {
   listJobs,
   periodOf,
   requestCancel,
+  retryJob,
   withTenant,
   type JobRow,
 } from '@clouddeck/db'
@@ -158,6 +159,18 @@ export function registerJobRoutes(
       requestCancel(tx, auth.tenantId, param(request, 'id')),
     )
     if (!job) throw new AppError('NOT_FOUND', '任务不存在或已结束')
+    return ok(request, serializeJob(job))
+  })
+
+  app.post('/v1/jobs/:id/retry', { preHandler: guard }, async (request, reply) => {
+    const auth = requireAuth(request)
+    const job = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const retried = await retryJob(tx, auth.tenantId, param(request, 'id'))
+      if (!retried) throw new AppError('NOT_FOUND', '任务不存在或不可重试')
+      await incrementQuotaJobs(tx, auth.tenantId, periodOf())
+      return retried
+    })
+    reply.status(201)
     return ok(request, serializeJob(job))
   })
 

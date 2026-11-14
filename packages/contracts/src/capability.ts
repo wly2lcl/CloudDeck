@@ -84,6 +84,12 @@ export const uiSpecSchema = z.strictObject({
   preview: z.string().min(1).optional(),
 })
 
+export const promptsSpecSchema = z
+  .strictObject({
+    system: z.string().min(1).optional(),
+  })
+  .optional()
+
 export const capabilityManifestSchema = z.strictObject({
   id: z.string().regex(CAPABILITY_ID_RE, 'id 应为小写点分格式，如 audiobook.render'),
   version: z.string().regex(SEMVER_RE, 'version 应为 semver'),
@@ -100,6 +106,7 @@ export const capabilityManifestSchema = z.strictObject({
   resources: resourcesSpecSchema,
   billing: billingSpecSchema,
   ui: uiSpecSchema,
+  prompts: promptsSpecSchema,
   tags: z.array(z.string().min(1)).default([]),
 })
 

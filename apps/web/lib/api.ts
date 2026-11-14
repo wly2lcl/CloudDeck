@@ -176,6 +176,22 @@ export async function getHealth(): Promise<Envelope<HealthData>> {
   return (await response.json()) as Envelope<HealthData>
 }
 
+export async function getAssetContent(
+  assetId: string,
+  version: number,
+): Promise<{ mime: string; text: string }> {
+  return api<{ mime: string; text: string }>(
+    `/v1/assets/${assetId}/versions/${version}/content`,
+  )
+}
+
+export async function getAssetUrl(
+  assetId: string,
+  version: number,
+): Promise<{ url: string; mime: string }> {
+  return api<{ url: string; mime: string }>(`/v1/assets/${assetId}/versions/${version}/url`)
+}
+
 export async function downloadAsset(assetId: string, version: number): Promise<void> {
   const token = getToken()
   const response = await fetch(`${API_BASE}/v1/assets/${assetId}/versions/${version}/download`, {
