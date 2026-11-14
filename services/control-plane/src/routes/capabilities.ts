@@ -1,5 +1,9 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { getCapability, listCapabilities } from '@clouddeck/db'
+import {
+  getCapability,
+  isCapabilityEnabled,
+  listCapabilitiesForTenant,
+} from '@clouddeck/db'
 import { requireAuth } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
@@ -12,8 +16,8 @@ export function registerCapabilityRoutes(
   guard: (request: FastifyRequest) => Promise<void>,
 ): void {
   app.get('/v1/capabilities', { preHandler: guard }, async (request) => {
-    requireAuth(request)
-    const rows = await listCapabilities(deps.db)
+    const auth = requireAuth(request)
+    const rows = await listCapabilitiesForTenant(deps.db, auth.tenantId)
     return ok(
       request,
       rows.map((row) => ({
@@ -32,8 +36,12 @@ export function registerCapabilityRoutes(
   })
 
   app.get('/v1/capabilities/:id', { preHandler: guard }, async (request) => {
-    requireAuth(request)
-    const row = await getCapability(deps.db, param(request, 'id'), queryString(request, 'version'))
+    const auth = requireAuth(request)
+    const id = param(request, 'id')
+    if (!(await isCapabilityEnabled(deps.db, auth.tenantId, id))) {
+      throw new AppError('NOT_FOUND', '能力未启用')
+    }
+    const row = await getCapability(deps.db, id, queryString(request, 'version'))
     if (!row) throw new AppError('NOT_FOUND', '能力不存在')
     const form = readFormSchema(deps.config.capabilitiesDir, row.id, row.manifest.ui.form)
     return ok(request, {

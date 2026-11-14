@@ -905,6 +905,279 @@ export async function listWebhookDeliveries(
   )
 }
 
+// ---------------------------------------------------------------------------
+// M5：套餐、能力开关、模板、分享、用量明细
+// ---------------------------------------------------------------------------
+
+export type TenantTier = 'free' | 'pro' | 'team'
+
+export const PLAN_LIMITS: Record<
+  TenantTier,
+  { maxCostUsd: number; maxJobs: number; maxConcurrency: number; storageBytes: number }
+> = {
+  free: { maxCostUsd: 5, maxJobs: 50, maxConcurrency: 1, storageBytes: 2 * 1024 * 1024 * 1024 },
+  pro: { maxCostUsd: 100, maxJobs: 1000, maxConcurrency: 4, storageBytes: 50 * 1024 * 1024 * 1024 },
+  team: { maxCostUsd: 1000, maxJobs: 10000, maxConcurrency: 16, storageBytes: 500 * 1024 * 1024 * 1024 },
+}
+
+export interface TenantRow {
+  id: string
+  name: string
+  slug: string
+  tier: TenantTier
+  status: string
+  created_at: Date
+}
+
+export async function getTenant(db: Database, tenantId: string): Promise<TenantRow | null> {
+  return one<TenantRow>(db, sql`SELECT * FROM tenants WHERE id = ${tenantId}`)
+}
+
+export async function updateTenantPlan(
+  db: Database,
+  tenantId: string,
+  tier: TenantTier,
+): Promise<TenantRow | null> {
+  const limits = PLAN_LIMITS[tier]
+  const tenant = await one<TenantRow>(
+    db,
+    sql`UPDATE tenants SET tier = ${tier} WHERE id = ${tenantId} RETURNING *`,
+  )
+  if (!tenant) return null
+  await db.execute(
+    sql`INSERT INTO quota_limits (tenant_id, max_cost_usd, max_jobs, max_concurrency, storage_bytes)
+        VALUES (${tenantId}, ${limits.maxCostUsd}, ${limits.maxJobs}, ${limits.maxConcurrency}, ${limits.storageBytes})
+        ON CONFLICT (tenant_id) DO UPDATE SET
+          max_cost_usd = EXCLUDED.max_cost_usd,
+          max_jobs = EXCLUDED.max_jobs,
+          max_concurrency = EXCLUDED.max_concurrency,
+          storage_bytes = EXCLUDED.storage_bytes`,
+  )
+  return tenant
+}
+
+export async function listTenantCapabilityStates(
+  db: Database,
+  tenantId: string,
+): Promise<{ capability_id: string; enabled: boolean }[]> {
+  return rows<{ capability_id: string; enabled: boolean }>(
+    db,
+    sql`SELECT capability_id, enabled FROM tenant_capabilities WHERE tenant_id = ${tenantId}`,
+  )
+}
+
+export async function setTenantCapability(
+  db: Database,
+  tenantId: string,
+  capabilityId: string,
+  enabled: boolean,
+): Promise<void> {
+  await db.execute(
+    sql`INSERT INTO tenant_capabilities (tenant_id, capability_id, enabled, updated_at)
+        VALUES (${tenantId}, ${capabilityId}, ${enabled}, now())
+        ON CONFLICT (tenant_id, capability_id) DO UPDATE
+        SET enabled = EXCLUDED.enabled, updated_at = now()`,
+  )
+}
+
+export async function isCapabilityEnabled(
+  db: Database,
+  tenantId: string,
+  capabilityId: string,
+): Promise<boolean> {
+  const row = await one<{ enabled: boolean }>(
+    db,
+    sql`SELECT enabled FROM tenant_capabilities
+        WHERE tenant_id = ${tenantId} AND capability_id = ${capabilityId}`,
+  )
+  return row?.enabled ?? true
+}
+
+export async function listCapabilitiesForTenant(
+  db: Database,
+  tenantId: string,
+): Promise<CapabilityRow[]> {
+  return rows<CapabilityRow>(
+    db,
+    sql`SELECT c.* FROM capabilities c
+        LEFT JOIN tenant_capabilities tc
+          ON tc.capability_id = c.id AND tc.tenant_id = ${tenantId}
+        WHERE c.status = 'active' AND COALESCE(tc.enabled, true) = true
+        ORDER BY c.category, c.id`,
+  )
+}
+
+export interface TemplateRow {
+  id: string
+  tenant_id: string
+  name: string
+  description: string | null
+  payload: Record<string, unknown>
+  created_at: Date
+}
+
+export async function createTemplate(
+  db: Database,
+  input: {
+    tenantId: string
+    name: string
+    description?: string
+    payload?: Record<string, unknown>
+  },
+): Promise<TemplateRow> {
+  const row = await one<TemplateRow>(
+    db,
+    sql`INSERT INTO templates (tenant_id, name, description, payload)
+        VALUES (${input.tenantId}, ${input.name}, ${input.description ?? null}, ${json(input.payload ?? {})})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建模板失败')
+  return row
+}
+
+export async function listTemplates(db: Database, tenantId: string): Promise<TemplateRow[]> {
+  return rows<TemplateRow>(
+    db,
+    sql`SELECT * FROM templates WHERE tenant_id = ${tenantId} ORDER BY created_at DESC`,
+  )
+}
+
+export async function getTemplate(
+  db: Database,
+  tenantId: string,
+  templateId: string,
+): Promise<TemplateRow | null> {
+  return one<TemplateRow>(
+    db,
+    sql`SELECT * FROM templates WHERE id = ${templateId} AND tenant_id = ${tenantId}`,
+  )
+}
+
+export async function deleteTemplate(
+  db: Database,
+  tenantId: string,
+  templateId: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM templates WHERE id = ${templateId} AND tenant_id = ${tenantId} RETURNING id`,
+  )
+  return row !== null
+}
+
+export interface ShareRow {
+  id: string
+  tenant_id: string
+  project_id: string
+  token_hash: string
+  expires_at: Date | null
+  revoked_at: Date | null
+  created_at: Date
+}
+
+export async function createShare(
+  db: Database,
+  input: {
+    tenantId: string
+    projectId: string
+    tokenHash: string
+    expiresAt?: Date | null
+  },
+): Promise<ShareRow> {
+  const row = await one<ShareRow>(
+    db,
+    sql`INSERT INTO shares (tenant_id, project_id, token_hash, expires_at)
+        VALUES (${input.tenantId}, ${input.projectId}, ${input.tokenHash}, ${input.expiresAt ?? null})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建分享失败')
+  return row
+}
+
+export async function listShares(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+): Promise<ShareRow[]> {
+  return rows<ShareRow>(
+    db,
+    sql`SELECT * FROM shares
+        WHERE tenant_id = ${tenantId} AND project_id = ${projectId}
+        ORDER BY created_at DESC`,
+  )
+}
+
+export async function revokeShare(
+  db: Database,
+  tenantId: string,
+  shareId: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`UPDATE shares SET revoked_at = now()
+        WHERE id = ${shareId} AND tenant_id = ${tenantId} AND revoked_at IS NULL
+        RETURNING id`,
+  )
+  return row !== null
+}
+
+export interface PublicShareRow {
+  id: string
+  tenant_id: string
+  project_id: string
+  expires_at: Date | null
+  revoked_at: Date | null
+}
+
+/** 通过 SECURITY DEFINER 函数查找分享，调用方随后必须进入对应租户上下文。 */
+export async function findShareByTokenHash(
+  db: Database,
+  tokenHash: string,
+): Promise<PublicShareRow | null> {
+  return one<PublicShareRow>(
+    db,
+    sql`SELECT * FROM find_share_by_token(${tokenHash})`,
+  )
+}
+
+export interface UsageBreakdownRow {
+  capability_id: string
+  driver_id: string
+  unit: string
+  quantity: string
+  amount_usd: string
+  entries: number
+}
+
+export async function usageBreakdown(
+  db: Database,
+  tenantId: string,
+  period: string,
+): Promise<UsageBreakdownRow[]> {
+  const [yearValue, monthValue] = period.split('-')
+  const year = Number(yearValue)
+  const month = Number(monthValue)
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error(`账期格式非法: ${period}`)
+  }
+  const start = new Date(Date.UTC(year, month - 1, 1))
+  const end = new Date(Date.UTC(year, month, 1))
+
+  return rows<UsageBreakdownRow>(
+    db,
+    sql`SELECT capability_id, driver_id, unit,
+               SUM(quantity)::text AS quantity,
+               SUM(amount_usd)::text AS amount_usd,
+               COUNT(*)::int AS entries
+        FROM usage_ledger
+        WHERE tenant_id = ${tenantId}
+          AND occurred_at >= ${start.toISOString()}::timestamptz
+          AND occurred_at < ${end.toISOString()}::timestamptz
+        GROUP BY capability_id, driver_id, unit
+        ORDER BY SUM(amount_usd) DESC`,
+  )
+}
+
 export function periodOf(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }

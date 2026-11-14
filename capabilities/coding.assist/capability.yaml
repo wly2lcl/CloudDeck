@@ -1,0 +1,45 @@
+id: coding.assist
+version: 1.0.0
+name: AI 编程
+description: 在隔离工作区完成代码修改并输出补丁
+category: coding
+icon: code
+inputs:
+  - name: workspace
+    label: 代码工作区
+    assetTypes: [code_workspace]
+    required: true
+outputs:
+  - name: patch
+    assetType: patch
+execution:
+  mode: async
+  resumable: false
+  maxDurationMs: 1800000
+  maxCostUsd: 3
+  concurrency: 1
+credentials:
+  policy: tenant
+driver:
+  kind: agent-cli
+  ref: drivers/claude-code
+  routing:
+    - driver: drivers/claude-code
+permissions:
+  network: [api.anthropic.com]
+  filesystem: workspace-only
+  secrets: [ANTHROPIC_API_KEY]
+  allowShell: true
+resources:
+  cpu: 2
+  memory: 2Gi
+billing:
+  unit: per_token
+  priceKey: coding_assist
+  estimate: 0.5
+ui:
+  form: ui/form.json
+  result: text
+prompts:
+  system: prompts/coding-assist.md
+tags: [编程]

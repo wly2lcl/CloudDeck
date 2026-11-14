@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "instruction": {
+      "type": "string",
+      "title": "修改需求",
+      "default": "阅读工作区代码，按需求完成修改并补充必要测试。"
+    },
+    "mode": {
+      "type": "string",
+      "title": "模式",
+      "enum": ["implement", "review"],
+      "default": "implement"
+    }
+  }
+}

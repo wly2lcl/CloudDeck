@@ -10,6 +10,8 @@ import {
   getQuotaSnapshot,
   getUsageSummary,
   incrementQuotaJobs,
+  isCapabilityEnabled,
+  usageBreakdown,
   listJobEvents,
   listJobs,
   periodOf,
@@ -83,6 +85,9 @@ export function registerJobRoutes(
 
       const capability = await getCapability(tx, body.capabilityId, body.capabilityVersion)
       if (!capability) throw new AppError('CAPABILITY_UNAVAILABLE', '能力不存在或已停用')
+      if (!(await isCapabilityEnabled(tx, auth.tenantId, capability.id))) {
+        throw new AppError('CAPABILITY_UNAVAILABLE', '该能力已被租户停用')
+      }
 
       const resolvedInputs: { assetId: string; version: number; type: AssetType }[] = []
       for (const ref of body.inputs) {
@@ -297,6 +302,25 @@ export function registerJobRoutes(
       costUsd: Number(snapshot.cost_usd),
       jobCount: snapshot.job_count,
       running: snapshot.running,
+    })
+  })
+
+  app.get('/v1/billing/summary', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const period = queryString(request, 'period') ?? periodOf()
+    const rows = await withTenant(deps.db, auth.tenantId, (tx) =>
+      usageBreakdown(tx, auth.tenantId, period),
+    )
+    return ok(request, {
+      period,
+      items: rows.map((row) => ({
+        capabilityId: row.capability_id,
+        driverId: row.driver_id,
+        unit: row.unit,
+        quantity: Number(row.quantity),
+        amountUsd: Number(row.amount_usd),
+        entries: row.entries,
+      })),
     })
   })
 

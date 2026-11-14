@@ -61,6 +61,59 @@ export interface JsonSchema {
   >
 }
 
+export interface Tenant {
+  id: string
+  name: string
+  slug: string
+  tier: 'free' | 'pro' | 'team'
+  status: string
+  role: string
+  createdAt: string
+}
+
+export interface Quota {
+  period: string
+  maxCostUsd: number
+  maxJobs: number
+  maxConcurrency: number
+  costUsd: number
+  jobCount: number
+  running: number
+}
+
+export interface CapabilityState {
+  id: string
+  name: string
+  category: string
+  enabled: boolean
+}
+
+export interface Template {
+  id: string
+  name: string
+  description: string | null
+  payload: Record<string, unknown>
+  createdAt: string
+}
+
+export interface BillingSummary {
+  period: string
+  items: {
+    capabilityId: string
+    driverId: string
+    unit: string
+    quantity: number
+    amountUsd: number
+    entries: number
+  }[]
+}
+
+export interface PublicShare {
+  project: { id: string; name: string; description: string | null }
+  assets: GraphAsset[]
+  links: { fromAssetId: string; toAssetId: string; relation: string }[]
+}
+
 export interface GraphAsset {
   assetId: string
   type: string
@@ -149,7 +202,7 @@ export function getRefreshToken(): string | null {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   formData?: FormData
   auth?: boolean
@@ -195,6 +248,70 @@ export async function getHealth(): Promise<Envelope<HealthData>> {
   const response = await fetch(`${API_BASE}/healthz`, { cache: 'no-store' })
   if (!response.ok) throw new Error(`控制面返回 ${response.status}`)
   return (await response.json()) as Envelope<HealthData>
+}
+
+export async function getTenant(): Promise<Tenant> {
+  return api<Tenant>('/v1/tenant')
+}
+
+export async function updateTenantPlan(tier: Tenant['tier']): Promise<Tenant> {
+  return api<Tenant>('/v1/tenant', { method: 'PATCH', body: { tier } })
+}
+
+export async function getQuota(): Promise<Quota> {
+  return api<Quota>('/v1/billing/quota')
+}
+
+export async function getCapabilityStates(): Promise<CapabilityState[]> {
+  return api<CapabilityState[]>('/v1/capabilities/states')
+}
+
+export async function setCapabilityEnabled(id: string, enabled: boolean): Promise<void> {
+  await api(`/v1/capabilities/${id}/enabled`, { method: 'PUT', body: { enabled } })
+}
+
+export async function getTemplates(): Promise<Template[]> {
+  return api<Template[]>('/v1/templates')
+}
+
+export async function createTemplate(input: {
+  name: string
+  description?: string
+}): Promise<Template> {
+  return api<Template>('/v1/templates', { method: 'POST', body: input })
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await api(`/v1/templates/${id}`, { method: 'DELETE' })
+}
+
+export async function createProjectFromTemplate(id: string): Promise<Project> {
+  return api<Project>(`/v1/templates/${id}/projects`, { method: 'POST', body: {} })
+}
+
+export async function getBillingSummary(period?: string): Promise<BillingSummary> {
+  return api<BillingSummary>(`/v1/billing/summary${period ? `?period=${period}` : ''}`)
+}
+
+export async function createShare(
+  projectId: string,
+  expiresInDays = 7,
+): Promise<{ id: string; token: string; url: string; expiresAt: string | null }> {
+  return api(`/v1/projects/${projectId}/shares`, {
+    method: 'POST',
+    body: { expiresInDays },
+  })
+}
+
+export async function getPublicShare(token: string): Promise<PublicShare> {
+  return api<PublicShare>(`/v1/public/shares/${token}`, { auth: false })
+}
+
+export async function getPublicAssetContent(
+  token: string,
+  assetId: string,
+): Promise<{ name: string; mime: string; text: string }> {
+  return api(`/v1/public/shares/${token}/assets/${assetId}/content`, { auth: false })
 }
 
 export async function getProjectGraph(projectId: string): Promise<ProjectGraph> {

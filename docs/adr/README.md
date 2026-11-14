@@ -14,5 +14,6 @@
 | [0010](0010-m2-sandbox-and-agent-driver.md) | M2 沙箱抽象与 agent driver 接入 | 已接受 |
 | [0011](0011-m3-tts-pipeline.md) | M3 有声流水线：Provider 契约、断点与工作区保留 | 已接受 |
 | [0012](0012-m4-content-chain.md) | M4 内容链：剧本、分镜、视频与 Webhook | 已接受 |
+| [0013](0013-m5-commercial.md) | M5 商业化核心：套餐、能力开关、模板与只读分享 | 已接受 |
 
 约定：ADR 只记录有争议且影响面大的决策；决策变更时新增编号并标注取代关系，不修改历史记录。

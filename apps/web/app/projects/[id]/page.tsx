@@ -9,6 +9,7 @@ import {
   ApiError,
   api,
   clearTokens,
+  createShare,
   downloadAsset,
   getAssetContent,
   getAssetUrl,
@@ -49,6 +50,7 @@ export default function ProjectPage() {
     url?: string
     mime?: string
   } | null>(null)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +96,17 @@ export default function ProjectPage() {
     }
   }
 
+  const share = async () => {
+    try {
+      const created = await createShare(projectId)
+      const url = `${window.location.origin}${created.url}`
+      setShareUrl(url)
+      await navigator.clipboard?.writeText(url).catch(() => undefined)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '创建分享失败')
+    }
+  }
+
   const upload = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!file) {
@@ -129,10 +142,21 @@ export default function ProjectPage() {
             <h1>{project?.name ?? '加载中…'}</h1>
             {project?.description && <p className="muted">{project.description}</p>}
           </div>
-          <Link href="/projects" className="ghost">
-            返回项目列表
-          </Link>
+          <div className="row">
+            <button type="button" className="ghost" onClick={() => void share()}>
+              创建只读分享
+            </button>
+            <Link href="/projects" className="ghost">
+              返回项目列表
+            </Link>
+          </div>
         </header>
+
+        {shareUrl && (
+          <p className="share-url">
+            分享链接（7 天有效）：<code>{shareUrl}</code>
+          </p>
+        )}
 
         {error && <p className="error">{error}</p>}
 

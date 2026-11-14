@@ -14,6 +14,7 @@ export function Nav() {
           CloudDeck
         </Link>
         <Link href="/projects">项目</Link>
+        <Link href="/settings">设置</Link>
       </div>
       <button
         type="button"

@@ -9,7 +9,10 @@ import { registerAuthRoutes } from './routes/auth'
 import { registerCapabilityRoutes } from './routes/capabilities'
 import { registerJobRoutes } from './routes/jobs'
 import { registerProjectRoutes } from './routes/projects'
+import { registerShareRoutes } from './routes/shares'
 import { registerStorageRoutes } from './routes/storage'
+import { registerTemplateRoutes } from './routes/templates'
+import { registerTenantRoutes } from './routes/tenant'
 import { registerWebhookRoutes } from './routes/webhooks'
 
 export interface BuildServerOptions {
@@ -76,6 +79,9 @@ export function buildServer(deps: AppDeps, options: BuildServerOptions = {}): Fa
   registerProjectRoutes(app, deps, guard)
   registerCapabilityRoutes(app, deps, guard)
   registerJobRoutes(app, deps, guard)
+  registerTenantRoutes(app, deps, guard)
+  registerTemplateRoutes(app, deps, guard)
+  registerShareRoutes(app, deps, guard)
   registerWebhookRoutes(app, deps, guard)
   registerStorageRoutes(app, deps)
 

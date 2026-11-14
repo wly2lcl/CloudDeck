@@ -35,7 +35,7 @@ let completedJobId = ''
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 interface ApiOptions {
-  method?: 'GET' | 'POST' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   payload?: unknown
   headers?: Record<string, string>
   token?: string | null
@@ -496,6 +496,109 @@ describe('M1 端到端', () => {
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()))
     }
+  })
+
+  it('套餐切换更新配额，用量可按能力汇总', async () => {
+    const tenant = await api('/v1/tenant')
+    expect(tenant.json().data.tier).toBe('free')
+
+    const upgraded = await api('/v1/tenant', {
+      method: 'PATCH',
+      payload: { tier: 'pro' },
+    })
+    expect(upgraded.statusCode).toBe(200)
+    expect(upgraded.json().data.tier).toBe('pro')
+
+    const quota = await api('/v1/billing/quota')
+    expect(quota.json().data.maxCostUsd).toBe(100)
+    expect(quota.json().data.maxConcurrency).toBe(4)
+
+    const summary = await api('/v1/billing/summary')
+    expect(summary.statusCode).toBe(200)
+    const capabilities = summary
+      .json()
+      .data.items.map((item: { capabilityId: string }) => item.capabilityId)
+    expect(capabilities).toContain('demo.echo')
+    expect(capabilities).toContain('audiobook.render')
+  })
+
+  it('能力开关会隐藏能力并拒绝新建任务', async () => {
+    const disabled = await api('/v1/capabilities/demo.echo/enabled', {
+      method: 'PUT',
+      payload: { enabled: false },
+    })
+    expect(disabled.statusCode).toBe(200)
+
+    const list = await api('/v1/capabilities')
+    expect(list.json().data.some((item: { id: string }) => item.id === 'demo.echo')).toBe(false)
+
+    const rejected = await api(`/v1/projects/${projectId}/jobs`, {
+      method: 'POST',
+      payload: {
+        capabilityId: 'demo.echo',
+        inputs: [{ assetId, version: 1 }],
+        params: {},
+      },
+    })
+    expect(rejected.statusCode).toBe(409)
+    expect(rejected.json().error.code).toBe('CAPABILITY_UNAVAILABLE')
+
+    await api('/v1/capabilities/demo.echo/enabled', {
+      method: 'PUT',
+      payload: { enabled: true },
+    })
+    const restored = await api('/v1/capabilities')
+    expect(restored.json().data.some((item: { id: string }) => item.id === 'demo.echo')).toBe(true)
+    expect(restored.json().data.some((item: { id: string }) => item.id === 'coding.assist')).toBe(true)
+  })
+
+  it('模板可创建项目并删除', async () => {
+    const created = await api('/v1/templates', {
+      method: 'POST',
+      payload: { name: '小说项目模板', description: '默认设定与目录' },
+    })
+    expect(created.statusCode).toBe(201)
+    const templateId = created.json().data.id
+
+    const list = await api('/v1/templates')
+    expect(list.json().data.some((item: { id: string }) => item.id === templateId)).toBe(true)
+
+    const project = await api(`/v1/templates/${templateId}/projects`, {
+      method: 'POST',
+      payload: { name: '来自模板的项目' },
+    })
+    expect(project.statusCode).toBe(201)
+    expect(project.json().data.name).toBe('来自模板的项目')
+
+    const removed = await api(`/v1/templates/${templateId}`, { method: 'DELETE' })
+    expect(removed.statusCode).toBe(200)
+  })
+
+  it('只读分享可公开访问，撤销后失效', async () => {
+    const created = await api(`/v1/projects/${projectId}/shares`, {
+      method: 'POST',
+      payload: { expiresInDays: 7 },
+    })
+    expect(created.statusCode).toBe(201)
+    const { token, id: shareId } = created.json().data as { token: string; id: string }
+
+    const publicProject = await api(`/v1/public/shares/${token}`, { token: null })
+    expect(publicProject.statusCode).toBe(200)
+    expect(publicProject.json().data.project.id).toBe(projectId)
+    expect(publicProject.json().data.assets.length).toBeGreaterThan(0)
+
+    const content = await api(
+      `/v1/public/shares/${token}/assets/${assetId}/content`,
+      { token: null },
+    )
+    expect(content.statusCode).toBe(200)
+    expect(content.json().data.text).toContain('第一章')
+
+    const revoked = await api(`/v1/shares/${shareId}`, { method: 'DELETE' })
+    expect(revoked.statusCode).toBe(200)
+
+    const after = await api(`/v1/public/shares/${token}`, { token: null })
+    expect(after.statusCode).toBe(404)
   })
 
   it('跨租户访问返回 404', async () => {

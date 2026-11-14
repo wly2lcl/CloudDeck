@@ -50,6 +50,8 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET/POST | `/tenants` | 创建/列出租户 |
 | GET/POST/DELETE | `/tenants/:id/members` | 成员管理 |
 | GET/POST/DELETE | `/api-keys` | 服务端密钥 |
+| GET | `/tenant` | 当前租户与角色 |
+| PATCH | `/tenant` | 切换套餐（owner/admin） |
 
 ### 项目与资产
 
@@ -80,6 +82,8 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET | `/capabilities/:id` | 完整 manifest（含 form schema） |
 | GET | `/capabilities/:id/estimate` | 按输入估算成本与时长 |
 | GET | `/capabilities/:id/versions` | 历史版本 |
+| GET | `/capabilities/states` | 当前租户的能力开关状态 |
+| PUT | `/capabilities/:id/enabled` | 启用/停用能力（owner/admin） |
 
 客户端不硬编码能力 id；首页与导航由该接口驱动。
 
@@ -114,7 +118,17 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/billing/usage?period=2026-11` | 按能力/模型聚合 |
+| GET | `/billing/usage?period=2026-11` | 本期总用量 |
+| GET | `/billing/summary?period=2026-11` | 按能力/驱动/单位聚合 |
+| GET | `/templates` | 项目模板列表 |
+| POST | `/templates` | 创建模板 |
+| DELETE | `/templates/:id` | 删除模板 |
+| POST | `/templates/:id/projects` | 用模板创建项目 |
+| POST | `/projects/:id/shares` | 创建只读分享（返回 token 与 url） |
+| GET | `/projects/:id/shares` | 列出分享（不含 token） |
+| DELETE | `/shares/:id` | 撤销分享 |
+| GET | `/public/shares/:token` | 公开读取项目与资产元数据 |
+| GET | `/public/shares/:token/assets/:id/content` | 公开文本预览 |
 | GET | `/billing/quota` | 配额与已用量 |
 | GET | `/billing/invoices` | 账单（M5） |
 | GET/POST/DELETE | `/model-credentials` | 租户自有模型密钥（BYOK） |

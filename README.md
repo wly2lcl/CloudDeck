@@ -11,16 +11,17 @@
 
 ## 当前状态
 
-M4 内容链（2026-11-14）：
+M5 商业化核心（2026-11-14）：
 
-- `script.generate`：小说 → 分幕分场剧本（启发式兜底，可接 OpenAI 兼容 LLM）
-- `storyboard.plan`：剧本 → 结构化分镜 JSON
-- `video.render`：分镜 → 逐镜画面 → ffmpeg Ken Burns → MP4 + SRT（可选混入配音）
-- 内容链：`/projects/:id/graph` + Web 分层链路图，点击节点预览
-- Webhook：租户级订阅、HMAC 签名、投递记录与重试
-- 测试：79 个后端/驱动用例 + Flutter analyze/test
+- 套餐与配额：free / pro / team 预设切换，用量按能力/驱动汇总
+- 能力开关：租户可停用能力，列表过滤、建任务拒绝
+- 项目模板：创建模板、用模板建项目
+- 只读分享：token 哈希存储、7 天有效、可撤销、公开文本预览
+- `coding.assist`：代码工作区 → 补丁说明（Claude Code + 沙箱）
+- 设置页：套餐、配额、用量、能力开关、模板
+- 测试：83 个后端/驱动用例 + Flutter analyze/test
 
-实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）。
+实现取舍见 [ADR-0009](docs/adr/0009-m1-queue-and-events.md)（队列与事件）、[ADR-0010](docs/adr/0010-m2-sandbox-and-agent-driver.md)（沙箱与 agent driver）、[ADR-0011](docs/adr/0011-m3-tts-pipeline.md)（有声流水线与断点）、[ADR-0012](docs/adr/0012-m4-content-chain.md)（内容链与 Webhook）、[ADR-0013](docs/adr/0013-m5-commercial.md)（商业化核心）。
 
 ## 快速开始
 

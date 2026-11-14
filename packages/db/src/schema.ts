@@ -306,6 +306,44 @@ export const webhookDeliveries = pgTable(
   ],
 )
 
+export const tenantCapabilities = pgTable(
+  'tenant_capabilities',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    capabilityId: text('capability_id').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [primaryKey({ columns: [table.tenantId, table.capabilityId] })],
+)
+
+export const templates = pgTable(
+  'templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    name: text('name').notNull(),
+    description: text('description'),
+    payload: jsonb('payload').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [index('templates_tenant_idx').on(table.tenantId, table.createdAt)],
+)
+
+export const shares = pgTable(
+  'shares',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [index('shares_project_idx').on(table.tenantId, table.projectId)],
+)
+
 export const schemaMigrations = pgTable('schema_migrations', {
   version: text('version').primaryKey(),
   appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().default(now),
@@ -331,5 +369,8 @@ export const schema = {
   auditLogs,
   webhooks,
   webhookDeliveries,
+  tenantCapabilities,
+  templates,
+  shares,
   schemaMigrations,
 }
