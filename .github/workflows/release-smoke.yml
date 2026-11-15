@@ -1,12 +1,13 @@
 name: Release Smoke
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ['Release']
+    types: [completed]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version without leading v (e.g. 0.1.1)'
+        description: 'Release version without leading v (e.g. 0.1.2)'
         required: true
 
 permissions:
@@ -15,6 +16,7 @@ permissions:
 
 jobs:
   smoke:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,7 +30,7 @@ jobs:
 
       - name: Resolve version
         env:
-          TAG: ${{ github.event.release.tag_name || inputs.version }}
+          TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || inputs.version }}
         run: echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
 
       - name: Start released images
