@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Coverage thresholds (75% lines / 45% branches) with optional Codecov upload and archived LCOV artifact.
+- Playwright browser E2E: register → project → upload → run capability → artifact.
+- Release smoke workflow: pull GHCR images for a published version and verify API/Web.
+- GitHub Pages documentation site generated from `docs/` and the root README.
+- Job outputs now expose asset names instead of internal step names.
+
 ## [0.1.1] - 2026-11-14
 
 ### Fixed

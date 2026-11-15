@@ -22,12 +22,22 @@ Web runs at <http://localhost:3000>, the control plane at <http://localhost:4310
 ## Checks
 
 ```sh
-pnpm lint          # ESLint
-pnpm typecheck     # all workspaces
-pnpm test          # unit + contract + boundary tests
-pnpm boundaries    # import boundary rules
-pnpm check         # all of the above
+pnpm lint             # ESLint
+pnpm typecheck        # all workspaces + E2E TypeScript
+pnpm test             # unit + contract + boundary tests
+pnpm test:coverage    # same, with coverage thresholds
+pnpm boundaries       # import boundary rules
+pnpm check            # all of the above
 ```
+
+Browser E2E requires the Docker stack:
+
+```sh
+docker compose -f infra/compose/docker-compose.yml up -d --build
+pnpm exec playwright test
+```
+
+CI archives `coverage/lcov.info`; set the repository secret `CODECOV_TOKEN` to upload it to Codecov.
 
 Mobile:
 

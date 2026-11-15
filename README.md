@@ -70,8 +70,15 @@ pnpm dev        # control plane :4310, job-runner, web :3000
 Checks (tests use in-process PGlite and do not need Docker; coverage thresholds are 75% lines / 45% branches):
 
 ```sh
-pnpm check
+pnpm check              # lint, typecheck, tests, coverage, boundaries, OpenAPI
 cd apps/mobile && flutter analyze && flutter test
+```
+
+Browser E2E:
+
+```sh
+docker compose -f infra/compose/docker-compose.yml up -d --build
+pnpm exec playwright test
 ```
 
 ## Configure model engines
