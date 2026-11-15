@@ -37,10 +37,20 @@ jobs:
         run: pnpm test:coverage
 
       - name: 上传覆盖率
+        if: env.CODECOV_TOKEN != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           fail_ci_if_error: false
+
+      - name: 归档覆盖率报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
 
       - name: 依赖边界
         run: pnpm boundaries
