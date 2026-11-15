@@ -1,0 +1,7 @@
+services:
+  control-plane:
+    image: ghcr.io/wly2lcl/clouddeck/control-plane:${VERSION}
+  job-runner:
+    image: ghcr.io/wly2lcl/clouddeck/job-runner:${VERSION}
+  web:
+    image: ghcr.io/wly2lcl/clouddeck/web:${VERSION}

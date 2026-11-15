@@ -259,7 +259,7 @@ async function finalize(
       sizeBytes: size,
     })
 
-    outputs.push({ assetId: asset.id, version, name: spec.name, type: spec.type })
+    outputs.push({ assetId: asset.id, version, name: asset.name, type: spec.type })
   }
 
   const cost = await sumJobUsage(deps.db, job.id)

@@ -33,8 +33,14 @@ jobs:
       - name: 类型检查
         run: pnpm typecheck
 
-      - name: 单元测试与边界自测
-        run: pnpm test
+      - name: 单元测试与覆盖率
+        run: pnpm test:coverage
+
+      - name: 上传覆盖率
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
 
       - name: 依赖边界
         run: pnpm boundaries
@@ -47,6 +53,52 @@ jobs:
 
       - name: 校验 compose 配置
         run: docker compose -f infra/compose/docker-compose.yml config --quiet
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 启动 Docker 全栈
+        run: docker compose -f infra/compose/docker-compose.yml up -d --build
+
+      - name: 等待服务就绪
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:4310/healthz >/tmp/health.json 2>/dev/null; then break; fi
+            sleep 2
+          done
+          grep -q '"status":"ok"' /tmp/health.json
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:3000 | grep -q '<title>CloudDeck</title>'; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:3000 | grep -q '<title>CloudDeck</title>'
+
+      - name: Playwright 浏览器测试
+        run: pnpm exec playwright test
+
+      - name: 上传失败产物
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results
+
+      - name: 清理
+        if: always()
+        run: docker compose -f infra/compose/docker-compose.yml down -v
 
   mobile:
     runs-on: ubuntu-latest

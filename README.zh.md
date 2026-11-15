@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/wly2lcl/CloudDeck/actions/workflows/ci.yml/badge.svg)](https://github.com/wly2lcl/CloudDeck/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docs](https://github.com/wly2lcl/CloudDeck/actions/workflows/docs.yml/badge.svg)](https://wly2lcl.github.io/CloudDeck/)
 
 [English](README.md) | **简体中文**
 
@@ -82,6 +83,7 @@ cd apps/mobile && flutter analyze && flutter test
 - [API](docs/06-api.md) / [OpenAPI](docs/openapi.yaml)
 - [安全与计费](docs/08-security-billing.md) / [部署](docs/deployment.md) / [限制](docs/limitations.md)
 - [合规](docs/13-compliance.md) / [ADR](docs/adr/)
+- [在线文档站](https://wly2lcl.github.io/CloudDeck/)
 
 ## 已知限制
 

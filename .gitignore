@@ -31,3 +31,8 @@ redis-data/
 
 # Claude Code 本地设置
 .claude/settings.local.json
+
+# 文档站与 Playwright 产物
+site/
+test-results/
+playwright-report/

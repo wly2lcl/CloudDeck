@@ -1,0 +1,60 @@
+name: Release Smoke
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without leading v (e.g. 0.1.1)'
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve version
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.version }}
+        run: echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Start released images
+        run: |
+          docker compose \
+            -f infra/compose/docker-compose.yml \
+            -f infra/compose/docker-compose.release.yml \
+            up -d --no-build
+
+      - name: Verify API and web
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4310/healthz >/tmp/health.json 2>/dev/null; then break; fi
+            sleep 2
+          done
+          grep -q '"status":"ok"' /tmp/health.json
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000 | grep -q '<title>CloudDeck</title>'; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:3000 | grep -q '<title>CloudDeck</title>'
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose \
+            -f infra/compose/docker-compose.yml \
+            -f infra/compose/docker-compose.release.yml \
+            down -v

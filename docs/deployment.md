@@ -56,6 +56,17 @@ BAILIAN_API_KEY=...
 
 GPU 节点使用 `infra/compose/docker-compose.gpu.yml`，并按 NVIDIA Container Toolkit 配置 Docker。
 
+### 使用已发布镜像
+
+```sh
+VERSION=0.1.1 docker compose \
+  -f infra/compose/docker-compose.yml \
+  -f infra/compose/docker-compose.release.yml \
+  up -d --no-build
+```
+
+该组合只使用 GHCR 上的发布镜像，不会本地构建。发布后的 GitHub Release 会自动触发 `Release Smoke` workflow，拉取对应版本镜像并验证 API 与 Web。
+
 ## 2. 生产检查清单
 
 - [ ] 替换默认密钥；`CREDENTIALS_KEY` 独立备份

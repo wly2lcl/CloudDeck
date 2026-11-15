@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](package.json)
 [![pnpm](https://img.shields.io/badge/pnpm-10-F69220)](package.json)
+[![Docs](https://github.com/wly2lcl/CloudDeck/actions/workflows/docs.yml/badge.svg)](https://wly2lcl.github.io/CloudDeck/)
 
 **English** | [简体中文](README.zh.md)
 
@@ -66,7 +67,7 @@ docker compose -f infra/compose/docker-compose.yml up -d postgres
 pnpm dev        # control plane :4310, job-runner, web :3000
 ```
 
-Checks (tests use in-process PGlite and do not need Docker):
+Checks (tests use in-process PGlite and do not need Docker; coverage thresholds are 75% lines / 45% branches):
 
 ```sh
 pnpm check
@@ -129,6 +130,7 @@ docs/               architecture, contracts, API, ADRs, deployment
 | [Limitations](docs/limitations.md) | known gaps and unblock conditions |
 | [Compliance](docs/13-compliance.md) | legal and content checklist |
 | [ADRs](docs/adr/) | 17 architecture decisions |
+| [Docs site](https://wly2lcl.github.io/CloudDeck/) | Rendered documentation and ADRs |
 
 ## Limitations
 
@@ -139,6 +141,8 @@ push, and tax invoices ship with mock/HTTP providers; real channels need externa
 accounts. See [docs/limitations.md](docs/limitations.md).
 
 ## Contributing
+
+CI runs lint, type checks, coverage, boundary checks, OpenAPI validation, web build, Flutter analyze/test, and a Playwright browser E2E suite. Published releases are smoke-tested by pulling the GHCR images.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through
 [GitHub Security Advisories](SECURITY.md). By participating you agree to the
