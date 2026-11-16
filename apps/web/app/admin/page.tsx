@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Nav } from '../../components/nav'
+import { useI18n } from '../../lib/i18n'
 import {
   ApiError,
   clearTokens,
@@ -18,6 +19,7 @@ import {
 
 export default function AdminPage() {
   const router = useRouter()
+  const { t } = useI18n()
   const [tenants, setTenants] = useState<AdminTenant[]>([])
   const [jobs, setJobs] = useState<AdminJob[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -84,15 +86,15 @@ export default function AdminPage() {
       <Nav />
       <header className="page-head">
         <div>
-          <p className="eyebrow">平台管理</p>
-          <h1>租户与任务</h1>
+          <p className="eyebrow">{t('admin.eyebrow')}</p>
+          <h1>{t('admin.title')}</h1>
         </div>
       </header>
 
       {error && <p className="error">{error}</p>}
 
       <section className="panel">
-        <h2>租户</h2>
+        <h2>{t('admin.tenants')}</h2>
         <ul className="list">
           {tenants.map((tenant) => (
             <li key={tenant.id} className="list-item">
@@ -126,7 +128,7 @@ export default function AdminPage() {
       </section>
 
       <section className="panel">
-        <h2>最近任务</h2>
+        <h2>{t('admin.jobs')}</h2>
         <ul className="log">
           {jobs.map((job) => (
             <li key={job.id}>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Nav } from '../../components/nav'
+import { useI18n } from '../../lib/i18n'
 import {
   ApiError,
   clearTokens,
@@ -52,6 +53,7 @@ const TIERS: Tenant['tier'][] = ['free', 'pro', 'team']
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { t } = useI18n()
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [quota, setQuota] = useState<Quota | null>(null)
   const [capabilities, setCapabilities] = useState<CapabilityState[]>([])
@@ -322,7 +324,7 @@ export default function SettingsPage() {
         {error && <p className="error">{error}</p>}
 
         <section className="panel">
-          <h2>套餐与配额</h2>
+          <h2>{t('settings.plan')}</h2>
           <div className="row">
             {TIERS.map((tier) => (
               <button
@@ -345,7 +347,7 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
-          <h2>用量明细（按能力）</h2>
+          <h2>{t('settings.usage')}</h2>
           {!summary || summary.items.length === 0 ? (
             <p className="muted">本期还没有用量。</p>
           ) : (
@@ -375,7 +377,7 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
-          <h2>账单对账</h2>
+          <h2>{t('settings.reconciliation')}</h2>
           {reconciliation && (
             <p className="meta">
               预估 {reconciliation.totals.estimatedCostUsd.toFixed(4)} USD · 实际{' '}
@@ -429,7 +431,7 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
-          <h2>能力开关</h2>
+          <h2>{t('settings.capabilities')}</h2>
           <div className="stack">
             {capabilities.map((capability) => (
               <label key={capability.id} className="checkbox-row">
@@ -448,7 +450,7 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
-          <h2>模型凭据（BYOK）</h2>
+          <h2>{t('settings.credentials')}</h2>
           <p className="muted">
             密钥以 AES-256-GCM 加密存储，仅显示末四位；任务运行时会按能力声明的密钥名注入。
           </p>
@@ -502,8 +504,8 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
-          <h2>团队与安全</h2>
-          <h3>成员</h3>
+          <h2>{t('settings.security')}</h2>
+          <h3>{t('settings.members')}</h3>
           <ul className="list">
             {members.map((member) => (
               <li key={member.userId} className="list-item">
@@ -549,7 +551,7 @@ export default function SettingsPage() {
               邀请令牌（开发环境）：<code>{newInviteToken}</code>
             </p>
           )}
-          <h3>API Key</h3>
+          <h3>{t('settings.apiKeys')}</h3>
           {newApiKey && (
             <p className="muted">
               仅显示一次：<code>{newApiKey}</code>
@@ -580,7 +582,7 @@ export default function SettingsPage() {
             <button type="submit">创建 API Key</button>
           </form>
 
-          <h3>审计日志</h3>
+          <h3>{t('settings.audit')}</h3>
           <ul className="log">
             {auditLogs.map((log) => (
               <li key={log.id}>
@@ -596,7 +598,7 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel">
-          <h2>项目模板</h2>
+          <h2>{t('settings.templates')}</h2>
           <form className="row" onSubmit={addTemplate}>
             <input
               placeholder="模板名称"

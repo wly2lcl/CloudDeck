@@ -10,6 +10,12 @@ All notable changes to this project are documented here. The format follows
 
 - Control-plane model gateway `POST /v1/gateway/chat`: quota pre-check and OpenAI-compatible proxy (`GATEWAY_BASE_URL` / `GATEWAY_MODEL` / `GATEWAY_TOKEN`).
 
+## [Unreleased]
+
+### Changed
+
+- Settings and admin page section headings now follow the zh/en locale.
+
 ## [0.1.12] - 2026-11-16
 
 ### Added
