@@ -84,3 +84,10 @@ export function toSrt(items: TimelineItem[]): string {
 export function totalDurationMs(items: TimelineItem[]): number {
   return items.length === 0 ? 0 : (items[items.length - 1] as TimelineItem).endMs
 }
+
+/** 镜头首尾淡入淡出，作为确定性的基础转场。 */
+export function fadeFilter(durationMs: number): string {
+  const duration = Math.max(0.1, durationMs / 1000)
+  const fade = Math.min(0.3, duration / 4)
+  return `fade=t=in:st=0:d=${fade.toFixed(3)},fade=t=out:st=${(duration - fade).toFixed(3)}:d=${fade.toFixed(3)}`
+}

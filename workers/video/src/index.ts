@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
 import { createShotFrame } from './bmp'
-import { buildTimeline, parseStoryboard, toSrt, totalDurationMs } from './timeline'
+import { buildTimeline, fadeFilter, parseStoryboard, toSrt, totalDurationMs } from './timeline'
 
 export const VIDEO_DRIVER_ID = 'workers/video'
 
@@ -103,7 +103,7 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
             '-t',
             seconds,
             '-vf',
-            `zoompan=z='min(zoom+0.0015,1.12)':d=${Math.max(1, Math.round(fps * (item.durationMs / 1000)))}:s=${width}x${height}:fps=${fps}`,
+            `zoompan=z='min(zoom+0.0015,1.12)':d=${Math.max(1, Math.round(fps * (item.durationMs / 1000)))}:s=${width}x${height}:fps=${fps},${fadeFilter(item.durationMs)}`,
             '-pix_fmt',
             'yuv420p',
             '-c:v',

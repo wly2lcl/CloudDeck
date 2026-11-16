@@ -505,6 +505,13 @@ describe('M1 端到端', () => {
 
       const deliveries = await api('/v1/webhook-deliveries')
       expect(deliveries.json().data[0].status).toBe('delivered')
+
+      const replay = await api(`/v1/webhook-deliveries/${deliveries.json().data[0].id}/replay`, {
+        method: 'POST',
+      })
+      expect(replay.statusCode).toBe(200)
+      expect(replay.json().data.delivered).toBe(true)
+      expect(received).toHaveLength(2)
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()))
     }

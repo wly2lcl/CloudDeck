@@ -1,14 +1,18 @@
-import { randomBytes } from 'node:crypto'
+import { createHmac, randomBytes } from 'node:crypto'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import {
   createWebhook,
   deleteWebhook,
+  finishWebhookDelivery,
+  getWebhook,
+  getWebhookDelivery,
   listWebhookDeliveries,
   listWebhooks,
   withTenant,
 } from '@clouddeck/db'
-import { requireAuth } from '../auth'
+import { audit } from '../audit'
+import { requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
@@ -18,6 +22,10 @@ const createSchema = z.object({
   url: z.string().url(),
   events: z.array(z.string().min(1)).default([]),
 })
+
+function sign(secret: string, timestamp: string, body: string): string {
+  return createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex')
+}
 
 export function registerWebhookRoutes(
   app: FastifyInstance,
@@ -71,6 +79,61 @@ export function registerWebhookRoutes(
     )
     if (!deleted) throw new AppError('NOT_FOUND', 'Webhook 不存在')
     return ok(request, { deleted: true })
+  })
+
+  app.post('/v1/webhook-deliveries/:id/replay', { preHandler: guard }, async (request) => {
+    const auth = requireRole(request, ['owner', 'admin'])
+    const deliveryId = param(request, 'id')
+    const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const delivery = await getWebhookDelivery(tx, auth.tenantId, deliveryId)
+      if (!delivery) throw new AppError('NOT_FOUND', '投递记录不存在')
+      const hook = await getWebhook(tx, auth.tenantId, delivery.webhook_id)
+      if (!hook) throw new AppError('NOT_FOUND', 'Webhook 已被删除')
+
+      const body = JSON.stringify({ event: delivery.event, ...delivery.payload })
+      const timestamp = Math.floor(Date.now() / 1000).toString()
+      const signature = sign(hook.secret, timestamp, body)
+      let delivered = false
+      let statusCode: number | null = null
+      let lastError: string | null = null
+      try {
+        const response = await fetch(hook.url, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-clouddeck-event': delivery.event,
+            'x-clouddeck-timestamp': timestamp,
+            'x-clouddeck-signature': signature,
+          },
+          body,
+        })
+        statusCode = response.status
+        delivered = response.ok
+        if (!delivered) lastError = `HTTP ${response.status}`
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error)
+      }
+
+      await finishWebhookDelivery(tx, {
+        deliveryId: delivery.id,
+        status: delivered ? 'delivered' : 'failed',
+        attempts: delivery.attempts + 1,
+        lastError,
+      })
+      return { delivered, statusCode, lastError }
+    })
+
+    await audit(deps.db, {
+      tenantId: auth.tenantId,
+      actorType: 'user',
+      actorId: auth.userId,
+      action: 'webhook.replay',
+      targetType: 'webhook_delivery',
+      targetId: deliveryId,
+      ip: request.ip,
+      detail: { delivered: result.delivered },
+    })
+    return ok(request, result)
   })
 
   app.get('/v1/webhook-deliveries', { preHandler: guard }, async (request) => {

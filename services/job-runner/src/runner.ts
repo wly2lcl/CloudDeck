@@ -59,6 +59,7 @@ const DRIVERS: Record<string, DriverFactory> = {
     createTtsDriver({
       pricePer1kUsd: Number(process.env.TTS_PRICE_PER_1K_USD ?? 0.002),
       failAtChunk: process.env.TTS_FAIL_AT ? Number(process.env.TTS_FAIL_AT) : undefined,
+      concurrency: Number(process.env.TTS_CONCURRENCY ?? 2),
     }),
   [LLM_DRIVER_ID]: () => createLlmDriver(),
   [VIDEO_DRIVER_ID]: () =>

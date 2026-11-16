@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `novel.edit` chapter-level RAG-lite retrieval (explicit chapter, keyword overlap, recency) injected into the agent prompt.
+- TTS chunks synthesize concurrently (`TTS_CONCURRENCY`, default 2) and are peak-normalized before concat.
+- Video shots get deterministic fade-in/fade-out transitions.
+- Webhook deliveries can be replayed manually (`POST /v1/webhook-deliveries/:id/replay`); stored payloads now include `jobId`.
+
+### Changed
+
+- Docs reflect the remaining gap between peak normalization/fades and true LUFS normalization/crossfades.
+
 ## [0.1.3] - 2026-11-16
 
 ### Added

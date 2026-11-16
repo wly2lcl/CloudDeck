@@ -35,8 +35,9 @@ Two ideas define the project:
 - Multi-tenant workspace: accounts, roles, projects, versioned assets, content graph.
 - Capability registry: manifest, I/O schema, permissions, budget, driver routing.
 - Durable jobs: PostgreSQL queue, SSE progress, cancel, retry, checkpoint resume.
+- Delivery: signed webhooks with retries and manual replay.
 - Sandboxes: local process or Docker (optional gVisor runtime), per-job workspace.
-- Drivers: Claude Code (stream-json), OpenAI-compatible LLM, DashScope TTS, ffmpeg video.
+- Drivers: Claude Code with chapter-level RAG-lite, OpenAI-compatible LLM, DashScope TTS with peak normalization and concurrent chunks, ffmpeg video with fades.
 - Commercial: plans and quotas with pre-deduction, usage ledger, reconciliation,
   invoice snapshots, capability toggles, templates and public template market,
   read-only shares, member management and tenant audit logs.

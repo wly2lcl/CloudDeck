@@ -191,6 +191,7 @@ Last-Event-ID: 1042
 | GET/POST | `/webhooks` | 列出 / 创建（secret 仅创建时返回） |
 | DELETE | `/webhooks/:id` | 删除 |
 | GET | `/webhook-deliveries` | 最近 100 条投递记录 |
+| POST | `/webhook-deliveries/:id/replay` | 手动重放一次投递（owner/admin） |
 
 ## OpenAPI
 

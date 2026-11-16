@@ -118,3 +118,13 @@ describe('视频 driver', () => {
     expect(artifacts.some((artifact) => artifact.type === 'video')).toBe(true)
   }, 60_000)
 })
+
+describe('转场', () => {
+  it('按镜头时长生成淡入淡出滤镜', async () => {
+    const { fadeFilter } = await import('../src/timeline')
+    const filter = fadeFilter(1000)
+    expect(filter).toContain('fade=t=in')
+    expect(filter).toContain('fade=t=out')
+    expect(filter).toContain('st=0.750')
+  })
+})

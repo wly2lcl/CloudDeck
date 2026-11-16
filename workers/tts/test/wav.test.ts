@@ -24,3 +24,17 @@ describe('WAV 工具', () => {
     expect(() => concatWav([first, second])).toThrow('格式不一致')
   })
 })
+
+describe('响度归一', () => {
+  it('把低音量 WAV 峰值提升到目标值', async () => {
+    const { createToneWav, normalizeWav, parseWav } = await import('../src/wav')
+    const normalized = normalizeWav(createToneWav(120), 0.9)
+    const info = parseWav(normalized)
+    let peak = 0
+    for (let offset = 0; offset + 1 < info.data.length; offset += 2) {
+      peak = Math.max(peak, Math.abs(info.data.readInt16LE(offset)))
+    }
+    expect(peak).toBeGreaterThan(0.88 * 32767)
+    expect(peak).toBeLessThanOrEqual(0.91 * 32767)
+  })
+})

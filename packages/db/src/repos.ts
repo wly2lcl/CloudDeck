@@ -904,6 +904,28 @@ export async function finishWebhookDelivery(
   )
 }
 
+export async function getWebhookDelivery(
+  db: Database,
+  tenantId: string,
+  deliveryId: string,
+): Promise<WebhookDeliveryRow | null> {
+  return one<WebhookDeliveryRow>(
+    db,
+    sql`SELECT * FROM webhook_deliveries WHERE id = ${deliveryId} AND tenant_id = ${tenantId}`,
+  )
+}
+
+export async function getWebhook(
+  db: Database,
+  tenantId: string,
+  webhookId: string,
+): Promise<WebhookRow | null> {
+  return one<WebhookRow>(
+    db,
+    sql`SELECT * FROM webhooks WHERE id = ${webhookId} AND tenant_id = ${tenantId}`,
+  )
+}
+
 export async function listWebhookDeliveries(
   db: Database,
   tenantId: string,

@@ -41,7 +41,7 @@ export async function dispatchJobWebhooks(
       tenantId: job.tenant_id,
       webhookId: hook.id,
       event,
-      payload,
+      payload: { jobId: job.id, ...payload },
     })
 
     const body = JSON.stringify({ event, jobId: job.id, ...payload })

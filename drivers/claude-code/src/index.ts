@@ -1,6 +1,7 @@
-import { access } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
+import { selectContext } from './retrieval'
 
 export const CLAUDE_DRIVER_ID = 'drivers/claude-code'
 export const RESULT_FILENAME = 'result.md'
@@ -104,13 +105,22 @@ function mapLine(line: string): JobEvent[] {
   return events
 }
 
-function buildPrompt(ctx: TaskContext): string {
+async function buildPrompt(ctx: TaskContext): Promise<string> {
   const params = ctx.params as Record<string, unknown>
   const mode = typeof params.mode === 'string' ? params.mode : 'continue'
   const instruction =
     typeof params.instruction === 'string' && params.instruction.trim()
       ? params.instruction.trim()
       : '请按模式处理输入文件。'
+
+  const context: string[] = []
+  for (const input of ctx.inputs) {
+    if (!/^(text\/|application\/json)/.test(input.mime)) continue
+    const text = await readFile(input.path, 'utf8').catch(() => '')
+    if (!text) continue
+    const snippet = selectContext(text, instruction, params.chapter as string | undefined)
+    if (snippet) context.push(`### ${input.path}\n${snippet}`)
+  }
 
   return [
     ctx.capability.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
@@ -123,6 +133,9 @@ function buildPrompt(ctx: TaskContext): string {
     '',
     '## 输入文件',
     ...ctx.inputs.map((input) => `- ${input.path} (${input.mime})`),
+    ...(context.length > 0
+      ? ['', '## 检索到的上下文（RAG-lite，优先使用）', ...context]
+      : []),
     '',
     '## 输出要求',
     `将最终结果写入 ${join(ctx.outputDir, RESULT_FILENAME)}。`,
@@ -217,7 +230,7 @@ export function createClaudeCodeDriver(options: ClaudeDriverOptions = {}): Drive
             {
               cwd: ctx.workspace,
               env: ctx.env,
-              stdin: buildPrompt(ctx),
+              stdin: await buildPrompt(ctx),
               signal: ctx.signal,
               timeoutMs: ctx.limits.maxDurationMs,
             },

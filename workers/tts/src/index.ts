@@ -12,7 +12,7 @@ export {
 export { buildChunks, chunkText, splitChapters, splitSegments } from './split'
 export { concatWav, createToneWav, parseWav, wavDurationMs } from './wav'
 import { buildChunks, splitChapters, type TtsChunk } from './split'
-import { concatWav } from './wav'
+import { concatWav, normalizeWav } from './wav'
 
 export const TTS_DRIVER_ID = 'workers/tts'
 export const CHECKPOINT_FILE = 'checkpoint.json'
@@ -23,6 +23,8 @@ export interface TtsDriverOptions {
   maxCharsPerChunk?: number
   /** 测试用：在第 N 个待合成块上失败（1 起） */
   failAtChunk?: number
+  /** 并行合成的块数，默认 2 */
+  concurrency?: number
 }
 
 interface TtsParams {
@@ -149,13 +151,9 @@ export function createTtsDriver(options: TtsDriverOptions = {}): Driver {
       const outputType = ctx.capability.outputs?.[0]?.assetType ?? 'audio_track'
       let processed = checkpoint.size
       let attempt = 0
+      const concurrency = Math.max(1, options.concurrency ?? 2)
 
       for (const chunk of chunks) {
-        if (ctx.signal.aborted) {
-          yield { type: 'error', code: 'CANCELLED', message: '任务已取消', retryable: false, at: at() }
-          return
-        }
-
         if (checkpoint.has(chunk.id)) {
           yield {
             type: 'log',
@@ -163,47 +161,60 @@ export function createTtsDriver(options: TtsDriverOptions = {}): Driver {
             message: `跳过已完成块 ${chunk.id}`,
             at: at(),
           }
-          continue
+        }
+      }
+
+      const pending = chunks.filter((chunk) => !checkpoint.has(chunk.id))
+      for (let index = 0; index < pending.length; index += concurrency) {
+        if (ctx.signal.aborted) {
+          yield { type: 'error', code: 'CANCELLED', message: '任务已取消', retryable: false, at: at() }
+          return
         }
 
-        attempt += 1
-        if (options.failAtChunk !== undefined && attempt === options.failAtChunk) {
+        const batch = pending.slice(index, index + concurrency)
+        const results = await Promise.allSettled(
+          batch.map(async (chunk) => {
+            attempt += 1
+            if (options.failAtChunk !== undefined && attempt === options.failAtChunk) {
+              throw new Error(`注入失败：第 ${attempt} 个待合成块`)
+            }
+            const voice = resolveVoice(chunk.role, voiceMap, defaultVoice)
+            const audio = await provider.synthesize({ text: chunk.text, voice, format: 'wav' })
+            await writeFile(join(chunksDir, chunkFilename(chunk)), normalizeWav(audio))
+            return chunk
+          }),
+        )
+
+        let failure: unknown = null
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            failure = failure ?? result.reason
+            continue
+          }
+          const chunk = result.value
+          checkpoint.add(chunk.id)
+          await writeCheckpoint(checkpointPath, checkpoint)
+          processed += 1
+
+          const cost = Number(((chunk.text.length / 1000) * pricePer1kUsd).toFixed(6))
+          yield { type: 'usage', chars: chunk.text.length, costUsd: cost, at: at() }
+          yield {
+            type: 'progress',
+            percent: Math.round((processed / chunks.length) * 95),
+            message: `${processed}/${chunks.length} 块`,
+            at: at(),
+          }
+        }
+
+        if (failure) {
           yield {
             type: 'error',
             code: 'TTS_FAILED',
-            message: `注入失败：第 ${attempt} 个待合成块`,
+            message: failure instanceof Error ? failure.message : '语音合成失败',
             retryable: true,
             at: at(),
           }
           return
-        }
-
-        const voice = resolveVoice(chunk.role, voiceMap, defaultVoice)
-        try {
-          const audio = await provider.synthesize({ text: chunk.text, voice, format: 'wav' })
-          await writeFile(join(chunksDir, chunkFilename(chunk)), audio)
-        } catch (error) {
-          yield {
-            type: 'error',
-            code: 'TTS_FAILED',
-            message: error instanceof Error ? error.message : '语音合成失败',
-            retryable: true,
-            at: at(),
-          }
-          return
-        }
-
-        checkpoint.add(chunk.id)
-        await writeCheckpoint(checkpointPath, checkpoint)
-        processed += 1
-
-        const cost = Number(((chunk.text.length / 1000) * pricePer1kUsd).toFixed(6))
-        yield { type: 'usage', chars: chunk.text.length, costUsd: cost, at: at() }
-        yield {
-          type: 'progress',
-          percent: Math.round((processed / chunks.length) * 95),
-          message: `${processed}/${chunks.length} 块`,
-          at: at(),
         }
       }
 

@@ -126,3 +126,24 @@ export function concatWav(buffers: Buffer[]): Buffer {
   }
   return output
 }
+
+/** 将 16-bit PCM 峰值归一化到目标幅度，降低不同 TTS 块之间的音量差。 */
+export function normalizeWav(buffer: Buffer, targetPeak = 0.9): Buffer {
+  const info = parseWav(buffer)
+  if (info.bitsPerSample !== 16) return buffer
+
+  const copy = Buffer.from(buffer)
+  const parsed = parseWav(copy)
+  let max = 0
+  for (let offset = 0; offset + 1 < parsed.data.length; offset += 2) {
+    max = Math.max(max, Math.abs(parsed.data.readInt16LE(offset)))
+  }
+  if (max === 0) return copy
+
+  const scale = (targetPeak * 32767) / max
+  for (let offset = 0; offset + 1 < parsed.data.length; offset += 2) {
+    const value = Math.round(parsed.data.readInt16LE(offset) * scale)
+    parsed.data.writeInt16LE(Math.max(-32768, Math.min(32767, value)), offset)
+  }
+  return copy
+}
