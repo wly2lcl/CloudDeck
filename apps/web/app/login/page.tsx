@@ -95,6 +95,11 @@ export default function LoginPage() {
         >
           {mode === 'login' ? '没有账号？创建一个' : '已有账号？去登录'}
         </button>
+        {mode === 'login' && (
+          <a className="link-button" href="/forgot-password">
+            忘记密码？
+          </a>
+        )}
       </section>
     </main>
   )

@@ -40,6 +40,7 @@ export async function createTestContext(): Promise<TestContext> {
     paymentSecret: 'test-payment-secret',
     pushProvider: 'mock',
     rateLimitMax: 10_000,
+    exposeAuthTokens: true,
   }
 
   await syncCapabilities(db, CAPABILITIES_DIR)

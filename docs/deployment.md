@@ -30,6 +30,15 @@ POSTGRES_PASSWORD=<strong-password>
 
 `AUTH_SECRET` 与 `CREDENTIALS_KEY` 必须不同；后者丢失将无法解密租户模型凭据。
 
+验证/重置令牌默认只生成不返回。开发或 E2E 环境可设置：
+
+```sh
+AUTH_EXPOSE_TOKENS=true
+WORKSPACE_TTL_HOURS=24
+```
+
+生产必须保持 `AUTH_EXPOSE_TOKENS=false`，并接入邮件服务发送令牌。
+
 ### 使用 S3 / MinIO
 
 在 `job-runner` 与控制面环境中设置：
@@ -67,7 +76,15 @@ VERSION=0.1.1 docker compose \
 
 该组合只使用 GHCR 上的发布镜像，不会本地构建。发布后的 GitHub Release 会自动触发 `Release Smoke` workflow，拉取对应版本镜像并验证 API 与 Web。
 
-## 2. 生产检查清单
+## 2. Kubernetes 与可观测性
+
+- Kubernetes 清单：[`infra/k8s`](../infra/k8s/README.md)
+- Prometheus 抓取与告警：[`infra/observability`](../infra/observability/README.md)
+- 控制面输出结构化 JSON 日志；建议用 Fluent Bit/Vector 采集
+- 孤儿对象清理：`pnpm cleanup:storage`（默认 dry-run，加 `--apply` 删除）
+- 工作区清理：`WORKSPACE_TTL_HOURS`（默认 24 小时）
+
+## 3. 生产检查清单
 
 - [ ] 替换默认密钥；`CREDENTIALS_KEY` 独立备份
 - [ ] 使用托管 Postgres（开启备份与 PITR），不要用容器内卷

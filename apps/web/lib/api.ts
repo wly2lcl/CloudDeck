@@ -260,10 +260,47 @@ interface RequestOptions {
   auth?: boolean
 }
 
-export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+let refreshing: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshing) {
+    refreshing = (async () => {
+      const refreshToken = getRefreshToken()
+      if (!refreshToken) return null
+      const response = await fetch(`${API_BASE}/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+        cache: 'no-store',
+      })
+      if (!response.ok) {
+        clearTokens()
+        return null
+      }
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: { accessToken?: string; refreshToken?: string }
+      }
+      if (!payload.data?.accessToken || !payload.data.refreshToken) {
+        clearTokens()
+        return null
+      }
+      setTokens(payload.data.accessToken, payload.data.refreshToken)
+      return payload.data.accessToken
+    })().finally(() => {
+      refreshing = null
+    })
+  }
+  return refreshing
+}
+
+async function send(
+  path: string,
+  options: RequestOptions,
+  tokenOverride?: string,
+): Promise<Response> {
   const headers: Record<string, string> = {}
   if (options.auth !== false) {
-    const token = getToken()
+    const token = tokenOverride ?? getToken()
     if (token) headers.authorization = `Bearer ${token}`
   }
 
@@ -275,12 +312,20 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     body = JSON.stringify(options.body)
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  return fetch(`${API_BASE}${path}`, {
     method: options.method ?? 'GET',
     headers,
     body,
     cache: 'no-store',
   })
+}
+
+export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  let response = await send(path, options)
+  if (response.status === 401 && options.auth !== false && path !== '/v1/auth/refresh') {
+    const token = await refreshAccessToken()
+    if (token) response = await send(path, options, token)
+  }
 
   const payload = (await response.json().catch(() => ({}))) as {
     data?: T
@@ -570,4 +615,88 @@ export function streamJobEvents(
   })()
 
   return () => controller.abort()
+}
+
+export async function forgotPassword(email: string): Promise<{ sent: boolean; token?: string }> {
+  return api('/v1/auth/forgot-password', { method: 'POST', body: { email }, auth: false })
+}
+
+export async function resetPassword(token: string, password: string): Promise<{ reset: boolean }> {
+  return api('/v1/auth/reset-password', { method: 'POST', body: { token, password }, auth: false })
+}
+
+export interface Member {
+  userId: string
+  email: string
+  displayName: string | null
+  role: string
+  status: string
+  joinedAt: string
+}
+
+export interface ApiKey {
+  id: string
+  name: string
+  hint: string
+  scopes: string[]
+  lastUsedAt: string | null
+  expiresAt: string | null
+  createdAt: string
+}
+
+export interface AuditLog {
+  id: string
+  actorType: string
+  actorId: string | null
+  action: string
+  targetType: string | null
+  targetId: string | null
+  ip: string | null
+  createdAt: string
+}
+
+export async function getMembers(tenantId: string): Promise<Member[]> {
+  return api<Member[]>(`/v1/tenants/${tenantId}/members`)
+}
+
+export async function addMember(
+  tenantId: string,
+  email: string,
+  role: string,
+): Promise<Member> {
+  return api<Member>(`/v1/tenants/${tenantId}/members`, {
+    method: 'POST',
+    body: { email, role },
+  })
+}
+
+export async function updateMemberRole(
+  tenantId: string,
+  userId: string,
+  role: string,
+): Promise<{ userId: string; role: string }> {
+  return api(`/v1/tenants/${tenantId}/members/${userId}`, {
+    method: 'PATCH',
+    body: { role },
+  })
+}
+
+export async function removeMember(tenantId: string, userId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/members/${userId}`, { method: 'DELETE' })
+}
+
+export async function getApiKeys(): Promise<ApiKey[]> {
+  return api<ApiKey[]>('/v1/api-keys')
+}
+
+export async function createApiKey(name: string): Promise<ApiKey & { key: string }> {
+  return api<ApiKey & { key: string }>('/v1/api-keys', { method: 'POST', body: { name } })
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  await api(`/v1/api-keys/${id}`, { method: 'DELETE' })
+}
+
+export async function getAuditLogs(limit = 20): Promise<AuditLog[]> {
+  return api<AuditLog[]>(`/v1/audit-logs?limit=${limit}`)
 }

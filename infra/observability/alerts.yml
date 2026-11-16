@@ -1,0 +1,42 @@
+groups:
+  - name: clouddeck
+    rules:
+      - alert: CloudDeckControlPlaneDown
+        expr: up{job="clouddeck-control-plane"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: CloudDeck 控制面不可达
+          description: 5 分钟内未采集到 /metrics。
+
+      - alert: CloudDeckHigh5xxRate
+        expr: |
+          sum(rate(clouddeck_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(clouddeck_http_requests_total[5m])), 1)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 控制面 5xx 比例超过 5%
+          description: 最近 10 分钟 5xx 占比持续高于 5%，检查日志与数据库。
+
+      - alert: CloudDeckQueueBacklog
+        expr: clouddeck_jobs{status="queued"} > 20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 任务队列积压
+          description: queued 任务超过 20 且持续 15 分钟，考虑扩容 job-runner。
+
+      - alert: CloudDeckFailedJobs
+        expr: clouddeck_jobs{status="failed"} > 0
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: 存在失败任务
+          description: 失败任务数量大于 0，检查任务错误码与驱动日志。

@@ -53,15 +53,18 @@ export function registerPaymentRoutes(
     })
   })
 
-  app.post('/v1/billing/webhook/:provider', async (request) => {
+  app.post('/v1/billing/webhook/:provider', { config: { rawBody: true } }, async (request) => {
     const provider = createPaymentProvider(deps.config)
     if (param(request, 'provider') !== provider.name) {
       throw new AppError('NOT_FOUND', '支付渠道不存在')
     }
 
+    const rawBody = Buffer.isBuffer(request.rawBody)
+      ? request.rawBody.toString('utf8')
+      : request.rawBody
     let result
     try {
-      result = provider.parseWebhook(request.headers, request.body)
+      result = provider.parseWebhook(request.headers, request.body, rawBody)
     } catch (error) {
       throw new AppError(
         'FORBIDDEN',

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clouddeck-config
+  namespace: clouddeck
+data:
+  NODE_ENV: production
+  PORT: '4310'
+  HOST: 0.0.0.0
+  WEB_ORIGIN: https://clouddeck.example.com
+  PUBLIC_API_BASE: https://api.clouddeck.example.com
+  STORAGE_DIR: /data/storage
+  WORKSPACE_ROOT: /data/workspaces
+  WORKSPACE_TTL_HOURS: '24'
+  AUTH_EXPOSE_TOKENS: 'false'
+  PUSH_PROVIDER: mock

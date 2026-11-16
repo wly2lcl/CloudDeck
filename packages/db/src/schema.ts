@@ -32,6 +32,7 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name'),
   locale: text('locale').notNull().default('zh-CN'),
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
 })
 
@@ -45,6 +46,42 @@ export const memberships = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
   },
   (table) => [primaryKey({ columns: [table.tenantId, table.userId] })],
+)
+
+export const passwordResets = pgTable('password_resets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+})
+
+export const emailVerifications = pgTable('email_verifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+})
+
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    name: text('name').notNull(),
+    keyHash: text('key_hash').notNull().unique(),
+    keyHint: text('key_hint').notNull(),
+    scopes: jsonb('scopes').notNull().default([]),
+    createdBy: uuid('created_by'),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [index('api_keys_tenant_idx').on(table.tenantId, table.createdAt)],
 )
 
 export const sessions = pgTable('sessions', {
@@ -253,6 +290,7 @@ export const quotaUsage = pgTable(
     tenantId: uuid('tenant_id').notNull(),
     period: text('period').notNull(),
     costUsd: numeric('cost_usd', { precision: 12, scale: 4 }).notNull().default('0'),
+    reservedCostUsd: numeric('reserved_cost_usd', { precision: 12, scale: 4 }).notNull().default('0'),
     jobCount: integer('job_count').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(now),
   },
@@ -439,6 +477,9 @@ export const schema = {
   users,
   memberships,
   sessions,
+  passwordResets,
+  emailVerifications,
+  apiKeys,
   projects,
   assets,
   assetVersions,

@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Web/mobile token auto-refresh on 401 with refresh-token rotation persistence.
+- Tenant audit log writes (auth, members, API keys, credentials, capability toggles, shares, job cancel) and `GET /v1/audit-logs`.
+- Member management (`GET/POST /v1/tenants/:id/members`, `PATCH/DELETE .../:userId`).
+- Password reset, email verification, and scoped API keys with `x-api-key` authentication.
+- Quota pre-deduction (`quota_usage.reserved_cost_usd`) to prevent concurrent oversubscription.
+- Workspace TTL cleanup and `pnpm cleanup:storage` orphan-object cleanup.
+- Payment webhooks verify signatures over the raw request body.
+- Kubernetes manifests (`infra/k8s`) and Prometheus alerts (`infra/observability`).
+
+### Changed
+
+- Docs now mark rebased implementation gaps (RAG, loudness, transitions, model gateway) instead of describing them as shipped.
+
 ## [0.1.2] - 2026-11-15
 
 ### Added

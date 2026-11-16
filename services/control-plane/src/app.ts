@@ -4,10 +4,12 @@ import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
 import Fastify, { type FastifyInstance } from 'fastify'
+import rawBody from 'fastify-raw-body'
 import { globalJobStatusCounts, globalUsageTotal } from '@clouddeck/db'
 import { authGuard } from './auth'
 import type { AppDeps } from './deps'
 import { AppError, errorEnvelope } from './errors'
+import { registerApiKeyRoutes } from './routes/apiKeys'
 import { registerAuthRoutes } from './routes/auth'
 import { registerCapabilityRoutes } from './routes/capabilities'
 import { registerCommentRoutes } from './routes/comments'
@@ -15,6 +17,7 @@ import { registerCredentialRoutes } from './routes/credentials'
 import { registerDeviceRoutes } from './routes/devices'
 import { registerPaymentRoutes } from './routes/payments'
 import { registerJobRoutes } from './routes/jobs'
+import { registerMemberRoutes } from './routes/members'
 import { registerProjectRoutes } from './routes/projects'
 import { registerShareRoutes } from './routes/shares'
 import { registerStorageRoutes } from './routes/storage'
@@ -47,6 +50,12 @@ export async function buildServer(
     limits: { fileSize: 100 * 1024 * 1024, files: 1 },
   })
 
+  await app.register(rawBody, {
+    field: 'rawBody',
+    global: false,
+    encoding: false,
+    runFirst: true,
+  })
   await app.register(helmet, { contentSecurityPolicy: false })
   await app.register(rateLimit, {
     max: deps.config.rateLimitMax,
@@ -127,8 +136,10 @@ export async function buildServer(
     requestId: request.id,
   }))
 
-  const guard = authGuard(deps.config.authSecret)
+  const guard = authGuard(deps.config.authSecret, deps.db)
   registerAuthRoutes(app, deps, guard)
+  registerApiKeyRoutes(app, deps, guard)
+  registerMemberRoutes(app, deps, guard)
   registerProjectRoutes(app, deps, guard)
   registerCapabilityRoutes(app, deps, guard)
   registerJobRoutes(app, deps, guard)

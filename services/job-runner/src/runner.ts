@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,6 +18,7 @@ import {
   periodOf,
   touchModelCredential,
   setJobOutputs,
+  releaseQuota,
   setJobStatus,
   sumJobUsage,
   type Database,
@@ -265,6 +266,20 @@ async function finalize(
   const cost = await sumJobUsage(deps.db, job.id)
   await setJobOutputs(deps.db, job.id, outputs, cost)
   await setJobStatus(deps.db, job.id, 'succeeded')
+  await releaseJobReservation(deps, job)
+}
+
+async function releaseJobReservation(deps: RunnerDeps, job: JobRow): Promise<void> {
+  try {
+    await releaseQuota(
+      deps.db,
+      job.tenant_id,
+      periodOf(new Date(job.created_at)),
+      Number(job.estimated_cost_usd),
+    )
+  } catch (error) {
+    console.error('释放额度预留失败', error)
+  }
 }
 
 export interface RunResult {
@@ -457,6 +472,7 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
 
   if (cancelled) {
     await setJobStatus(deps.db, job.id, 'cancelled')
+    await releaseJobReservation(deps, job)
     await emit(deps.db, job, { type: 'log', level: 'warn', message: '任务已取消', at: now() })
     await safeDispatch(deps, job, 'job.cancelled', { status: 'cancelled' })
     return { jobId: job.id, status: 'cancelled' }
@@ -465,6 +481,7 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
   const code = failure?.code ?? 'DRIVER_ERROR'
   const message = failure?.message ?? '任务失败'
   await setJobStatus(deps.db, job.id, 'failed', { errorCode: code, errorMessage: message })
+  await releaseJobReservation(deps, job)
   await emit(deps.db, job, {
     type: 'error',
     code,
@@ -478,6 +495,23 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
 
 export interface WorkerOptions {
   pollIntervalMs?: number
+}
+
+/** 清理超过 TTL 的任务工作区，活跃任务会持续刷新 mtime。 */
+export async function cleanupWorkspaces(root: string, ttlMs: number): Promise<number> {
+  const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
+  const cutoff = Date.now() - ttlMs
+  let removed = 0
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith('clouddeck-job-')) continue
+    const full = join(root, entry.name)
+    const info = await stat(full).catch(() => null)
+    if (!info || info.mtimeMs > cutoff) continue
+    await rm(full, { recursive: true, force: true }).catch(() => undefined)
+    removed += 1
+  }
+  return removed
 }
 
 export async function startWorker(

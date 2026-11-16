@@ -1,7 +1,9 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { findApiKeyByHash, touchApiKey, type Database } from '@clouddeck/db'
 import { SignJWT, jwtVerify } from 'jose'
 import type { FastifyRequest } from 'fastify'
 import { AppError } from './errors'
+import { toTime } from './time'
 
 export interface AuthContext {
   userId: string
@@ -56,14 +58,38 @@ export async function verifyAccessToken(secret: string, token: string): Promise<
   return { userId: payload.sub, tenantId: payload.tid, role: payload.role }
 }
 
-export function authGuard(secret: string) {
+export function authGuard(secret: string, db: Database) {
   return async (request: FastifyRequest): Promise<void> => {
     const header = request.headers.authorization
-    if (!header?.startsWith('Bearer ')) {
+    const bearer = header?.startsWith('Bearer ') ? header.slice(7) : undefined
+    const apiKeyHeader = request.headers['x-api-key']
+    const apiKey =
+      bearer?.startsWith('cdk_') ? bearer : typeof apiKeyHeader === 'string' ? apiKeyHeader : undefined
+
+    if (apiKey) {
+      const record = await findApiKeyByHash(db, hashToken(apiKey))
+      if (
+        !record ||
+        record.revoked_at ||
+        (record.expires_at && toTime(record.expires_at) < Date.now()) ||
+        !record.created_by
+      ) {
+        throw new AppError('UNAUTHENTICATED', 'API Key 无效或已过期')
+      }
+      request.auth = {
+        userId: record.created_by,
+        tenantId: record.tenant_id,
+        role: 'api',
+      }
+      await touchApiKey(db, record.id)
+      return
+    }
+
+    if (!bearer) {
       throw new AppError('UNAUTHENTICATED', '缺少访问令牌')
     }
     try {
-      request.auth = await verifyAccessToken(secret, header.slice(7))
+      request.auth = await verifyAccessToken(secret, bearer)
     } catch {
       throw new AppError('UNAUTHENTICATED', '访问令牌无效或已过期')
     }

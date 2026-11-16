@@ -14,6 +14,7 @@ export interface UserRow {
   password_hash: string
   display_name: string | null
   locale: string
+  email_verified_at: Date | null
 }
 
 export interface MembershipRow {
@@ -148,6 +149,12 @@ export async function rotateSession(
 
 export async function revokeSession(db: Database, sessionId: string): Promise<void> {
   await db.execute(sql`UPDATE sessions SET revoked_at = now() WHERE id = ${sessionId}`)
+}
+
+export async function revokeUserSessions(db: Database, userId: string): Promise<void> {
+  await db.execute(
+    sql`UPDATE sessions SET revoked_at = now() WHERE user_id = ${userId} AND revoked_at IS NULL`,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -673,6 +680,7 @@ export interface QuotaSnapshot {
   max_jobs: number
   max_concurrency: number
   cost_usd: string
+  reserved_cost_usd: string
   job_count: number
   running: number
 }
@@ -685,7 +693,9 @@ export async function getQuotaSnapshot(
   return one<QuotaSnapshot>(
     db,
     sql`SELECT l.max_cost_usd, l.max_jobs, l.max_concurrency,
-               COALESCE(u.cost_usd, 0)::text AS cost_usd, COALESCE(u.job_count, 0) AS job_count,
+               COALESCE(u.cost_usd, 0)::text AS cost_usd,
+               COALESCE(u.reserved_cost_usd, 0)::text AS reserved_cost_usd,
+               COALESCE(u.job_count, 0) AS job_count,
                (SELECT COUNT(*)::int FROM jobs j
                 WHERE j.tenant_id = ${tenantId} AND j.status IN ('provisioning','running','finalizing')) AS running
         FROM quota_limits l
@@ -1614,8 +1624,344 @@ export async function listDeviceTokens(
   )
 }
 
+// ---------------------------------------------------------------------------
+// 第一阶段收口：成员、密码、API Key、审计、额度预留
+// ---------------------------------------------------------------------------
+
+export interface MemberRow {
+  tenant_id: string
+  user_id: string
+  role: string
+  status: string
+  email: string
+  display_name: string | null
+  created_at: Date
+}
+
+export async function listTenantMembers(
+  db: Database,
+  tenantId: string,
+): Promise<MemberRow[]> {
+  return rows<MemberRow>(
+    db,
+    sql`SELECT m.tenant_id, m.user_id, m.role, m.status, u.email, u.display_name, m.created_at
+        FROM memberships m JOIN users u ON u.id = m.user_id
+        WHERE m.tenant_id = ${tenantId}
+        ORDER BY m.created_at`,
+  )
+}
+
+export async function updateMemberRole(
+  db: Database,
+  tenantId: string,
+  userId: string,
+  role: string,
+): Promise<boolean> {
+  const row = await one<{ user_id: string }>(
+    db,
+    sql`UPDATE memberships SET role = ${role}
+        WHERE tenant_id = ${tenantId} AND user_id = ${userId}
+        RETURNING user_id`,
+  )
+  return row !== null
+}
+
+export async function removeMember(
+  db: Database,
+  tenantId: string,
+  userId: string,
+): Promise<boolean> {
+  const row = await one<{ user_id: string }>(
+    db,
+    sql`DELETE FROM memberships WHERE tenant_id = ${tenantId} AND user_id = ${userId}
+        RETURNING user_id`,
+  )
+  return row !== null
+}
+
+export async function countOwners(db: Database, tenantId: string): Promise<number> {
+  const row = await one<{ count: number }>(
+    db,
+    sql`SELECT COUNT(*)::int AS count FROM memberships
+        WHERE tenant_id = ${tenantId} AND role = 'owner' AND status = 'active'`,
+  )
+  return row?.count ?? 0
+}
+
+export async function updateUserPassword(
+  db: Database,
+  userId: string,
+  passwordHash: string,
+): Promise<void> {
+  await db.execute(
+    sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${userId}`,
+  )
+}
+
+export async function markEmailVerified(db: Database, userId: string): Promise<void> {
+  await db.execute(
+    sql`UPDATE users SET email_verified_at = now() WHERE id = ${userId}`,
+  )
+}
+
+export async function createPasswordReset(
+  db: Database,
+  input: { userId: string; tokenHash: string; expiresAt: Date },
+): Promise<void> {
+  await db.execute(
+    sql`INSERT INTO password_resets (user_id, token_hash, expires_at)
+        VALUES (${input.userId}, ${input.tokenHash}, ${input.expiresAt})`,
+  )
+}
+
+export async function findPasswordResetByHash(
+  db: Database,
+  tokenHash: string,
+): Promise<{ id: string; user_id: string; expires_at: Date; used_at: Date | null } | null> {
+  return one<{ id: string; user_id: string; expires_at: Date; used_at: Date | null }>(
+    db,
+    sql`SELECT id, user_id, expires_at, used_at FROM password_resets WHERE token_hash = ${tokenHash}`,
+  )
+}
+
+export async function markPasswordResetUsed(db: Database, id: string): Promise<void> {
+  await db.execute(sql`UPDATE password_resets SET used_at = now() WHERE id = ${id}`)
+}
+
+export async function createEmailVerification(
+  db: Database,
+  input: { userId: string; tokenHash: string; expiresAt: Date },
+): Promise<void> {
+  await db.execute(
+    sql`INSERT INTO email_verifications (user_id, token_hash, expires_at)
+        VALUES (${input.userId}, ${input.tokenHash}, ${input.expiresAt})`,
+  )
+}
+
+export async function findEmailVerificationByHash(
+  db: Database,
+  tokenHash: string,
+): Promise<{ id: string; user_id: string; expires_at: Date; used_at: Date | null } | null> {
+  return one<{ id: string; user_id: string; expires_at: Date; used_at: Date | null }>(
+    db,
+    sql`SELECT id, user_id, expires_at, used_at FROM email_verifications WHERE token_hash = ${tokenHash}`,
+  )
+}
+
+export async function markEmailVerificationUsed(db: Database, id: string): Promise<void> {
+  await db.execute(sql`UPDATE email_verifications SET used_at = now() WHERE id = ${id}`)
+}
+
+export interface ApiKeyRow {
+  id: string
+  tenant_id: string
+  name: string
+  key_hash: string
+  key_hint: string
+  scopes: string[]
+  created_by: string | null
+  last_used_at: Date | null
+  expires_at: Date | null
+  revoked_at: Date | null
+  created_at: Date
+}
+
+export async function createApiKey(
+  db: Database,
+  input: {
+    tenantId: string
+    name: string
+    keyHash: string
+    keyHint: string
+    scopes?: string[]
+    createdBy?: string
+    expiresAt?: Date | null
+  },
+): Promise<ApiKeyRow> {
+  const row = await one<ApiKeyRow>(
+    db,
+    sql`INSERT INTO api_keys (tenant_id, name, key_hash, key_hint, scopes, created_by, expires_at)
+        VALUES (${input.tenantId}, ${input.name}, ${input.keyHash}, ${input.keyHint},
+                ${json(input.scopes ?? [])}, ${input.createdBy ?? null}, ${input.expiresAt ?? null})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建 API Key 失败')
+  return row
+}
+
+export async function listApiKeys(db: Database, tenantId: string): Promise<ApiKeyRow[]> {
+  return rows<ApiKeyRow>(
+    db,
+    sql`SELECT * FROM api_keys WHERE tenant_id = ${tenantId}
+        AND revoked_at IS NULL ORDER BY created_at DESC`,
+  )
+}
+
+export async function revokeApiKey(
+  db: Database,
+  tenantId: string,
+  keyId: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`UPDATE api_keys SET revoked_at = now()
+        WHERE id = ${keyId} AND tenant_id = ${tenantId} AND revoked_at IS NULL
+        RETURNING id`,
+  )
+  return row !== null
+}
+
+export interface ApiKeyAuthRow {
+  id: string
+  tenant_id: string
+  created_by: string | null
+  scopes: string[]
+  revoked_at: Date | null
+  expires_at: Date | null
+}
+
+export async function findApiKeyByHash(
+  db: Database,
+  keyHash: string,
+): Promise<ApiKeyAuthRow | null> {
+  return one<ApiKeyAuthRow>(db, sql`SELECT * FROM find_api_key_by_hash(${keyHash})`)
+}
+
+export async function touchApiKey(db: Database, keyId: string): Promise<void> {
+  await db.execute(sql`UPDATE api_keys SET last_used_at = now() WHERE id = ${keyId}`)
+}
+
+export interface AuditLogRow {
+  id: string
+  tenant_id: string
+  actor_type: string
+  actor_id: string | null
+  action: string
+  target_type: string | null
+  target_id: string | null
+  ip: string | null
+  user_agent: string | null
+  detail: Record<string, unknown>
+  created_at: Date
+}
+
+export async function insertAuditLog(
+  db: Database,
+  input: {
+    tenantId: string
+    actorType: string
+    actorId?: string | null
+    action: string
+    targetType?: string
+    targetId?: string
+    ip?: string
+    userAgent?: string
+    detail?: Record<string, unknown>
+  },
+): Promise<void> {
+  await db.execute(
+    sql`INSERT INTO audit_logs (tenant_id, actor_type, actor_id, action, target_type, target_id, ip, user_agent, detail)
+        VALUES (${input.tenantId}, ${input.actorType}, ${input.actorId ?? null}, ${input.action},
+                ${input.targetType ?? null}, ${input.targetId ?? null}, ${input.ip ?? null},
+                ${input.userAgent ?? null}, ${json(input.detail ?? {})})`,
+  )
+}
+
+export async function listAuditLogs(
+  db: Database,
+  tenantId: string,
+  limit = 100,
+): Promise<AuditLogRow[]> {
+  return rows<AuditLogRow>(
+    db,
+    sql`SELECT * FROM audit_logs WHERE tenant_id = ${tenantId}
+        ORDER BY created_at DESC LIMIT ${limit}`,
+  )
+}
+
+export interface QuotaReservationResult {
+  ok: boolean
+  reason?: string
+}
+
+export async function reserveQuota(
+  db: Database,
+  tenantId: string,
+  period: string,
+  estimateUsd: number,
+): Promise<QuotaReservationResult> {
+  const limits = await one<{
+    max_cost_usd: string
+    max_jobs: number
+    max_concurrency: number
+  }>(
+    db,
+    sql`SELECT max_cost_usd, max_jobs, max_concurrency FROM quota_limits
+        WHERE tenant_id = ${tenantId} FOR UPDATE`,
+  )
+  if (!limits) return { ok: false, reason: '配额未初始化' }
+
+  const usage = await one<{
+    cost_usd: string
+    reserved_cost_usd: string
+    job_count: number
+  }>(
+    db,
+    sql`SELECT cost_usd, reserved_cost_usd, job_count FROM quota_usage
+        WHERE tenant_id = ${tenantId} AND period = ${period}`,
+  )
+  const running = await one<{ count: number }>(
+    db,
+    sql`SELECT COUNT(*)::int AS count FROM jobs
+        WHERE tenant_id = ${tenantId} AND status IN ('provisioning','running','finalizing')`,
+  )
+
+  const cost = Number(usage?.cost_usd ?? 0)
+  const reserved = Number(usage?.reserved_cost_usd ?? 0)
+  if (cost + reserved + estimateUsd > Number(limits.max_cost_usd)) {
+    return { ok: false, reason: '本月额度不足' }
+  }
+  if ((usage?.job_count ?? 0) >= limits.max_jobs) {
+    return { ok: false, reason: '本月任务数已达上限' }
+  }
+  if ((running?.count ?? 0) >= limits.max_concurrency) {
+    return { ok: false, reason: '并发任务已达上限' }
+  }
+
+  await db.execute(
+    sql`INSERT INTO quota_usage (tenant_id, period, reserved_cost_usd)
+        VALUES (${tenantId}, ${period}, ${estimateUsd})
+        ON CONFLICT (tenant_id, period) DO UPDATE
+        SET reserved_cost_usd = quota_usage.reserved_cost_usd + EXCLUDED.reserved_cost_usd,
+            updated_at = now()`,
+  )
+  return { ok: true }
+}
+
+export async function releaseQuota(
+  db: Database,
+  tenantId: string,
+  period: string,
+  estimateUsd: number,
+): Promise<void> {
+  await db.execute(
+    sql`UPDATE quota_usage
+        SET reserved_cost_usd = GREATEST(0, reserved_cost_usd - ${estimateUsd}),
+            updated_at = now()
+        WHERE tenant_id = ${tenantId} AND period = ${period}`,
+  )
+}
+
 export function periodOf(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
 export type { SQL }
+
+export async function listAssetStorageKeys(db: Database): Promise<string[]> {
+  const result = await rows<{ storage_key: string }>(
+    db,
+    sql`SELECT storage_key FROM asset_versions`,
+  )
+  return result.map((row) => row.storage_key)
+}

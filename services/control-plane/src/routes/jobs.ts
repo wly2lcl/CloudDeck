@@ -20,11 +20,13 @@ import {
   listJobs,
   periodOf,
   requestCancel,
+  reserveQuota,
   resumeJob,
   retryJob,
   withTenant,
   type JobRow,
 } from '@clouddeck/db'
+import { audit } from '../audit'
 import { requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
@@ -122,17 +124,10 @@ export function registerJobRoutes(
       }
 
       const period = periodOf()
-      const quota = await getQuotaSnapshot(tx, auth.tenantId, period)
-      if (!quota) throw new AppError('QUOTA_EXCEEDED', '租户配额未初始化')
       const estimate = capability.manifest.billing.estimate
-      if (Number(quota.cost_usd) + estimate > Number(quota.max_cost_usd)) {
-        throw new AppError('QUOTA_EXCEEDED', '本月额度不足')
-      }
-      if (quota.job_count >= quota.max_jobs) {
-        throw new AppError('QUOTA_EXCEEDED', '本月任务数已达上限')
-      }
-      if (quota.running >= quota.max_concurrency) {
-        throw new AppError('QUOTA_EXCEEDED', '并发任务已达上限')
+      const reservation = await reserveQuota(tx, auth.tenantId, period, estimate)
+      if (!reservation.ok) {
+        throw new AppError('QUOTA_EXCEEDED', reservation.reason ?? '配额不足')
       }
 
       const created = await createJob(tx, {
@@ -177,10 +172,20 @@ export function registerJobRoutes(
 
   app.post('/v1/jobs/:id/cancel', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
+    const jobId = param(request, 'id')
     const job = await withTenant(deps.db, auth.tenantId, (tx) =>
-      requestCancel(tx, auth.tenantId, param(request, 'id')),
+      requestCancel(tx, auth.tenantId, jobId),
     )
     if (!job) throw new AppError('NOT_FOUND', '任务不存在或已结束')
+    await audit(deps.db, {
+      tenantId: auth.tenantId,
+      actorType: 'user',
+      actorId: auth.userId,
+      action: 'job.cancel',
+      targetType: 'job',
+      targetId: jobId,
+      ip: request.ip,
+    })
     return ok(request, serializeJob(job))
   })
 
@@ -197,6 +202,15 @@ export function registerJobRoutes(
       if (!capability?.manifest.execution.resumable) {
         throw new AppError('VALIDATION_FAILED', '该能力不支持续作')
       }
+      const reservation = await reserveQuota(
+        tx,
+        auth.tenantId,
+        periodOf(),
+        Number(existing.estimated_cost_usd),
+      )
+      if (!reservation.ok) {
+        throw new AppError('QUOTA_EXCEEDED', reservation.reason ?? '配额不足')
+      }
       const resumed = await resumeJob(tx, auth.tenantId, existing.id)
       if (!resumed) throw new AppError('NOT_FOUND', '任务当前状态不可续作')
       return resumed
@@ -207,7 +221,18 @@ export function registerJobRoutes(
   app.post('/v1/jobs/:id/retry', { preHandler: guard }, async (request, reply) => {
     const auth = requireAuth(request)
     const job = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const retried = await retryJob(tx, auth.tenantId, param(request, 'id'))
+      const existing = await getJob(tx, auth.tenantId, param(request, 'id'))
+      if (!existing) throw new AppError('NOT_FOUND', '任务不存在')
+      const reservation = await reserveQuota(
+        tx,
+        auth.tenantId,
+        periodOf(),
+        Number(existing.estimated_cost_usd),
+      )
+      if (!reservation.ok) {
+        throw new AppError('QUOTA_EXCEEDED', reservation.reason ?? '配额不足')
+      }
+      const retried = await retryJob(tx, auth.tenantId, existing.id)
       if (!retried) throw new AppError('NOT_FOUND', '任务不存在或不可重试')
       await incrementQuotaJobs(tx, auth.tenantId, periodOf())
       return retried
@@ -307,6 +332,7 @@ export function registerJobRoutes(
       maxJobs: snapshot.max_jobs,
       maxConcurrency: snapshot.max_concurrency,
       costUsd: Number(snapshot.cost_usd),
+      reservedCostUsd: Number(snapshot.reserved_cost_usd),
       jobCount: snapshot.job_count,
       running: snapshot.running,
     })

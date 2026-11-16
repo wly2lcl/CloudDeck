@@ -30,4 +30,13 @@ test('register, create project, upload, run demo capability', async ({ page }) =
   await expect(page.getByText('成功')).toBeVisible({ timeout: 60_000 })
   await expect(page.getByText('demo.echo.result')).toBeVisible()
   await expect(page.getByRole('button', { name: '下载' }).first()).toBeVisible()
+
+  // 访问令牌失效时，前端应使用 refresh token 自动续期并重试。
+  await page.evaluate(() => localStorage.setItem('clouddeck.access', 'invalid-token'))
+  await page.goto('/projects')
+  await expect(page.getByText('E2E 项目')).toBeVisible()
+
+  await page.getByRole('link', { name: '设置' }).click()
+  await expect(page.getByText('团队与安全')).toBeVisible()
+  await expect(page.getByText('审计日志')).toBeVisible()
 })

@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, normalize, resolve } from 'node:path'
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -13,6 +14,7 @@ export interface Storage {
   put(key: string, data: Buffer, contentType: string): Promise<void>
   get(key: string): Promise<Buffer>
   remove(key: string): Promise<void>
+  listKeys(prefix?: string): Promise<string[]>
   signedDownloadUrl(key: string, ttlSeconds: number): Promise<string>
 }
 
@@ -56,6 +58,23 @@ export class LocalStorage implements Storage {
 
   async remove(key: string): Promise<void> {
     await rm(this.pathOf(key), { force: true })
+  }
+
+  async listKeys(prefix = ''): Promise<string[]> {
+    const keys: string[] = []
+    const walk = async (dir: string): Promise<void> => {
+      const entries = await readdir(dir, { withFileTypes: true }).catch(() => [])
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) await walk(full)
+        else if (entry.isFile()) {
+          const key = full.slice(this.root.length + 1).split('\\').join('/')
+          if (key.startsWith(prefix)) keys.push(key)
+        }
+      }
+    }
+    await walk(this.root)
+    return keys.sort()
   }
 
   async signedDownloadUrl(key: string, ttlSeconds: number): Promise<string> {
@@ -131,6 +150,25 @@ export class S3Storage implements Storage {
   async remove(key: string): Promise<void> {
     assertSafeKey(key)
     await this.client.send(new DeleteObjectCommand({ Bucket: this.options.bucket, Key: key }))
+  }
+
+  async listKeys(prefix = ''): Promise<string[]> {
+    const keys: string[] = []
+    let token: string | undefined
+    do {
+      const response = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.options.bucket,
+          Prefix: prefix,
+          ContinuationToken: token,
+        }),
+      )
+      for (const item of response.Contents ?? []) {
+        if (item.Key) keys.push(item.Key)
+      }
+      token = response.NextContinuationToken
+    } while (token)
+    return keys
   }
 
   async signedDownloadUrl(key: string, ttlSeconds: number): Promise<string> {

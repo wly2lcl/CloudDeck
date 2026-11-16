@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: CloudDeck API
-  version: 0.1.0
+  version: 0.1.2
   description: |
     CloudDeck control-plane API. All authenticated endpoints require a bearer token.
     List responses use the `{ data, requestId }` envelope; errors use `{ error: { code, message, details? }, requestId }`.
@@ -130,6 +130,146 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
 
+  /v1/auth/forgot-password:
+    post:
+      tags: [auth]
+      security: []
+      summary: Request a password reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/auth/reset-password:
+    post:
+      tags: [auth]
+      security: []
+      summary: Reset password and revoke all sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/auth/verify-email:
+    post:
+      tags: [auth]
+      security: []
+      summary: Verify an email address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/tenants/{id}/members:
+    get:
+      tags: [tenant]
+      summary: List tenant members
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [tenant]
+      summary: Add an already-registered user to the tenant
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [owner, admin, editor, viewer] }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/Error' }
+  /v1/tenants/{id}/members/{userId}:
+    patch:
+      tags: [tenant]
+      summary: Change a member role
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [owner, admin, editor, viewer] }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    delete:
+      tags: [tenant]
+      summary: Remove a member
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/api-keys:
+    get:
+      tags: [tenant]
+      summary: List API keys (masked)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [tenant]
+      summary: Create an API key; the plaintext is returned once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                expiresInDays: { type: integer, minimum: 1 }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/api-keys/{id}:
+    delete:
+      tags: [tenant]
+      summary: Revoke an API key
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/audit-logs:
+    get:
+      tags: [tenant]
+      summary: List tenant audit logs
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, maximum: 200, default: 100 } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
   /v1/projects:
     get:
       tags: [projects]

@@ -25,7 +25,10 @@
 
 ## 模型网关
 
-所有模型调用经过 `control-plane` 的模型网关，不直连 provider：
+> **实现状态（v0.1.2）**：统一模型网关尚未落地。当前各 driver 直接调用 provider，
+> 计费由 driver 上报 usage、控制面汇总；下面的路由/降级/短期 token 是目标设计。
+
+目标设计是所有模型调用经过 `control-plane` 的模型网关，不直连 provider：
 
 - 统一多 provider 路由、重试、降级、超时。
 - 统一计费与用量归属（按 job/tenant/capability）。

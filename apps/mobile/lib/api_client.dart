@@ -16,19 +16,56 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({this.baseUrl = const String.fromEnvironment(
-    'API_BASE',
-    defaultValue: 'http://localhost:4310',
-  )});
+  ApiClient({
+    this.baseUrl = const String.fromEnvironment(
+      'API_BASE',
+      defaultValue: 'http://localhost:4310',
+    ),
+    http.Client? client,
+  }) : _client = client ?? http.Client();
 
   final String baseUrl;
+  final http.Client _client;
   String? token;
+  String? refreshToken;
+  void Function(String accessToken, String refreshToken)? onTokensChanged;
+
+  Future<bool> _refresh() async {
+    final current = refreshToken;
+    if (current == null) return false;
+
+    final response = await _client.post(
+      Uri.parse('$baseUrl/v1/auth/refresh'),
+      headers: const {'content-type': 'application/json'},
+      body: jsonEncode({'refreshToken': current}),
+    );
+    if (response.statusCode >= 400) {
+      token = null;
+      refreshToken = null;
+      return false;
+    }
+
+    final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = payload['data'] as Map<String, dynamic>?;
+    final access = data?['accessToken'] as String?;
+    final next = data?['refreshToken'] as String?;
+    if (access == null || next == null) {
+      token = null;
+      refreshToken = null;
+      return false;
+    }
+    token = access;
+    refreshToken = next;
+    onTokensChanged?.call(access, next);
+    return true;
+  }
 
   Future<dynamic> _request(
     String method,
     String path, {
     Map<String, dynamic>? body,
     bool auth = true,
+    bool allowRefresh = true,
   }) async {
     final headers = <String, String>{'content-type': 'application/json'};
     if (auth && token != null) {
@@ -39,11 +76,17 @@ class ApiClient {
     late http.Response response;
     switch (method) {
       case 'POST':
-        response = await http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+        response = await _client.post(uri, headers: headers, body: jsonEncode(body ?? {}));
       case 'DELETE':
-        response = await http.delete(uri, headers: headers);
+        response = await _client.delete(uri, headers: headers);
       default:
-        response = await http.get(uri, headers: headers);
+        response = await _client.get(uri, headers: headers);
+    }
+
+    if (response.statusCode == 401 && auth && allowRefresh && refreshToken != null) {
+      if (await _refresh()) {
+        return _request(method, path, body: body, auth: auth, allowRefresh: false);
+      }
     }
 
     dynamic payload;

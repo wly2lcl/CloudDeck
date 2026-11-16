@@ -14,6 +14,7 @@ import {
   withTenant,
   type ShareRow,
 } from '@clouddeck/db'
+import { audit } from '../audit'
 import { hashToken, requireAuth } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
@@ -74,6 +75,15 @@ export function registerShareRoutes(
       })
     })
 
+    await audit(deps.db, {
+      tenantId: auth.tenantId,
+      actorType: 'user',
+      actorId: auth.userId,
+      action: 'share.create',
+      targetType: 'share',
+      targetId: share.id,
+      ip: request.ip,
+    })
     reply.status(201)
     return ok(request, {
       ...serializeShare(share),
@@ -96,6 +106,15 @@ export function registerShareRoutes(
       revokeShare(tx, auth.tenantId, param(request, 'id')),
     )
     if (!revoked) throw new AppError('NOT_FOUND', '分享不存在或已撤销')
+    await audit(deps.db, {
+      tenantId: auth.tenantId,
+      actorType: 'user',
+      actorId: auth.userId,
+      action: 'share.revoke',
+      targetType: 'share',
+      targetId: param(request, 'id'),
+      ip: request.ip,
+    })
     return ok(request, { revoked: true })
   })
 

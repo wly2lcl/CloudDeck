@@ -9,6 +9,7 @@ import {
   type ModelCredentialRow,
 } from '@clouddeck/db'
 import { decryptSecret, deriveMasterKey, encryptSecret, keyHint } from '@clouddeck/secrets'
+import { audit } from '../audit'
 import { requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
@@ -58,6 +59,16 @@ export function registerCredentialRoutes(
         keyHint: keyHint(body.secret),
       }),
     )
+    await audit(deps.db, {
+      tenantId: auth.tenantId,
+      actorType: 'user',
+      actorId: auth.userId,
+      action: 'credential.create',
+      targetType: 'model_credential',
+      targetId: credential.id,
+      ip: request.ip,
+      detail: { provider: body.provider },
+    })
     reply.status(201)
     return ok(request, serializeCredential(credential))
   })
@@ -68,6 +79,15 @@ export function registerCredentialRoutes(
       deleteModelCredential(tx, auth.tenantId, param(request, 'id')),
     )
     if (!deleted) throw new AppError('NOT_FOUND', '凭据不存在')
+    await audit(deps.db, {
+      tenantId: auth.tenantId,
+      actorType: 'user',
+      actorId: auth.userId,
+      action: 'credential.delete',
+      targetType: 'model_credential',
+      targetId: param(request, 'id'),
+      ip: request.ip,
+    })
     return ok(request, { deleted: true })
   })
 

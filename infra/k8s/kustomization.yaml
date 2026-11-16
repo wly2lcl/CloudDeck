@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: clouddeck
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - control-plane.yaml
+  - job-runner.yaml
+  - web.yaml
+  - ingress.yaml
+# secret.example.yaml 仅作模板，真实 Secret 通过 kubectl 或 External Secrets 创建。

@@ -8,6 +8,7 @@ import {
   updateTenantPlan,
   type TenantTier,
 } from '@clouddeck/db'
+import { audit } from '../audit'
 import { requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
@@ -69,7 +70,18 @@ export function registerTenantRoutes(
   app.put('/v1/capabilities/:id/enabled', { preHandler: guard }, async (request) => {
     const auth = requireRole(request, ['owner', 'admin'])
     const body = parseBody(toggleSchema, request.body)
-    await setTenantCapability(deps.db, auth.tenantId, param(request, 'id'), body.enabled)
-    return ok(request, { id: param(request, 'id'), enabled: body.enabled })
+    const capabilityId = param(request, 'id')
+    await setTenantCapability(deps.db, auth.tenantId, capabilityId, body.enabled)
+    await audit(deps.db, {
+      tenantId: auth.tenantId,
+      actorType: 'user',
+      actorId: auth.userId,
+      action: 'capability.toggle',
+      targetType: 'capability',
+      targetId: capabilityId,
+      ip: request.ip,
+      detail: { enabled: body.enabled },
+    })
+    return ok(request, { id: capabilityId, enabled: body.enabled })
   })
 }

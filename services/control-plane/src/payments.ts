@@ -24,15 +24,20 @@ export interface WebhookResult {
 export interface PaymentProvider {
   readonly name: string
   createCheckout(input: CheckoutInput): Promise<CheckoutResult>
-  parseWebhook(headers: Record<string, unknown>, body: unknown): WebhookResult
+  parseWebhook(headers: Record<string, unknown>, body: unknown, rawBody?: string): WebhookResult
 }
 
 export const PLAN_PRICES: Record<PaidTier, number> = { pro: 29, team: 299 }
 
-function verifySignature(secret: string, body: unknown, signature: unknown): boolean {
+function verifySignature(
+  secret: string,
+  body: unknown,
+  signature: unknown,
+  rawBody?: string,
+): boolean {
   if (typeof signature !== 'string') return false
   const expected = createHmac('sha256', secret)
-    .update(JSON.stringify(body))
+    .update(rawBody ?? JSON.stringify(body))
     .digest('hex')
   const left = Buffer.from(expected)
   const right = Buffer.from(signature)
@@ -53,8 +58,12 @@ export class MockPaymentProvider implements PaymentProvider {
     return { url, externalId }
   }
 
-  parseWebhook(headers: Record<string, unknown>, body: unknown): WebhookResult {
-    if (!verifySignature(this.secret, body, headers['x-payment-signature'])) {
+  parseWebhook(
+    headers: Record<string, unknown>,
+    body: unknown,
+    rawBody?: string,
+  ): WebhookResult {
+    if (!verifySignature(this.secret, body, headers['x-payment-signature'], rawBody)) {
       throw new Error('支付回调签名无效')
     }
     const payload = body as Partial<WebhookResult>
@@ -98,8 +107,12 @@ export class HttpPaymentProvider implements PaymentProvider {
     return { url: payload.url, externalId: payload.externalId }
   }
 
-  parseWebhook(headers: Record<string, unknown>, body: unknown): WebhookResult {
-    if (!verifySignature(this.options.secret, body, headers['x-payment-signature'])) {
+  parseWebhook(
+    headers: Record<string, unknown>,
+    body: unknown,
+    rawBody?: string,
+  ): WebhookResult {
+    if (!verifySignature(this.options.secret, body, headers['x-payment-signature'], rawBody)) {
       throw new Error('支付回调签名无效')
     }
     const payload = body as Partial<WebhookResult>

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-runner
+  namespace: clouddeck
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-runner
+  template:
+    metadata:
+      labels:
+        app: job-runner
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: job-runner
+          image: ghcr.io/wly2lcl/clouddeck/job-runner:0.1.2
+          envFrom:
+            - configMapRef:
+                name: clouddeck-config
+            - secretRef:
+                name: clouddeck-secrets
+          env:
+            - name: SANDBOX_DRIVER
+              value: docker
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: '2'
+              memory: 2Gi
+          volumeMounts:
+            - name: storage
+              mountPath: /data/storage
+            - name: workspaces
+              mountPath: /data/workspaces
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: clouddeck-storage
+        - name: workspaces
+          persistentVolumeClaim:
+            claimName: clouddeck-workspaces

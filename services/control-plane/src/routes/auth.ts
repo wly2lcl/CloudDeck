@@ -3,16 +3,25 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import {
   addMembership,
+  createEmailVerification,
+  createPasswordReset,
   createSession,
   createTenant,
   createUser,
+  findEmailVerificationByHash,
   findMembership,
+  findPasswordResetByHash,
   findSessionByRefreshHash,
   findUserByEmail,
   findUserById,
   listMemberships,
+  markEmailVerificationUsed,
+  markEmailVerified,
+  markPasswordResetUsed,
   revokeSession,
+  revokeUserSessions,
   rotateSession,
+  updateUserPassword,
   type Database,
 } from '@clouddeck/db'
 import {
@@ -23,6 +32,7 @@ import {
   requireAuth,
   verifyPassword,
 } from '../auth'
+import { audit } from '../audit'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toTime } from '../time'
@@ -45,6 +55,9 @@ const loginSchema = z.object({
 
 const refreshSchema = z.object({ refreshToken: z.string().min(16) })
 const switchSchema = z.object({ tenantId: z.string().uuid() })
+const forgotSchema = z.object({ email: z.string().email() })
+const resetSchema = z.object({ token: z.string().min(16), password: z.string().min(8).max(128) })
+const verifySchema = z.object({ token: z.string().min(16) })
 
 async function issueSession(
   deps: AppDeps,
@@ -105,10 +118,31 @@ export function registerAuthRoutes(
       ip: request.ip,
     })
 
+    const verificationToken = createRefreshToken()
+    await createEmailVerification(deps.db, {
+      userId: user.id,
+      tokenHash: hashToken(verificationToken),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    })
+    await audit(deps.db, {
+      tenantId: tenant.id,
+      actorType: 'user',
+      actorId: user.id,
+      action: 'auth.register',
+      ip: request.ip,
+      userAgent: request.headers['user-agent'],
+    })
+
       reply.status(201)
       return ok(request, {
-        user: { id: user.id, email: user.email, displayName: user.display_name },
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.display_name,
+          emailVerified: false,
+        },
         tenants: [{ ...tenant, role: 'owner' }],
+        ...(deps.config.exposeAuthTokens ? { emailVerificationToken: verificationToken } : {}),
         ...tokens,
       })
     },
@@ -137,9 +171,22 @@ export function registerAuthRoutes(
       device: request.headers['user-agent'],
       ip: request.ip,
     })
+    await audit(deps.db, {
+      tenantId: membership.tenant_id,
+      actorType: 'user',
+      actorId: user.id,
+      action: 'auth.login',
+      ip: request.ip,
+      userAgent: request.headers['user-agent'],
+    })
 
       return ok(request, {
-        user: { id: user.id, email: user.email, displayName: user.display_name },
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.display_name,
+          emailVerified: user.email_verified_at !== null,
+        },
         tenant: {
           id: membership.tenant_id,
           name: membership.name,
@@ -180,6 +227,50 @@ export function registerAuthRoutes(
     })
   })
 
+  app.post(
+    '/v1/auth/forgot-password',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request) => {
+      const body = parseBody(forgotSchema, request.body)
+      const user = await findUserByEmail(deps.db, body.email)
+      if (!user) return ok(request, { sent: true })
+
+      const token = createRefreshToken()
+      await createPasswordReset(deps.db, {
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      })
+      return ok(request, {
+        sent: true,
+        ...(deps.config.exposeAuthTokens ? { token } : {}),
+      })
+    },
+  )
+
+  app.post('/v1/auth/reset-password', async (request) => {
+    const body = parseBody(resetSchema, request.body)
+    const reset = await findPasswordResetByHash(deps.db, hashToken(body.token))
+    if (!reset || reset.used_at || toTime(reset.expires_at) < Date.now()) {
+      throw new AppError('UNAUTHENTICATED', '重置令牌无效或已过期')
+    }
+    await updateUserPassword(deps.db, reset.user_id, hashPassword(body.password))
+    await markPasswordResetUsed(deps.db, reset.id)
+    await revokeUserSessions(deps.db, reset.user_id)
+    return ok(request, { reset: true })
+  })
+
+  app.post('/v1/auth/verify-email', async (request) => {
+    const body = parseBody(verifySchema, request.body)
+    const verification = await findEmailVerificationByHash(deps.db, hashToken(body.token))
+    if (!verification || verification.used_at || toTime(verification.expires_at) < Date.now()) {
+      throw new AppError('UNAUTHENTICATED', '验证令牌无效或已过期')
+    }
+    await markEmailVerified(deps.db, verification.user_id)
+    await markEmailVerificationUsed(deps.db, verification.id)
+    return ok(request, { verified: true })
+  })
+
   app.post('/v1/auth/logout', async (request) => {
     const body = parseBody(refreshSchema, request.body)
     const session = await findSessionByRefreshHash(deps.db, hashToken(body.refreshToken))
@@ -217,7 +308,12 @@ export function registerAuthRoutes(
     if (!user) throw new AppError('NOT_FOUND', '用户不存在')
     const memberships = await listMemberships(deps.db, user.id)
     return ok(request, {
-      user: { id: user.id, email: user.email, displayName: user.display_name },
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name,
+        emailVerified: user.email_verified_at !== null,
+      },
       tenants: memberships.map((item) => ({
         id: item.tenant_id,
         name: item.name,

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane
+  namespace: clouddeck
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: control-plane
+  template:
+    metadata:
+      labels:
+        app: control-plane
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: control-plane
+          image: ghcr.io/wly2lcl/clouddeck/control-plane:0.1.2
+          ports:
+            - containerPort: 4310
+          envFrom:
+            - configMapRef:
+                name: clouddeck-config
+            - secretRef:
+                name: clouddeck-secrets
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4310
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4310
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          volumeMounts:
+            - name: storage
+              mountPath: /data/storage
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: clouddeck-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane
+  namespace: clouddeck
+spec:
+  selector:
+    app: control-plane
+  ports:
+    - port: 4310
+      targetPort: 4310

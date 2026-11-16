@@ -30,10 +30,11 @@ CloudDeck 是可自托管的 AI 内容生产工作台：把「一个想法」推
 - 任务：Postgres 队列、SSE 进度、取消、重试、断点续作
 - 沙箱：本地进程或 Docker（可选 gVisor），每任务独立工作区
 - 引擎：Claude Code、OpenAI 兼容 LLM、百炼 TTS、ffmpeg 视频
-- 商业化：套餐配额、用量账本、对账、账单快照、能力开关、模板市场、只读分享
+- 商业化：套餐配额（预扣）、用量账本、对账、账单快照、能力开关、模板市场、只读分享、成员管理、租户审计
 - 协作：项目评论与 SSE 实时流
-- 安全：JWT refresh 轮换、AES-256-GCM 凭据、Helmet、限流、Webhook HMAC
+- 安全：JWT refresh 轮换与客户端自动续期、API Key、密码重置/邮箱验证、AES-256-GCM 凭据、Helmet、限流、原始 body HMAC 回调、审计日志
 - 客户端：Next.js Web 与 Flutter 移动端
+- 运维：Docker Compose、Kubernetes 清单、Prometheus 告警、存储/工作区清理
 
 ## 快速开始
 
@@ -82,6 +83,7 @@ cd apps/mobile && flutter analyze && flutter test
 - [数据模型](docs/03-data-model.md) / [能力](docs/04-capabilities.md) / [驱动](docs/05-drivers.md)
 - [API](docs/06-api.md) / [OpenAPI](docs/openapi.yaml)
 - [安全与计费](docs/08-security-billing.md) / [部署](docs/deployment.md) / [限制](docs/limitations.md)
+- [Kubernetes 清单](infra/k8s/README.md) / [可观测性](infra/observability/README.md)
 - [合规](docs/13-compliance.md) / [ADR](docs/adr/)
 - [在线文档站](https://wly2lcl.github.io/CloudDeck/)
 

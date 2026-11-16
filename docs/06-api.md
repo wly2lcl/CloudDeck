@@ -46,10 +46,16 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | POST | `/auth/login` | 登录，返回 access/refresh |
 | POST | `/auth/refresh` | 刷新 |
 | POST | `/auth/logout` | 撤销当前会话 |
+| POST | `/auth/forgot-password` | 发送重置令牌（`AUTH_EXPOSE_TOKENS=true` 时直接返回） |
+| POST | `/auth/reset-password` | 重置密码并吊销该用户全部会话 |
+| POST | `/auth/verify-email` | 验证邮箱 |
 | GET | `/me` | 当前用户与租户列表 |
 | GET/POST | `/tenants` | 创建/列出租户 |
-| GET/POST/DELETE | `/tenants/:id/members` | 成员管理 |
-| GET/POST/DELETE | `/api-keys` | 服务端密钥 |
+| GET/POST | `/tenants/:id/members` | 成员列表 / 添加已注册用户 |
+| PATCH/DELETE | `/tenants/:id/members/:userId` | 修改角色 / 移除成员 |
+| GET/POST | `/api-keys` | 服务端密钥列表 / 创建（创建时返回一次明文） |
+| DELETE | `/api-keys/:id` | 撤销密钥 |
+| GET | `/audit-logs` | 租户审计日志（owner/admin） |
 | GET | `/tenant` | 当前租户与角色 |
 | PATCH | `/tenant` | 切换套餐（owner/admin） |
 

@@ -6,12 +6,20 @@ import { Nav } from '../../components/nav'
 import {
   ApiError,
   clearTokens,
+  addMember,
+  createApiKey,
   createInvoice,
   createModelCredential,
   createProjectFromTemplate,
   createTemplate,
   deleteModelCredential,
   deleteTemplate,
+  getApiKeys,
+  getAuditLogs,
+  getMembers,
+  removeMember,
+  revokeApiKey,
+  updateMemberRole,
   getModelCredentials,
   getBillingReconciliation,
   getBillingSummary,
@@ -26,8 +34,11 @@ import {
   setCapabilityEnabled,
   setTemplatePublic,
   updateTenantPlan,
+  type ApiKey,
+  type AuditLog,
   type BillingSummary,
   type CapabilityState,
+  type Member,
   type Invoice,
   type ModelCredential,
   type PublicTemplate,
@@ -50,6 +61,13 @@ export default function SettingsPage() {
   const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [publicTemplates, setPublicTemplates] = useState<PublicTemplate[]>([])
+  const [members, setMembers] = useState<Member[]>([])
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [memberEmail, setMemberEmail] = useState('')
+  const [memberRole, setMemberRole] = useState('editor')
+  const [apiKeyName, setApiKeyName] = useState('')
+  const [newApiKey, setNewApiKey] = useState<string | null>(null)
   const [credentialProvider, setCredentialProvider] = useState('dashscope')
   const [credentialLabel, setCredentialLabel] = useState('')
   const [credentialSecret, setCredentialSecret] = useState('')
@@ -90,6 +108,14 @@ export default function SettingsPage() {
       setReconciliation(reconciliationData)
       setInvoices(invoiceData)
       setPublicTemplates(publicTemplateData)
+      const [memberData, keyData, auditData] = await Promise.all([
+        getMembers(tenantData.id),
+        getApiKeys(),
+        getAuditLogs(),
+      ])
+      setMembers(memberData)
+      setApiKeys(keyData)
+      setAuditLogs(auditData)
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         clearTokens()
@@ -159,6 +185,60 @@ export default function SettingsPage() {
       setTemplates(await getTemplates())
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '导入模板失败')
+    }
+  }
+
+  const inviteMember = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!tenant || !memberEmail.trim()) return
+    try {
+      await addMember(tenant.id, memberEmail.trim(), memberRole)
+      setMembers(await getMembers(tenant.id))
+      setMemberEmail('')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '添加成员失败')
+    }
+  }
+
+  const changeMemberRole = async (member: Member, role: string) => {
+    if (!tenant) return
+    try {
+      await updateMemberRole(tenant.id, member.userId, role)
+      setMembers(await getMembers(tenant.id))
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '更新成员失败')
+    }
+  }
+
+  const dropMember = async (member: Member) => {
+    if (!tenant) return
+    try {
+      await removeMember(tenant.id, member.userId)
+      setMembers(await getMembers(tenant.id))
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '移除成员失败')
+    }
+  }
+
+  const addApiKey = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!apiKeyName.trim()) return
+    try {
+      const created = await createApiKey(apiKeyName.trim())
+      setNewApiKey(created.key)
+      setApiKeys(await getApiKeys())
+      setApiKeyName('')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '创建 API Key 失败')
+    }
+  }
+
+  const dropApiKey = async (key: ApiKey) => {
+    try {
+      await revokeApiKey(key.id)
+      setApiKeys(await getApiKeys())
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '撤销 API Key 失败')
     }
   }
 
@@ -413,6 +493,95 @@ export default function SettingsPage() {
                 </li>
               ))
             )}
+          </ul>
+        </section>
+
+        <section className="panel">
+          <h2>团队与安全</h2>
+          <h3>成员</h3>
+          <ul className="list">
+            {members.map((member) => (
+              <li key={member.userId} className="list-item">
+                <div>
+                  <strong>{member.displayName ?? member.email}</strong>
+                  <p className="muted">{member.email}</p>
+                </div>
+                <div className="row">
+                  <select
+                    value={member.role}
+                    onChange={(event) => void changeMemberRole(member, event.target.value)}
+                  >
+                    <option value="owner">owner</option>
+                    <option value="admin">admin</option>
+                    <option value="editor">editor</option>
+                    <option value="viewer">viewer</option>
+                  </select>
+                  <button type="button" className="ghost" onClick={() => void dropMember(member)}>
+                    移除
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={inviteMember} className="row">
+            <input
+              type="email"
+              placeholder="已注册用户邮箱"
+              value={memberEmail}
+              onChange={(event) => setMemberEmail(event.target.value)}
+              required
+            />
+            <select value={memberRole} onChange={(event) => setMemberRole(event.target.value)}>
+              <option value="admin">admin</option>
+              <option value="editor">editor</option>
+              <option value="viewer">viewer</option>
+            </select>
+            <button type="submit">添加成员</button>
+          </form>
+
+          <h3>API Key</h3>
+          {newApiKey && (
+            <p className="muted">
+              仅显示一次：<code>{newApiKey}</code>
+            </p>
+          )}
+          <ul className="list">
+            {apiKeys.map((key) => (
+              <li key={key.id} className="list-item">
+                <div>
+                  <strong>{key.name}</strong>
+                  <p className="muted">
+                    {key.hint} · 创建于 {new Date(key.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <button type="button" className="ghost" onClick={() => void dropApiKey(key)}>
+                  撤销
+                </button>
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={addApiKey} className="row">
+            <input
+              placeholder="Key 名称，例如 CI"
+              value={apiKeyName}
+              onChange={(event) => setApiKeyName(event.target.value)}
+              required
+            />
+            <button type="submit">创建 API Key</button>
+          </form>
+
+          <h3>审计日志</h3>
+          <ul className="log">
+            {auditLogs.map((log) => (
+              <li key={log.id}>
+                <strong>{log.action}</strong>
+                <span className="muted">
+                  {' '}
+                  · {new Date(log.createdAt).toLocaleString()}
+                  {log.ip ? ` · ${log.ip}` : ''}
+                </span>
+              </li>
+            ))}
           </ul>
         </section>
 

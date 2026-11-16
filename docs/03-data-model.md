@@ -9,7 +9,7 @@ tenants(id, name, slug, tier, status, created_at)
 users(id, email, password_hash, display_name, avatar_url, locale, created_at)
 memberships(tenant_id, user_id, role, status, invited_by, created_at)
   role: owner | admin | editor | viewer
-api_keys(id, tenant_id, name, key_hash, scopes, last_used_at, expires_at)
+api_keys(id, tenant_id, name, key_hash, key_hint, scopes, last_used_at, expires_at, revoked_at)
 sessions(id, user_id, tenant_id, refresh_token_hash, device, ip, expires_at)
 ```
 
@@ -99,7 +99,7 @@ usage_ledger(
 )
 
 quota_limits(tenant_id, period, max_cost_usd, max_jobs, max_concurrency)
-quota_usage(tenant_id, period, cost_usd, job_count, updated_at)
+quota_usage(tenant_id, period, cost_usd, reserved_cost_usd, job_count, updated_at)
 
 model_credentials(
   id, tenant_id, provider, label, encrypted_secret, key_hint,
@@ -135,6 +135,8 @@ capability_drivers(
 ## 审计
 
 ```text
+password_resets(id, user_id, token_hash, expires_at, used_at)
+email_verifications(id, user_id, token_hash, expires_at, used_at)
 audit_logs(
   id, tenant_id, actor_type, actor_id, action, target_type, target_id,
   ip, user_agent, detail jsonb, created_at

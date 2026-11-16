@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { createDb } from '@clouddeck/db'
 import { createCommandRunner } from '@clouddeck/sandbox'
 import { createStorage } from '@clouddeck/storage'
-import { startWorker } from './runner'
+import { cleanupWorkspaces, startWorker } from './runner'
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 
@@ -43,12 +43,22 @@ async function main(): Promise<void> {
         })
       : createCommandRunner({ driver: 'local' })
 
+  const workspaceRoot = process.env.WORKSPACE_ROOT ?? tmpdir()
+  const ttlHours = Number(process.env.WORKSPACE_TTL_HOURS ?? 24)
+  const cleanup = async (): Promise<void> => {
+    const removed = await cleanupWorkspaces(workspaceRoot, ttlHours * 60 * 60 * 1000)
+    if (removed > 0) console.log(`已清理 ${removed} 个过期工作区`)
+  }
+  await cleanup()
+  const cleanupTimer = setInterval(() => void cleanup(), 60 * 60 * 1000)
+  cleanupTimer.unref()
+
   const stop = await startWorker({
     db,
     storage,
     commands,
     capabilitiesDir: process.env.CAPABILITIES_DIR ?? `${REPO_ROOT}capabilities`,
-    workspaceRoot: process.env.WORKSPACE_ROOT ?? tmpdir(),
+    workspaceRoot,
     credentialsKey: process.env.CREDENTIALS_KEY ?? process.env.AUTH_SECRET,
     env: process.env,
     push: {
@@ -61,6 +71,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`job-runner 收到 ${signal}，正在停止`)
+    clearInterval(cleanupTimer)
     stop()
     await close()
     process.exit(0)

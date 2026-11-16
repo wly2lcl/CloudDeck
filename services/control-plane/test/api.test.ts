@@ -955,3 +955,139 @@ describe('M1 端到端', () => {
     expect(text).toContain(`id: `)
   })
 })
+
+describe('第一阶段收口', () => {
+  let memberToken = ''
+  let memberRefresh = ''
+  let memberId = ''
+  let verificationToken = ''
+  let apiKey = ''
+
+  it('注册返回邮箱验证令牌，验证后 /me 标记已验证', async () => {
+    const response = await api('/v1/auth/register', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'member@example.com', password: 'password123', displayName: 'Member' },
+    })
+    expect(response.statusCode).toBe(201)
+    const body = response.json().data
+    memberToken = body.accessToken
+    memberRefresh = body.refreshToken
+    memberId = body.user.id
+    verificationToken = body.emailVerificationToken
+    expect(verificationToken).toBeTruthy()
+
+    const verified = await api('/v1/auth/verify-email', {
+      method: 'POST',
+      token: null,
+      payload: { token: verificationToken },
+    })
+    expect(verified.statusCode).toBe(200)
+
+    const me = await api('/v1/me', { token: memberToken })
+    expect(me.statusCode).toBe(200)
+    expect(me.json().data.user.emailVerified).toBe(true)
+  })
+
+  it('owner 可添加、改角色、移除成员，并写入审计', async () => {
+    const added = await api(`/v1/tenants/${tenantId}/members`, {
+      method: 'POST',
+      payload: { email: 'member@example.com', role: 'editor' },
+    })
+    expect(added.statusCode).toBe(201)
+    expect(added.json().data.role).toBe('editor')
+
+    const list = await api(`/v1/tenants/${tenantId}/members`)
+    expect(list.statusCode).toBe(200)
+    expect(list.json().data.some((item: { userId: string }) => item.userId === memberId)).toBe(true)
+
+    const patched = await api(`/v1/tenants/${tenantId}/members/${memberId}`, {
+      method: 'PATCH',
+      payload: { role: 'viewer' },
+    })
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json().data.role).toBe('viewer')
+
+    const auditLogs = await api('/v1/audit-logs')
+    expect(auditLogs.statusCode).toBe(200)
+    const actions = auditLogs.json().data.map((item: { action: string }) => item.action)
+    expect(actions).toContain('member.add')
+    expect(actions).toContain('member.role')
+    expect(actions).toContain('auth.register')
+  })
+
+  it('API Key 可鉴权，撤销后立即失效', async () => {
+    const created = await api('/v1/api-keys', {
+      method: 'POST',
+      payload: { name: 'CI key' },
+    })
+    expect(created.statusCode).toBe(201)
+    apiKey = created.json().data.key
+    expect(apiKey.startsWith('cdk_')).toBe(true)
+
+    const list = await api('/v1/projects', {
+      token: null,
+      headers: { 'x-api-key': apiKey },
+    })
+    expect(list.statusCode).toBe(200)
+
+    const keyId = created.json().data.id
+    const revoked = await api(`/v1/api-keys/${keyId}`, { method: 'DELETE' })
+    expect(revoked.statusCode).toBe(200)
+
+    const denied = await api('/v1/projects', {
+      token: null,
+      headers: { 'x-api-key': apiKey },
+    })
+    expect(denied.statusCode).toBe(401)
+  })
+
+  it('忘记密码、重置密码并吊销旧会话', async () => {
+    const forgot = await api('/v1/auth/forgot-password', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'member@example.com' },
+    })
+    expect(forgot.statusCode).toBe(200)
+    const resetToken = forgot.json().data.token as string
+    expect(resetToken).toBeTruthy()
+
+    const reset = await api('/v1/auth/reset-password', {
+      method: 'POST',
+      token: null,
+      payload: { token: resetToken, password: 'newpassword123' },
+    })
+    expect(reset.statusCode).toBe(200)
+
+    const oldRefresh = await api('/v1/auth/refresh', {
+      method: 'POST',
+      token: null,
+      payload: { refreshToken: memberRefresh },
+    })
+    expect(oldRefresh.statusCode).toBe(401)
+
+    const oldLogin = await api('/v1/auth/login', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'member@example.com', password: 'password123' },
+    })
+    expect(oldLogin.statusCode).toBe(401)
+
+    const login = await api('/v1/auth/login', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'member@example.com', password: 'newpassword123' },
+    })
+    expect(login.statusCode).toBe(200)
+  })
+
+  it('移除成员后不再出现在列表', async () => {
+    const removed = await api(`/v1/tenants/${tenantId}/members/${memberId}`, {
+      method: 'DELETE',
+    })
+    expect(removed.statusCode).toBe(200)
+
+    const list = await api(`/v1/tenants/${tenantId}/members`)
+    expect(list.json().data.some((item: { userId: string }) => item.userId === memberId)).toBe(false)
+  })
+})

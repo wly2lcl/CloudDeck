@@ -37,12 +37,15 @@ Two ideas define the project:
 - Durable jobs: PostgreSQL queue, SSE progress, cancel, retry, checkpoint resume.
 - Sandboxes: local process or Docker (optional gVisor runtime), per-job workspace.
 - Drivers: Claude Code (stream-json), OpenAI-compatible LLM, DashScope TTS, ffmpeg video.
-- Commercial: plans and quotas, usage ledger, reconciliation, invoice snapshots,
-  capability toggles, templates and public template market, read-only shares.
+- Commercial: plans and quotas with pre-deduction, usage ledger, reconciliation,
+  invoice snapshots, capability toggles, templates and public template market,
+  read-only shares, member management and tenant audit logs.
 - Collaboration: project comments with an SSE stream.
-- Security: JWT with refresh rotation, AES-256-GCM model credentials, Helmet,
-  rate limiting, HMAC webhooks.
+- Security: JWT with refresh rotation and client auto-refresh, scoped API keys,
+  password reset / email verification, AES-256-GCM model credentials, Helmet,
+  rate limiting, raw-body HMAC webhooks, tenant audit logs.
 - Clients: Next.js web app and Flutter mobile app.
+- Ops: Docker Compose, Kubernetes manifests, Prometheus alerts, storage/workspace cleanup.
 
 ## Quick start
 
@@ -134,6 +137,8 @@ docs/               architecture, contracts, API, ADRs, deployment
 | [API](docs/06-api.md) · [OpenAPI](docs/openapi.yaml) | REST, SSE, error codes |
 | [Security & billing](docs/08-security-billing.md) | sandbox, secrets, quotas |
 | [Deployment](docs/deployment.md) | compose, production, GPU, keys |
+| [Kubernetes](infra/k8s/README.md) | production manifests |
+| [Observability](infra/observability/README.md) | metrics, alerts, logs |
 | [Limitations](docs/limitations.md) | known gaps and unblock conditions |
 | [Compliance](docs/13-compliance.md) | legal and content checklist |
 | [ADRs](docs/adr/) | 17 architecture decisions |
