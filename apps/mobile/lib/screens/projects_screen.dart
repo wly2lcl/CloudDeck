@@ -4,6 +4,7 @@ import '../api_client.dart';
 import '../models.dart';
 import '../session.dart';
 import 'project_screen.dart';
+import 'settings_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key, required this.session, required this.onLogout});
@@ -92,7 +93,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         title: const Text('CloudDeck'),
         actions: [
           IconButton(onPressed: load, icon: const Icon(Icons.refresh)),
-          IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SettingsScreen(session: widget.session, onLogout: widget.onLogout),
+              ),
+            ),
+            icon: const Icon(Icons.settings_outlined),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

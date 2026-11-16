@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Mobile settings screen: current user, tenants, quota usage, logout.
+- Mobile content-chain summary (node/edge counts) on the project screen.
+
 ## [0.1.11] - 2026-11-16
 
 ### Added

@@ -209,6 +209,21 @@ class ApiClient {
     return Comment.fromJson(data as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> me() async {
+    final data = await _request('GET', '/v1/me');
+    return data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> quota() async {
+    final data = await _request('GET', '/v1/billing/quota');
+    return data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> graph(String projectId) async {
+    final data = await _request('GET', '/v1/projects/$projectId/graph');
+    return data as Map<String, dynamic>;
+  }
+
   Future<String> assetUrl(String assetId, int version) async {
     final data = await _request('GET', '/v1/assets/$assetId/versions/$version/url');
     return (data as Map<String, dynamic>)['url'] as String;

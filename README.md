@@ -45,7 +45,7 @@ Two ideas define the project:
 - Security: JWT with refresh rotation and client auto-refresh, scoped API keys,
   password reset / email verification, AES-256-GCM model credentials, Helmet,
   rate limiting, raw-body HMAC webhooks, tenant audit logs.
-- Clients: Next.js web app with zh/en UI toggle and Flutter mobile app (projects, assets, jobs, comments).
+- Clients: Next.js web app with zh/en UI toggle and Flutter mobile app (projects, assets, jobs, comments, content-chain summary, settings/quota).
 - Ops: Docker Compose, Kubernetes manifests, Prometheus alerts, storage/workspace cleanup, backup/restore scripts, queue load test.
 - Platform admin: cross-tenant list, plan/quota overrides, global capability toggles, cross-tenant jobs.
 - Invitations: invite unregistered emails, accept and join a tenant, pending-invite list.

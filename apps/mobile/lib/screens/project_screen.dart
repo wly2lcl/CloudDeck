@@ -20,6 +20,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
   List<Asset> assets = const [];
   List<Capability> capabilities = const [];
   List<Comment> comments = const [];
+  Map<String, dynamic>? graph;
   final commentController = TextEditingController();
   bool loading = true;
   String? error;
@@ -40,12 +41,14 @@ class _ProjectScreenState extends State<ProjectScreen> {
         widget.session.api.assets(widget.project.id),
         widget.session.api.capabilities(),
         widget.session.api.comments(widget.project.id),
+        widget.session.api.graph(widget.project.id),
       ]);
       if (mounted) {
         setState(() {
           assets = results[0] as List<Asset>;
           capabilities = results[1] as List<Capability>;
           comments = results[2] as List<Comment>;
+          graph = results[3] as Map<String, dynamic>;
         });
       }
     } on ApiException catch (caught) {
@@ -237,6 +240,13 @@ class _ProjectScreenState extends State<ProjectScreen> {
                       onTap: () => preview(asset),
                     ),
                   ),
+                ),
+                const SizedBox(height: 24),
+                Text('内容链', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(
+                  '${(graph?['assets'] as List<dynamic>?)?.length ?? assets.length} 个节点 · '
+                  '${(graph?['links'] as List<dynamic>?)?.length ?? 0} 条派生边',
                 ),
                 const SizedBox(height: 24),
                 Text('能力', style: Theme.of(context).textTheme.titleMedium),
