@@ -17,6 +17,12 @@ All notable changes to this project are documented here. The format follows
 
 - Worker-level model gateway: primary/fallback OpenAI-compatible providers, `LLM_FALLBACK_*` config, optional `LLM_MAX_COST_USD`.
 
+## [Unreleased]
+
+### Added
+
+- Mobile content-chain DAG visualization with nodes and derived-from edges.
+
 ## [0.1.11] - 2026-11-16
 
 ### Added

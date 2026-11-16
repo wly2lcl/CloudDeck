@@ -5,6 +5,7 @@ import '../models.dart';
 import '../session.dart';
 import 'audio_screen.dart';
 import 'job_screen.dart';
+import '../widgets/content_graph.dart';
 
 class ProjectScreen extends StatefulWidget {
   const ProjectScreen({super.key, required this.session, required this.project});
@@ -248,6 +249,8 @@ class _ProjectScreenState extends State<ProjectScreen> {
                   '${(graph?['assets'] as List<dynamic>?)?.length ?? assets.length} 个节点 · '
                   '${(graph?['links'] as List<dynamic>?)?.length ?? 0} 条派生边',
                 ),
+                const SizedBox(height: 8),
+                ContentGraphView(graph: graph ?? const {}),
                 const SizedBox(height: 24),
                 Text('能力', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
