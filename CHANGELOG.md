@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Mobile settings can register an FCM/APNs device token with the control plane (`POST /v1/devices`). Token acquisition still requires an external Firebase/APNs SDK.
+
 ## [0.1.14] - 2026-11-16
 
 ### Changed

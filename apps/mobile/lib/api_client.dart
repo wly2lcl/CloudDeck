@@ -209,6 +209,15 @@ class ApiClient {
     return Comment.fromJson(data as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> registerDevice(String token, String platform) async {
+    final data = await _request(
+      'POST',
+      '/v1/devices',
+      body: {'token': token, 'platform': platform},
+    );
+    return data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> me() async {
     final data = await _request('GET', '/v1/me');
     return data as Map<String, dynamic>;

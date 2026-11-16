@@ -16,6 +16,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? me;
   Map<String, dynamic>? quota;
+  final deviceController = TextEditingController();
+  String platform = 'android';
+  String? deviceMessage;
   String? error;
 
   @override
@@ -39,6 +42,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on ApiException catch (caught) {
       if (mounted) setState(() => error = caught.message);
     }
+  }
+
+  Future<void> registerDevice() async {
+    final token = deviceController.text.trim();
+    if (token.length < 16) {
+      setState(() => deviceMessage = '令牌长度不足');
+      return;
+    }
+    try {
+      await widget.session.api.registerDevice(token, platform);
+      if (mounted) setState(() => deviceMessage = '推送令牌已注册');
+    } on ApiException catch (caught) {
+      if (mounted) setState(() => deviceMessage = caught.message);
+    }
+  }
+
+  @override
+  void dispose() {
+    deviceController.dispose();
+    super.dispose();
   }
 
   Future<void> logout() async {
@@ -83,6 +106,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
+          const SizedBox(height: 24),
+          Text('推送注册', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          TextField(
+            controller: deviceController,
+            decoration: const InputDecoration(
+              labelText: 'FCM / APNs 设备令牌',
+              helperText: '令牌由 Firebase/APNs SDK 获取后粘贴注册',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              DropdownButton<String>(
+                value: platform,
+                items: const [
+                  DropdownMenuItem(value: 'android', child: Text('Android')),
+                  DropdownMenuItem(value: 'ios', child: Text('iOS')),
+                ],
+                onChanged: (value) => setState(() => platform = value ?? platform),
+              ),
+              const SizedBox(width: 12),
+              FilledButton(onPressed: registerDevice, child: const Text('注册推送')),
+            ],
+          ),
+          if (deviceMessage != null) Text(deviceMessage!),
           const SizedBox(height: 24),
           FilledButton.tonal(onPressed: logout, child: const Text('退出登录')),
         ],
