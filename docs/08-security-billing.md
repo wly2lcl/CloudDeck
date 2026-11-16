@@ -25,8 +25,8 @@
 
 ## 模型网关
 
-> **实现状态（v0.1.2）**：统一模型网关尚未落地。当前各 driver 直接调用 provider，
-> 计费由 driver 上报 usage、控制面汇总；下面的路由/降级/短期 token 是目标设计。
+> **实现状态（v0.1.12 开发中）**：worker 级网关已支持主/备 provider 降级、成本上限与
+> `LLM_FALLBACK_*` 配置；控制面统一网关与短期 token 仍未落地，计费由 driver 上报 usage。
 
 目标设计是所有模型调用经过 `control-plane` 的模型网关，不直连 provider：
 

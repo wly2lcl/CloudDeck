@@ -11,6 +11,12 @@ All notable changes to this project are documented here. The format follows
 - Mobile settings screen: current user, tenants, quota usage, logout.
 - Mobile content-chain summary (node/edge counts) on the project screen.
 
+## [Unreleased]
+
+### Added
+
+- Worker-level model gateway: primary/fallback OpenAI-compatible providers, `LLM_FALLBACK_*` config, optional `LLM_MAX_COST_USD`.
+
 ## [0.1.11] - 2026-11-16
 
 ### Added

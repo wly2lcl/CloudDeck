@@ -1,3 +1,4 @@
+import { GatewayProvider } from './gateway'
 export interface LlmRequest {
   system: string
   prompt: string
@@ -139,7 +140,7 @@ export class HttpLlmProvider implements LlmProvider {
 
 export function createLlmProviderFromEnv(env: NodeJS.ProcessEnv): LlmProvider | undefined {
   if (!env.LLM_HTTP_URL || !env.LLM_MODEL) return undefined
-  return new HttpLlmProvider({
+  const primary = new HttpLlmProvider({
     baseUrl: env.LLM_HTTP_URL,
     model: env.LLM_MODEL,
     token: env.LLM_HTTP_TOKEN,
@@ -147,5 +148,17 @@ export function createLlmProviderFromEnv(env: NodeJS.ProcessEnv): LlmProvider | 
     maxAttempts: Number(env.LLM_MAX_ATTEMPTS ?? 4),
     retryBaseDelayMs: Number(env.LLM_RETRY_BASE_MS ?? 500),
     timeoutMs: Number(env.LLM_TIMEOUT_MS ?? 120_000),
+  })
+  if (!env.LLM_FALLBACK_URL || !env.LLM_FALLBACK_MODEL) return primary
+  const fallback = new HttpLlmProvider({
+    baseUrl: env.LLM_FALLBACK_URL,
+    model: env.LLM_FALLBACK_MODEL,
+    token: env.LLM_FALLBACK_TOKEN ?? env.LLM_HTTP_TOKEN,
+    pricePer1kTokensUsd: Number(env.LLM_FALLBACK_PRICE_PER_1K_TOKENS ?? 0.002),
+    maxAttempts: Number(env.LLM_MAX_ATTEMPTS ?? 4),
+    timeoutMs: Number(env.LLM_TIMEOUT_MS ?? 120_000),
+  })
+  return new GatewayProvider([primary, fallback], {
+    maxCostUsd: env.LLM_MAX_COST_USD ? Number(env.LLM_MAX_COST_USD) : undefined,
   })
 }

@@ -4,6 +4,7 @@ import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/con
 import { createLlmProviderFromEnv, type LlmProvider } from './providers'
 
 export { createLlmProviderFromEnv, HttpLlmProvider } from './providers'
+export { GatewayProvider } from './gateway'
 
 export const LLM_DRIVER_ID = 'workers/llm'
 
