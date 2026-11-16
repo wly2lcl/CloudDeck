@@ -49,6 +49,7 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | POST | `/auth/forgot-password` | 发送重置令牌（`AUTH_EXPOSE_TOKENS=true` 时直接返回） |
 | POST | `/auth/reset-password` | 重置密码并吊销该用户全部会话 |
 | POST | `/auth/verify-email` | 验证邮箱 |
+| POST | `/auth/accept-invite` | 接受邀请并加入租户 |
 | GET | `/me` | 当前用户与租户列表 |
 | GET/POST | `/tenants` | 创建/列出租户 |
 | GET/POST | `/tenants/:id/members` | 成员列表 / 添加已注册用户 |
@@ -56,6 +57,12 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET/POST | `/api-keys` | 服务端密钥列表 / 创建（创建时返回一次明文） |
 | DELETE | `/api-keys/:id` | 撤销密钥 |
 | GET | `/audit-logs` | 租户审计日志（owner/admin） |
+| GET | `/tenant-invitations` | 待接受邀请 |
+| GET | `/admin/tenants` | 跨租户列表（平台管理员） |
+| PATCH | `/admin/tenants/:id/plan` | 调整套餐 |
+| PATCH | `/admin/tenants/:id/quota` | 覆盖配额 |
+| GET | `/admin/jobs` | 跨租户任务 |
+| PATCH | `/admin/capabilities/:id` | 全局启用/停用能力 |
 | GET | `/tenant` | 当前租户与角色 |
 | PATCH | `/tenant` | 切换套餐（owner/admin） |
 

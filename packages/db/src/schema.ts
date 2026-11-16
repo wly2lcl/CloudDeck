@@ -84,6 +84,18 @@ export const apiKeys = pgTable(
   (table) => [index('api_keys_tenant_idx').on(table.tenantId, table.createdAt)],
 )
 
+export const invitations = pgTable('invitations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull(),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('editor'),
+  tokenHash: text('token_hash').notNull().unique(),
+  invitedBy: uuid('invited_by'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+})
+
 export const sessions = pgTable('sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
@@ -480,6 +492,7 @@ export const schema = {
   passwordResets,
   emailVerifications,
   apiKeys,
+  invitations,
   projects,
   assets,
   assetVersions,

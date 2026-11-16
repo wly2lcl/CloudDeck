@@ -35,6 +35,7 @@ POSTGRES_PASSWORD=<strong-password>
 ```sh
 AUTH_EXPOSE_TOKENS=true
 WORKSPACE_TTL_HOURS=24
+PLATFORM_ADMIN_EMAILS=admin@example.com,ops@example.com
 ```
 
 生产必须保持 `AUTH_EXPOSE_TOKENS=false`，并接入邮件服务发送令牌。
@@ -83,6 +84,8 @@ VERSION=0.1.1 docker compose \
 - 控制面输出结构化 JSON 日志；建议用 Fluent Bit/Vector 采集
 - 孤儿对象清理：`pnpm cleanup:storage`（默认 dry-run，加 `--apply` 删除）
 - 工作区清理：`WORKSPACE_TTL_HOURS`（默认 24 小时）
+- 备份/恢复：`DATABASE_URL=... STORAGE_DIR=... pnpm exec sh scripts/backup.sh`，恢复用 `restore.sh --yes`
+- 任务队列压测：`API_BASE=... TOKEN=... PROJECT_ID=... JOBS=50 pnpm load:jobs`
 
 ## 3. 生产检查清单
 

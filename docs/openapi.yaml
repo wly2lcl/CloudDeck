@@ -270,6 +270,99 @@ paths:
         - { name: limit, in: query, schema: { type: integer, maximum: 200, default: 100 } }
       responses:
         '200': { $ref: '#/components/responses/Ok' }
+  /v1/auth/accept-invite:
+    post:
+      tags: [auth]
+      security: []
+      summary: Accept an invitation and join a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8 }
+                displayName: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/tenant-invitations:
+    get:
+      tags: [tenant]
+      summary: List pending invitations
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/admin/tenants:
+    get:
+      tags: [tenant]
+      summary: List all tenants (platform admin)
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/admin/tenants/{id}/plan:
+    patch:
+      tags: [tenant]
+      summary: Override a tenant plan (platform admin)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier: { type: string, enum: [free, pro, team] }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/admin/tenants/{id}/quota:
+    patch:
+      tags: [tenant]
+      summary: Override tenant quota (platform admin)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [maxCostUsd, maxJobs, maxConcurrency]
+              properties:
+                maxCostUsd: { type: number }
+                maxJobs: { type: integer }
+                maxConcurrency: { type: integer }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/admin/jobs:
+    get:
+      tags: [tenant]
+      summary: List jobs across tenants (platform admin)
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 500 } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/admin/capabilities/{id}:
+    patch:
+      tags: [tenant]
+      summary: Enable or disable a capability globally (platform admin)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
   /v1/projects:
     get:
       tags: [projects]

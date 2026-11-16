@@ -1,18 +1,21 @@
+import { randomBytes } from 'node:crypto'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import {
   addMembership,
   countOwners,
+  createInvitation,
   findMembership,
   findUserByEmail,
   listAuditLogs,
+  listInvitations,
   listTenantMembers,
   removeMember,
   updateMemberRole,
   withTenant,
 } from '@clouddeck/db'
 import { audit } from '../audit'
-import { requireAuth, requireRole } from '../auth'
+import { hashToken, requireAuth, requireRole } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
@@ -57,13 +60,57 @@ export function registerMemberRoutes(
     )
   })
 
+  app.get('/v1/tenant-invitations', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const invitations = await withTenant(deps.db, auth.tenantId, (tx) =>
+      listInvitations(tx, auth.tenantId),
+    )
+    return ok(
+      request,
+      invitations.map((invitation) => ({
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        expiresAt: toIso(invitation.expires_at),
+        createdAt: toIso(invitation.created_at),
+      })),
+    )
+  })
+
   app.post('/v1/tenants/:id/members', { preHandler: guard }, async (request, reply) => {
     const auth = requireRole(request, ['owner', 'admin'])
     const tenantId = assertTenant(request, auth.tenantId)
     const body = parseBody(inviteSchema, request.body)
 
     const user = await findUserByEmail(deps.db, body.email)
-    if (!user) throw new AppError('NOT_FOUND', '该邮箱尚未注册，请先让用户注册')
+    if (!user) {
+      const token = randomBytes(32).toString('hex')
+      await createInvitation(deps.db, {
+        tenantId,
+        email: body.email,
+        role: body.role,
+        tokenHash: hashToken(token),
+        invitedBy: auth.userId,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      })
+      await audit(deps.db, {
+        tenantId,
+        actorType: 'user',
+        actorId: auth.userId,
+        action: 'member.invite',
+        targetType: 'email',
+        targetId: body.email,
+        ip: request.ip,
+        detail: { role: body.role },
+      })
+      reply.status(201)
+      return ok(request, {
+        invited: true,
+        email: body.email,
+        role: body.role,
+        ...(deps.config.exposeAuthTokens ? { token } : {}),
+      })
+    }
     if (await findMembership(deps.db, tenantId, user.id)) {
       throw new AppError('VALIDATION_FAILED', '该用户已是租户成员')
     }

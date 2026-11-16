@@ -659,12 +659,16 @@ export async function getMembers(tenantId: string): Promise<Member[]> {
   return api<Member[]>(`/v1/tenants/${tenantId}/members`)
 }
 
+export type AddMemberResult =
+  | Member
+  | { invited: true; email: string; role: string; token?: string }
+
 export async function addMember(
   tenantId: string,
   email: string,
   role: string,
-): Promise<Member> {
-  return api<Member>(`/v1/tenants/${tenantId}/members`, {
+): Promise<AddMemberResult> {
+  return api<AddMemberResult>(`/v1/tenants/${tenantId}/members`, {
     method: 'POST',
     body: { email, role },
   })
@@ -699,4 +703,75 @@ export async function revokeApiKey(id: string): Promise<void> {
 
 export async function getAuditLogs(limit = 20): Promise<AuditLog[]> {
   return api<AuditLog[]>(`/v1/audit-logs?limit=${limit}`)
+}
+
+export interface Me {
+  user: { id: string; email: string; displayName: string | null; emailVerified: boolean }
+  tenants: { id: string; name: string; slug: string; tier: string; role: string }[]
+  activeTenantId: string
+  platformAdmin?: boolean
+}
+
+export interface AdminTenant {
+  id: string
+  name: string
+  slug: string
+  tier: string
+  createdAt: string
+  quota: {
+    maxCostUsd: number
+    maxJobs: number
+    maxConcurrency: number
+    costUsd: number
+    reservedCostUsd: number
+    jobCount: number
+    running: number
+  } | null
+}
+
+export interface AdminJob {
+  id: string
+  tenantId: string
+  tenantName: string
+  capabilityId: string
+  status: string
+  estimatedCostUsd: number
+  actualCostUsd: number
+  createdAt: string
+  finishedAt: string | null
+}
+
+export async function getMe(): Promise<Me> {
+  return api<Me>('/v1/me')
+}
+
+export async function getAdminTenants(): Promise<AdminTenant[]> {
+  return api<AdminTenant[]>('/v1/admin/tenants')
+}
+
+export async function updateAdminPlan(tenantId: string, tier: string): Promise<void> {
+  await api(`/v1/admin/tenants/${tenantId}/plan`, { method: 'PATCH', body: { tier } })
+}
+
+export async function updateAdminQuota(
+  tenantId: string,
+  quota: { maxCostUsd: number; maxJobs: number; maxConcurrency: number },
+): Promise<void> {
+  await api(`/v1/admin/tenants/${tenantId}/quota`, { method: 'PATCH', body: quota })
+}
+
+export async function getAdminJobs(): Promise<AdminJob[]> {
+  return api<AdminJob[]>('/v1/admin/jobs?limit=50')
+}
+
+export async function acceptInvite(
+  token: string,
+  password: string,
+  displayName?: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
+  return api('/v1/auth/accept-invite', {
+    method: 'POST',
+    body: { token, password, displayName },
+    auth: false,
+  })
 }

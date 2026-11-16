@@ -9,6 +9,7 @@ import { globalJobStatusCounts, globalUsageTotal } from '@clouddeck/db'
 import { authGuard } from './auth'
 import type { AppDeps } from './deps'
 import { AppError, errorEnvelope } from './errors'
+import { registerAdminRoutes } from './routes/admin'
 import { registerApiKeyRoutes } from './routes/apiKeys'
 import { registerAuthRoutes } from './routes/auth'
 import { registerCapabilityRoutes } from './routes/capabilities'
@@ -138,6 +139,7 @@ export async function buildServer(
 
   const guard = authGuard(deps.config.authSecret, deps.db)
   registerAuthRoutes(app, deps, guard)
+  registerAdminRoutes(app, deps, guard)
   registerApiKeyRoutes(app, deps, guard)
   registerMemberRoutes(app, deps, guard)
   registerProjectRoutes(app, deps, guard)

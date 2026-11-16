@@ -1098,3 +1098,87 @@ describe('第一阶段收口', () => {
     expect(list.json().data.some((item: { userId: string }) => item.userId === memberId)).toBe(false)
   })
 })
+
+describe('平台管理', () => {
+  it('owner 是平台管理员，普通用户被拒绝', async () => {
+    const me = await api('/v1/me')
+    expect(me.json().data.platformAdmin).toBe(true)
+
+    const tenants = await api('/v1/admin/tenants')
+    expect(tenants.statusCode).toBe(200)
+    expect(tenants.json().data.some((item: { id: string }) => item.id === tenantId)).toBe(true)
+
+    const registered = await api('/v1/auth/register', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'plain@example.com', password: 'password123' },
+    })
+    const plainToken = registered.json().data.accessToken as string
+    const denied = await api('/v1/admin/tenants', { token: plainToken })
+    expect(denied.statusCode).toBe(403)
+  })
+
+  it('可调整租户套餐与配额，并查看跨租户任务', async () => {
+    const plan = await api(`/v1/admin/tenants/${tenantId}/plan`, {
+      method: 'PATCH',
+      payload: { tier: 'team' },
+    })
+    expect(plan.statusCode).toBe(200)
+    expect(plan.json().data.tier).toBe('team')
+
+    const quota = await api(`/v1/admin/tenants/${tenantId}/quota`, {
+      method: 'PATCH',
+      payload: { maxCostUsd: 2000, maxJobs: 20000, maxConcurrency: 32 },
+    })
+    expect(quota.statusCode).toBe(200)
+
+    const jobs = await api('/v1/admin/jobs?limit=5')
+    expect(jobs.statusCode).toBe(200)
+    expect(jobs.json().data.length).toBeGreaterThan(0)
+    expect(jobs.json().data[0].tenantName).toBeTruthy()
+
+    const toggle = await api('/v1/admin/capabilities/demo.echo', {
+      method: 'PATCH',
+      payload: { enabled: false },
+    })
+    expect(toggle.statusCode).toBe(200)
+    await api('/v1/admin/capabilities/demo.echo', {
+      method: 'PATCH',
+      payload: { enabled: true },
+    })
+  })
+})
+
+describe('邀请流程', () => {
+  it('邀请未注册邮箱并通过令牌加入租户', async () => {
+    const invited = await api(`/v1/tenants/${tenantId}/members`, {
+      method: 'POST',
+      payload: { email: 'invitee@example.com', role: 'editor' },
+    })
+    expect(invited.statusCode).toBe(201)
+    expect(invited.json().data.invited).toBe(true)
+    const token = invited.json().data.token as string
+    expect(token).toBeTruthy()
+
+    const list = await api('/v1/tenant-invitations')
+    expect(list.json().data.some((item: { email: string }) => item.email === 'invitee@example.com')).toBe(true)
+
+    const accepted = await api('/v1/auth/accept-invite', {
+      method: 'POST',
+      token: null,
+      payload: { token, password: 'password123', displayName: 'Invitee' },
+    })
+    expect(accepted.statusCode).toBe(200)
+    expect(accepted.json().data.role).toBe('editor')
+
+    const login = await api('/v1/auth/login', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'invitee@example.com', password: 'password123', tenantId },
+    })
+    expect(login.statusCode).toBe(200)
+
+    const members = await api(`/v1/tenants/${tenantId}/members`)
+    expect(members.json().data.some((item: { email: string }) => item.email === 'invitee@example.com')).toBe(true)
+  })
+})

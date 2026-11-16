@@ -21,6 +21,7 @@ export interface AppConfig {
   pushHttpToken?: string
   rateLimitMax: number
   exposeAuthTokens: boolean
+  platformAdminEmails: string[]
 }
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
@@ -54,5 +55,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     pushHttpToken: env.PUSH_HTTP_TOKEN,
     rateLimitMax: Number(env.RATE_LIMIT_MAX ?? 300),
     exposeAuthTokens: env.AUTH_EXPOSE_TOKENS === 'true',
+    platformAdminEmails: (env.PLATFORM_ADMIN_EMAILS ?? '')
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
   }
 }

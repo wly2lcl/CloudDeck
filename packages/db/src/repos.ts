@@ -1987,3 +1987,95 @@ export async function listAssetStorageKeys(db: Database): Promise<string[]> {
   )
   return result.map((row) => row.storage_key)
 }
+
+// ---------------------------------------------------------------------------
+// 第二阶段：平台管理
+// ---------------------------------------------------------------------------
+
+export async function listAllTenants(db: Database): Promise<TenantRow[]> {
+  return rows<TenantRow>(db, sql`SELECT * FROM tenants ORDER BY created_at DESC`)
+}
+
+export async function updateQuotaLimits(
+  db: Database,
+  tenantId: string,
+  limits: { maxCostUsd: number; maxJobs: number; maxConcurrency: number },
+): Promise<void> {
+  await db.execute(
+    sql`INSERT INTO quota_limits (tenant_id, max_cost_usd, max_jobs, max_concurrency)
+        VALUES (${tenantId}, ${limits.maxCostUsd}, ${limits.maxJobs}, ${limits.maxConcurrency})
+        ON CONFLICT (tenant_id) DO UPDATE SET
+          max_cost_usd = EXCLUDED.max_cost_usd,
+          max_jobs = EXCLUDED.max_jobs,
+          max_concurrency = EXCLUDED.max_concurrency`,
+  )
+}
+
+export async function setGlobalCapabilityEnabled(
+  db: Database,
+  capabilityId: string,
+  enabled: boolean,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`UPDATE capabilities SET status = ${enabled ? 'active' : 'disabled'}, updated_at = now()
+        WHERE id = ${capabilityId} RETURNING id`,
+  )
+  return row !== null
+}
+
+export interface InvitationRow {
+  id: string
+  tenant_id: string
+  email: string
+  role: string
+  token_hash: string
+  invited_by: string | null
+  expires_at: Date
+  accepted_at: Date | null
+  created_at: Date
+}
+
+export async function createInvitation(
+  db: Database,
+  input: {
+    tenantId: string
+    email: string
+    role: string
+    tokenHash: string
+    invitedBy?: string
+    expiresAt: Date
+  },
+): Promise<InvitationRow> {
+  const row = await one<InvitationRow>(
+    db,
+    sql`INSERT INTO invitations (tenant_id, email, role, token_hash, invited_by, expires_at)
+        VALUES (${input.tenantId}, ${input.email.toLowerCase()}, ${input.role}, ${input.tokenHash},
+                ${input.invitedBy ?? null}, ${input.expiresAt})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建邀请失败')
+  return row
+}
+
+export async function listInvitations(db: Database, tenantId: string): Promise<InvitationRow[]> {
+  return rows<InvitationRow>(
+    db,
+    sql`SELECT * FROM invitations WHERE tenant_id = ${tenantId} AND accepted_at IS NULL
+        ORDER BY created_at DESC`,
+  )
+}
+
+export async function findInvitationByHash(
+  db: Database,
+  tokenHash: string,
+): Promise<InvitationRow | null> {
+  return one<InvitationRow>(
+    db,
+    sql`SELECT * FROM invitations WHERE token_hash = ${tokenHash}`,
+  )
+}
+
+export async function markInvitationAccepted(db: Database, id: string): Promise<void> {
+  await db.execute(sql`UPDATE invitations SET accepted_at = now() WHERE id = ${id}`)
+}

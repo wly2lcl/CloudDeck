@@ -41,6 +41,7 @@ export async function createTestContext(): Promise<TestContext> {
     pushProvider: 'mock',
     rateLimitMax: 10_000,
     exposeAuthTokens: true,
+    platformAdminEmails: ['owner@example.com'],
   }
 
   await syncCapabilities(db, CAPABILITIES_DIR)

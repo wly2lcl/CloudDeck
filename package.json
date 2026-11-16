@@ -25,7 +25,8 @@
     "test:coverage": "vitest run --coverage",
     "build:docs": "tsx scripts/build-docs.ts",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json",
-    "cleanup:storage": "tsx scripts/cleanup-storage.ts"
+    "cleanup:storage": "tsx scripts/cleanup-storage.ts",
+    "load:jobs": "tsx scripts/load-jobs.ts"
   },
   "devDependencies": {
     "@clouddeck/db": "workspace:*",

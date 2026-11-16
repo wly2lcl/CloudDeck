@@ -46,7 +46,9 @@ Two ideas define the project:
   password reset / email verification, AES-256-GCM model credentials, Helmet,
   rate limiting, raw-body HMAC webhooks, tenant audit logs.
 - Clients: Next.js web app and Flutter mobile app.
-- Ops: Docker Compose, Kubernetes manifests, Prometheus alerts, storage/workspace cleanup.
+- Ops: Docker Compose, Kubernetes manifests, Prometheus alerts, storage/workspace cleanup, backup/restore scripts, queue load test.
+- Platform admin: cross-tenant list, plan/quota overrides, global capability toggles, cross-tenant jobs.
+- Invitations: invite unregistered emails, accept and join a tenant, pending-invite list.
 
 ## Quick start
 

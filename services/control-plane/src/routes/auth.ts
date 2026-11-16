@@ -9,6 +9,7 @@ import {
   createTenant,
   createUser,
   findEmailVerificationByHash,
+  findInvitationByHash,
   findMembership,
   findPasswordResetByHash,
   findSessionByRefreshHash,
@@ -16,6 +17,7 @@ import {
   findUserById,
   listMemberships,
   markEmailVerificationUsed,
+  markInvitationAccepted,
   markEmailVerified,
   markPasswordResetUsed,
   revokeSession,
@@ -58,6 +60,11 @@ const switchSchema = z.object({ tenantId: z.string().uuid() })
 const forgotSchema = z.object({ email: z.string().email() })
 const resetSchema = z.object({ token: z.string().min(16), password: z.string().min(8).max(128) })
 const verifySchema = z.object({ token: z.string().min(16) })
+const acceptInviteSchema = z.object({
+  token: z.string().min(16),
+  password: z.string().min(8).max(128),
+  displayName: z.string().min(1).max(64).optional(),
+})
 
 async function issueSession(
   deps: AppDeps,
@@ -271,6 +278,56 @@ export function registerAuthRoutes(
     return ok(request, { verified: true })
   })
 
+  app.post('/v1/auth/accept-invite', async (request) => {
+    const body = parseBody(acceptInviteSchema, request.body)
+    const invitation = await findInvitationByHash(deps.db, hashToken(body.token))
+    if (
+      !invitation ||
+      invitation.accepted_at ||
+      toTime(invitation.expires_at) < Date.now()
+    ) {
+      throw new AppError('UNAUTHENTICATED', '邀请无效或已过期')
+    }
+
+    let user = await findUserByEmail(deps.db, invitation.email)
+    if (!user) {
+      user = await createUser(deps.db, {
+        email: invitation.email,
+        passwordHash: hashPassword(body.password),
+        displayName: body.displayName,
+      })
+    } else if (!verifyPassword(body.password, user.password_hash)) {
+      throw new AppError('UNAUTHENTICATED', '邮箱或密码错误')
+    }
+
+    if (!(await findMembership(deps.db, invitation.tenant_id, user.id))) {
+      await addMembership(deps.db, invitation.tenant_id, user.id, invitation.role)
+    }
+    await markInvitationAccepted(deps.db, invitation.id)
+
+    const tokens = await issueSession(deps, {
+      userId: user.id,
+      tenantId: invitation.tenant_id,
+      role: invitation.role,
+      device: request.headers['user-agent'],
+      ip: request.ip,
+    })
+    await audit(deps.db, {
+      tenantId: invitation.tenant_id,
+      actorType: 'user',
+      actorId: user.id,
+      action: 'member.accept',
+      targetType: 'invitation',
+      targetId: invitation.id,
+      ip: request.ip,
+    })
+    return ok(request, {
+      user: { id: user.id, email: user.email, displayName: user.display_name },
+      role: invitation.role,
+      ...tokens,
+    })
+  })
+
   app.post('/v1/auth/logout', async (request) => {
     const body = parseBody(refreshSchema, request.body)
     const session = await findSessionByRefreshHash(deps.db, hashToken(body.refreshToken))
@@ -322,6 +379,7 @@ export function registerAuthRoutes(
         role: item.role,
       })),
       activeTenantId: auth.tenantId,
+      platformAdmin: deps.config.platformAdminEmails.includes(user.email.toLowerCase()),
     })
   })
 }

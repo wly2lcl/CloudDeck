@@ -68,6 +68,7 @@ export default function SettingsPage() {
   const [memberRole, setMemberRole] = useState('editor')
   const [apiKeyName, setApiKeyName] = useState('')
   const [newApiKey, setNewApiKey] = useState<string | null>(null)
+  const [newInviteToken, setNewInviteToken] = useState<string | null>(null)
   const [credentialProvider, setCredentialProvider] = useState('dashscope')
   const [credentialLabel, setCredentialLabel] = useState('')
   const [credentialSecret, setCredentialSecret] = useState('')
@@ -192,8 +193,12 @@ export default function SettingsPage() {
     event.preventDefault()
     if (!tenant || !memberEmail.trim()) return
     try {
-      await addMember(tenant.id, memberEmail.trim(), memberRole)
-      setMembers(await getMembers(tenant.id))
+      const result = await addMember(tenant.id, memberEmail.trim(), memberRole)
+      if ('invited' in result) {
+        setNewInviteToken(result.token ?? null)
+      } else {
+        setMembers(await getMembers(tenant.id))
+      }
       setMemberEmail('')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '添加成员失败')
@@ -539,6 +544,11 @@ export default function SettingsPage() {
             <button type="submit">添加成员</button>
           </form>
 
+          {newInviteToken && (
+            <p className="muted">
+              邀请令牌（开发环境）：<code>{newInviteToken}</code>
+            </p>
+          )}
           <h3>API Key</h3>
           {newApiKey && (
             <p className="muted">

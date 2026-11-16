@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Platform admin APIs and `/admin` page: cross-tenant list, plan/quota overrides, global capability toggle, cross-tenant jobs.
+- Email invitation flow: invite unregistered addresses, list pending invitations, accept via `/accept-invite`.
+- `pnpm load:jobs` queue load script and `scripts/backup.sh` / `scripts/restore.sh`.
+
 ## [0.1.4] - 2026-11-16
 
 ### Added
