@@ -97,6 +97,7 @@ VERSION=0.1.1 docker compose \
 - 孤儿对象清理：`pnpm cleanup:storage`（默认 dry-run，加 `--apply` 删除）
 - 工作区清理：`WORKSPACE_TTL_HOURS`（默认 24 小时）
 - 备份/恢复：`DATABASE_URL=... STORAGE_DIR=... pnpm exec sh scripts/backup.sh`，恢复用 `restore.sh --yes`
+- 2026-11-16 恢复演练：Postgres 恢复后 `asset_versions` 行数 1→1，存储卷文件数 1→1；演练环境已清理
 - 任务队列压测：`API_BASE=... TOKEN=... PROJECT_ID=... JOBS=50 pnpm load:jobs`
 
 ## 3. 生产检查清单
