@@ -315,7 +315,7 @@ export default function SettingsPage() {
       <main className="page">
         <header className="page-head">
           <div>
-            <p className="eyebrow">设置</p>
+            <p className="eyebrow">{t('settings.title')}</p>
             <h1>{tenant?.name ?? '租户设置'}</h1>
             {tenant && <p className="muted">当前角色：{tenant.role}</p>}
           </div>
@@ -349,16 +349,16 @@ export default function SettingsPage() {
         <section className="panel">
           <h2>{t('settings.usage')}</h2>
           {!summary || summary.items.length === 0 ? (
-            <p className="muted">本期还没有用量。</p>
+            <p className="muted">{t('settings.noUsage')}</p>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>能力</th>
-                  <th>驱动</th>
-                  <th>单位</th>
-                  <th>数量</th>
-                  <th>金额（USD）</th>
+                  <th>{t('settings.capability')}</th>
+                  <th>{t('settings.driver')}</th>
+                  <th>{t('settings.unit')}</th>
+                  <th>{t('settings.quantity')}</th>
+                  <th>{t('settings.amount')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -389,12 +389,12 @@ export default function SettingsPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>任务</th>
-                  <th>能力</th>
-                  <th>状态</th>
-                  <th>预估</th>
-                  <th>实际</th>
-                  <th>偏差</th>
+                  <th>{t('settings.jobs')}</th>
+                  <th>{t('settings.capability')}</th>
+                  <th>{t('settings.status')}</th>
+                  <th>{t('settings.estimate')}</th>
+                  <th>{t('settings.actual')}</th>
+                  <th>{t('settings.variance')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -466,21 +466,21 @@ export default function SettingsPage() {
               <option value="custom">custom</option>
             </select>
             <input
-              placeholder="名称，如 百炼主账号"
+              placeholder={t('settings.credName')}
               value={credentialLabel}
               onChange={(event) => setCredentialLabel(event.target.value)}
             />
             <input
               type="password"
-              placeholder="API Key"
+              placeholder={t('settings.credKey')}
               value={credentialSecret}
               onChange={(event) => setCredentialSecret(event.target.value)}
             />
-            <button type="submit">保存</button>
+            <button type="submit">{t('settings.save')}</button>
           </form>
           <ul className="list" style={{ marginTop: 16 }}>
             {credentials.length === 0 ? (
-              <li className="muted">还没有模型凭据。</li>
+              <li className="muted">{t('settings.noCredentials')}</li>
             ) : (
               credentials.map((credential) => (
                 <li key={credential.id} className="list-item">
@@ -533,7 +533,7 @@ export default function SettingsPage() {
           <form onSubmit={inviteMember} className="row">
             <input
               type="email"
-              placeholder="已注册用户邮箱"
+              placeholder={t('settings.memberEmail')}
               value={memberEmail}
               onChange={(event) => setMemberEmail(event.target.value)}
               required
@@ -543,7 +543,7 @@ export default function SettingsPage() {
               <option value="editor">editor</option>
               <option value="viewer">viewer</option>
             </select>
-            <button type="submit">添加成员</button>
+            <button type="submit">{t('settings.addMember')}</button>
           </form>
 
           {newInviteToken && (
@@ -574,12 +574,12 @@ export default function SettingsPage() {
           </ul>
           <form onSubmit={addApiKey} className="row">
             <input
-              placeholder="Key 名称，例如 CI"
+              placeholder={t('settings.keyName')}
               value={apiKeyName}
               onChange={(event) => setApiKeyName(event.target.value)}
               required
             />
-            <button type="submit">创建 API Key</button>
+            <button type="submit">{t('settings.createKey')}</button>
           </form>
 
           <h3>{t('settings.audit')}</h3>
@@ -610,7 +610,7 @@ export default function SettingsPage() {
               value={templateDescription}
               onChange={(event) => setTemplateDescription(event.target.value)}
             />
-            <button type="submit">添加</button>
+            <button type="submit">{t('settings.add')}</button>
           </form>
           <ul className="list" style={{ marginTop: 16 }}>
             {templates.map((template) => (
@@ -640,7 +640,7 @@ export default function SettingsPage() {
 
           <h2 style={{ marginTop: 24 }}>公开模板市场</h2>
           {publicTemplates.length === 0 ? (
-            <p className="muted">还没有公开模板。</p>
+            <p className="muted">{t('settings.noPublicTemplates')}</p>
           ) : (
             <ul className="list">
               {publicTemplates.map((template) => (
