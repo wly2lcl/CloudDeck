@@ -22,10 +22,15 @@ export interface AppConfig {
   rateLimitMax: number
   exposeAuthTokens: boolean
   platformAdminEmails: string[]
-  mailProvider: 'mock' | 'http'
+  mailProvider: 'mock' | 'http' | 'smtp'
   mailHttpUrl?: string
   mailHttpToken?: string
   mailFrom: string
+  smtpHost?: string
+  smtpPort?: number
+  smtpSecure?: boolean
+  smtpUser?: string
+  smtpPass?: string
 }
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
@@ -63,9 +68,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       .split(',')
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean),
-    mailProvider: env.MAIL_PROVIDER === 'http' ? 'http' : 'mock',
+    mailProvider:
+      env.MAIL_PROVIDER === 'http' ? 'http' : env.MAIL_PROVIDER === 'smtp' ? 'smtp' : 'mock',
     mailHttpUrl: env.MAIL_HTTP_URL,
     mailHttpToken: env.MAIL_HTTP_TOKEN,
     mailFrom: env.MAIL_FROM ?? 'CloudDeck <noreply@clouddeck.local>',
+    smtpHost: env.MAIL_SMTP_HOST,
+    smtpPort: env.MAIL_SMTP_PORT ? Number(env.MAIL_SMTP_PORT) : undefined,
+    smtpSecure: env.MAIL_SMTP_SECURE === 'true',
+    smtpUser: env.MAIL_SMTP_USER,
+    smtpPass: env.MAIL_SMTP_PASS,
   }
 }

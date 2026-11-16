@@ -9,6 +9,8 @@ const PROJECT_ID = process.env.PROJECT_ID ?? ''
 const JOBS = Number(process.env.JOBS ?? 50)
 const CAPABILITY = process.env.CAPABILITY ?? 'demo.echo'
 const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 300_000)
+const ASSET_ID = process.env.ASSET_ID ?? ''
+const ASSET_VERSION = Number(process.env.ASSET_VERSION ?? 1)
 
 if (!TOKEN || !PROJECT_ID) {
   console.error('缺少 TOKEN 或 PROJECT_ID')
@@ -36,7 +38,7 @@ async function main(): Promise<void> {
       method: 'POST',
       body: JSON.stringify({
         capabilityId: CAPABILITY,
-        inputs: [],
+        inputs: ASSET_ID ? [{ assetId: ASSET_ID, version: ASSET_VERSION }] : [],
         params: { steps: 2, sleepMs: 5 },
       }),
     })

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- SMTP mail provider (`MAIL_PROVIDER=smtp` with `MAIL_SMTP_*`), alongside mock and HTTP gateway.
+- Queue capacity baseline: 20 demo.echo jobs, p50 349ms, p95 569ms, 30s wall time on single-node compose.
+
 ## [0.1.6] - 2026-11-16
 
 ### Added

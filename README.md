@@ -49,7 +49,7 @@ Two ideas define the project:
 - Ops: Docker Compose, Kubernetes manifests, Prometheus alerts, storage/workspace cleanup, backup/restore scripts, queue load test.
 - Platform admin: cross-tenant list, plan/quota overrides, global capability toggles, cross-tenant jobs.
 - Invitations: invite unregistered emails, accept and join a tenant, pending-invite list.
-- Email delivery: mock or HTTP mail gateway for verification, password reset, and invitations.
+- Email delivery: mock, HTTP gateway, or SMTP for verification, password reset, and invitations.
 
 ## Quick start
 

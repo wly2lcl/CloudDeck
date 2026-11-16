@@ -36,7 +36,7 @@
 | 税务发票 | 只有可打印 HTML 账单 | 合规开票服务 |
 | 移动端推送 | 服务端设备令牌与推送网关就绪；客户端未接 | Firebase/APNs 项目与证书 |
 | 多语言 | 文档与 UI 以中文为主，README 中英双语 | 目标语言文案与本地化评审 |
-| 邮件发送 | 验证/重置/邀请邮件已接入 mock/http mailer；未内置 SMTP | 对接 SMTP/SES 网关并关闭 `AUTH_EXPOSE_TOKENS` |
+| 邮件发送 | 支持 mock/http/SMTP；真实送达需配置邮件服务并关闭 `AUTH_EXPOSE_TOKENS` | 配置 SMTP/SES 凭据并做送达率监控 |
 | 成员邀请 | 支持邀请未注册邮箱并接受；邮件发送仍需外部服务 | 配置 SMTP/SES 并关闭 `AUTH_EXPOSE_TOKENS` |
 | 项目级权限 | 租户内成员可见全部项目 | 增加 project_members 与路由校验 |
 | 实时协作 | 评论 SSE；无多人同时编辑 | CRDT/OT 方案 |
@@ -56,7 +56,7 @@
 - Kubernetes 清单（`infra/k8s`）与 Prometheus 告警规则（`infra/observability`）已提供；备份/恢复与 DR 演练仍缺失。
 - 控制面输出结构化 JSON 日志；job-runner 仍为文本日志。
 - `/metrics` 为全局聚合，未按租户拆分。
-- 未做容量基准（当前只有单机读接口 4k rps 基线）。
+- 读接口基线约 4k rps；demo.echo 20 任务实测 p50 349ms、p95 569ms、总耗时 30s（单机 compose，runner 默认并发 1）。
 - 无负载均衡下的 SSE 粘性会话配置示例。
 - 孤儿对象清理需手动执行 `pnpm cleanup:storage`（默认 dry-run）；工作区按 `WORKSPACE_TTL_HOURS` 自动清理。
 

@@ -5,6 +5,8 @@ export default defineConfig({
     projects: ['packages/*', 'services/*', 'drivers/*', 'workers/*', 'scripts'],
     testTimeout: 15_000,
     hookTimeout: 20_000,
+    // PGlite 首次迁移对并发敏感，串行跑测试文件更稳定。
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

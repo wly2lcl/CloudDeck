@@ -36,13 +36,21 @@ POSTGRES_PASSWORD=<strong-password>
 AUTH_EXPOSE_TOKENS=true
 WORKSPACE_TTL_HOURS=24
 PLATFORM_ADMIN_EMAILS=admin@example.com,ops@example.com
-MAIL_PROVIDER=http
-MAIL_HTTP_URL=https://mail-gateway.example.com/send
-MAIL_HTTP_TOKEN=...
+# 二选一：HTTP 邮件网关
+# MAIL_PROVIDER=http
+# MAIL_HTTP_URL=https://mail-gateway.example.com/send
+# MAIL_HTTP_TOKEN=...
+# 或直接 SMTP
+MAIL_PROVIDER=smtp
+MAIL_SMTP_HOST=smtp.example.com
+MAIL_SMTP_PORT=587
+MAIL_SMTP_SECURE=false
+MAIL_SMTP_USER=...
+MAIL_SMTP_PASS=...
 MAIL_FROM='CloudDeck <noreply@example.com>'
 ```
 
-生产必须保持 `AUTH_EXPOSE_TOKENS=false`。`MAIL_PROVIDER=mock` 只打印邮件；`MAIL_PROVIDER=http` 会把 `{to,subject,text,from}` POST 到 `MAIL_HTTP_URL`。
+生产必须保持 `AUTH_EXPOSE_TOKENS=false`。`MAIL_PROVIDER=mock` 只打印邮件；`http` 会把 `{to,subject,text,from}` POST 到 `MAIL_HTTP_URL`；`smtp` 使用 `MAIL_SMTP_*` 直连邮件服务器。
 
 ### 使用 S3 / MinIO
 
