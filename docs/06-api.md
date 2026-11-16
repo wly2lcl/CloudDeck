@@ -73,6 +73,8 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET/POST | `/projects` | 列表/创建 |
 | GET/PATCH/DELETE | `/projects/:id` | 详情/更新/软删 |
 | GET | `/projects/:id/graph` | 内容链（资产派生图） |
+| GET/POST | `/projects/:id/members` | 项目成员（添加后限制访问） |
+| DELETE | `/projects/:id/members/:userId` | 移除项目成员 |
 | POST | `/projects/:id/assets` | 创建资产（先拿上传凭证） |
 | GET | `/assets/:id` | 元数据 + 版本列表 |
 | GET | `/assets/:id/versions/:v/download` | 302 到签名 URL |

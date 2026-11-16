@@ -38,7 +38,7 @@
 | 多语言 | 文档与 UI 以中文为主，README 中英双语 | 目标语言文案与本地化评审 |
 | 邮件发送 | 支持 mock/http/SMTP；真实送达需配置邮件服务并关闭 `AUTH_EXPOSE_TOKENS` | 配置 SMTP/SES 凭据并做送达率监控 |
 | 成员邀请 | 支持邀请未注册邮箱并接受；邮件发送仍需外部服务 | 配置 SMTP/SES 并关闭 `AUTH_EXPOSE_TOKENS` |
-| 项目级权限 | 租户内成员可见全部项目 | 增加 project_members 与路由校验 |
+| 项目级权限 | 已实现 project_members；未添加成员时仍租户可见 | 为 Web 增加项目成员管理 UI |
 | 实时协作 | 评论 SSE；无多人同时编辑 | CRDT/OT 方案 |
 | 桌面端 | PWA/浏览器；无原生桌面 | 需求确认后评估 Tauri |
 

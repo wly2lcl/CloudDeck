@@ -11,6 +11,7 @@ import {
   type CommentRow,
 } from '@clouddeck/db'
 import { requireAuth } from '../auth'
+import { assertProjectAccess } from '../project-access'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
@@ -57,7 +58,7 @@ export function registerCommentRoutes(
     const auth = requireAuth(request)
     const projectId = param(request, 'id')
     const project = await withTenant(deps.db, auth.tenantId, (tx) =>
-      getProject(tx, auth.tenantId, projectId),
+      assertProjectAccess(tx, auth, projectId),
     )
     if (!project) throw new AppError('NOT_FOUND', '项目不存在')
 

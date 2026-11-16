@@ -9,7 +9,6 @@ import {
   getCapability,
   getInvoice,
   getJob,
-  getProject,
   getQuotaSnapshot,
   getUsageSummary,
   incrementQuotaJobs,
@@ -28,6 +27,7 @@ import {
 } from '@clouddeck/db'
 import { audit } from '../audit'
 import { requireAuth, requireRole } from '../auth'
+import { assertProjectAccess } from '../project-access'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
@@ -94,8 +94,7 @@ export function registerJobRoutes(
     const body = parseBody(createJobSchema, request.body)
 
     const job = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const project = await getProject(tx, auth.tenantId, projectId)
-      if (!project) throw new AppError('NOT_FOUND', '项目不存在')
+      await assertProjectAccess(tx, auth, projectId)
 
       const capability = await getCapability(tx, body.capabilityId, body.capabilityVersion)
       if (!capability) throw new AppError('CAPABILITY_UNAVAILABLE', '能力不存在或已停用')
@@ -152,9 +151,23 @@ export function registerJobRoutes(
   app.get('/v1/jobs', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
     const projectId = queryString(request, 'projectId')
-    const jobs = await withTenant(deps.db, auth.tenantId, (tx) =>
-      listJobs(tx, auth.tenantId, projectId),
-    )
+    const jobs = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      if (projectId) {
+        await assertProjectAccess(tx, auth, projectId)
+        return listJobs(tx, auth.tenantId, projectId)
+      }
+      const all = await listJobs(tx, auth.tenantId)
+      const allowed = []
+      for (const job of all) {
+        try {
+          await assertProjectAccess(tx, auth, job.project_id)
+          allowed.push(job)
+        } catch {
+          // 无权访问的项目不返回
+        }
+      }
+      return allowed
+    })
     return ok(request, jobs.map((job) => serializeJob(job)))
   })
 
@@ -163,6 +176,7 @@ export function registerJobRoutes(
     const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
       const job = await getJob(tx, auth.tenantId, param(request, 'id'))
       if (!job) return null
+      await assertProjectAccess(tx, auth, job.project_id)
       const capability = await getCapability(tx, job.capability_id, job.capability_version)
       return { job, resumable: capability?.manifest.execution.resumable ?? false }
     })
@@ -177,6 +191,9 @@ export function registerJobRoutes(
       requestCancel(tx, auth.tenantId, jobId),
     )
     if (!job) throw new AppError('NOT_FOUND', '任务不存在或已结束')
+    await withTenant(deps.db, auth.tenantId, (tx) =>
+      assertProjectAccess(tx, auth, job.project_id),
+    )
     await audit(deps.db, {
       tenantId: auth.tenantId,
       actorType: 'user',
@@ -194,6 +211,7 @@ export function registerJobRoutes(
     const job = await withTenant(deps.db, auth.tenantId, async (tx) => {
       const existing = await getJob(tx, auth.tenantId, param(request, 'id'))
       if (!existing) throw new AppError('NOT_FOUND', '任务不存在')
+      await assertProjectAccess(tx, auth, existing.project_id)
       const capability = await getCapability(
         tx,
         existing.capability_id,
@@ -223,6 +241,7 @@ export function registerJobRoutes(
     const job = await withTenant(deps.db, auth.tenantId, async (tx) => {
       const existing = await getJob(tx, auth.tenantId, param(request, 'id'))
       if (!existing) throw new AppError('NOT_FOUND', '任务不存在')
+      await assertProjectAccess(tx, auth, existing.project_id)
       const reservation = await reserveQuota(
         tx,
         auth.tenantId,
@@ -248,6 +267,9 @@ export function registerJobRoutes(
       getJob(tx, auth.tenantId, jobId),
     )
     if (!job) throw new AppError('NOT_FOUND', '任务不存在')
+    await withTenant(deps.db, auth.tenantId, (tx) =>
+      assertProjectAccess(tx, auth, job.project_id),
+    )
     const events = await withTenant(deps.db, auth.tenantId, (tx) =>
       listJobEvents(tx, jobId, 0, 1000),
     )
@@ -269,6 +291,9 @@ export function registerJobRoutes(
       getJob(tx, auth.tenantId, jobId),
     )
     if (!job) throw new AppError('NOT_FOUND', '任务不存在')
+    await withTenant(deps.db, auth.tenantId, (tx) =>
+      assertProjectAccess(tx, auth, job.project_id),
+    )
 
     const headerSeq = Number(request.headers['last-event-id'] ?? 0)
     const querySeq = Number(queryString(request, 'after') ?? 0)

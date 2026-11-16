@@ -2079,3 +2079,84 @@ export async function findInvitationByHash(
 export async function markInvitationAccepted(db: Database, id: string): Promise<void> {
   await db.execute(sql`UPDATE invitations SET accepted_at = now() WHERE id = ${id}`)
 }
+
+export interface ProjectMemberRow {
+  id: string
+  tenant_id: string
+  project_id: string
+  user_id: string
+  role: string
+  email: string
+  display_name: string | null
+  created_at: Date
+}
+
+export async function listProjectMembers(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+): Promise<ProjectMemberRow[]> {
+  return rows<ProjectMemberRow>(
+    db,
+    sql`SELECT pm.*, u.email, u.display_name
+        FROM project_members pm JOIN users u ON u.id = pm.user_id
+        WHERE pm.tenant_id = ${tenantId} AND pm.project_id = ${projectId}
+        ORDER BY pm.created_at`,
+  )
+}
+
+export async function addProjectMember(
+  db: Database,
+  input: { tenantId: string; projectId: string; userId: string; role?: string },
+): Promise<void> {
+  await db.execute(
+    sql`INSERT INTO project_members (tenant_id, project_id, user_id, role)
+        VALUES (${input.tenantId}, ${input.projectId}, ${input.userId}, ${input.role ?? 'editor'})
+        ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+  )
+}
+
+export async function removeProjectMember(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+  userId: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM project_members
+        WHERE tenant_id = ${tenantId} AND project_id = ${projectId} AND user_id = ${userId}
+        RETURNING id`,
+  )
+  return row !== null
+}
+
+export async function hasProjectMembers(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+): Promise<boolean> {
+  const row = await one<{ exists: boolean }>(
+    db,
+    sql`SELECT EXISTS(
+          SELECT 1 FROM project_members WHERE tenant_id = ${tenantId} AND project_id = ${projectId}
+        ) AS exists`,
+  )
+  return row?.exists ?? false
+}
+
+export async function isProjectMember(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+  userId: string,
+): Promise<boolean> {
+  const row = await one<{ exists: boolean }>(
+    db,
+    sql`SELECT EXISTS(
+          SELECT 1 FROM project_members
+          WHERE tenant_id = ${tenantId} AND project_id = ${projectId} AND user_id = ${userId}
+        ) AS exists`,
+  )
+  return row?.exists ?? false
+}

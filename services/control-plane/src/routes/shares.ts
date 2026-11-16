@@ -16,6 +16,7 @@ import {
 } from '@clouddeck/db'
 import { audit } from '../audit'
 import { hashToken, requireAuth } from '../auth'
+import { assertProjectAccess } from '../project-access'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso, toTime } from '../time'
@@ -65,8 +66,7 @@ export function registerShareRoutes(
     const expiresAt = new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000)
 
     const share = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const project = await getProject(tx, auth.tenantId, projectId)
-      if (!project) throw new AppError('NOT_FOUND', '项目不存在')
+      await assertProjectAccess(tx, auth, projectId)
       return createShare(tx, {
         tenantId: auth.tenantId,
         projectId,

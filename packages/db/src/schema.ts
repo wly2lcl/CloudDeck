@@ -84,6 +84,19 @@ export const apiKeys = pgTable(
   (table) => [index('api_keys_tenant_idx').on(table.tenantId, table.createdAt)],
 )
 
+export const projectMembers = pgTable(
+  'project_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    role: text('role').notNull().default('editor'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [uniqueIndex('project_members_project_user_idx').on(table.projectId, table.userId)],
+)
+
 export const invitations = pgTable('invitations', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull(),
@@ -493,6 +506,7 @@ export const schema = {
   emailVerifications,
   apiKeys,
   invitations,
+  projectMembers,
   projects,
   assets,
   assetVersions,

@@ -19,6 +19,7 @@ import { registerDeviceRoutes } from './routes/devices'
 import { registerPaymentRoutes } from './routes/payments'
 import { registerJobRoutes } from './routes/jobs'
 import { registerMemberRoutes } from './routes/members'
+import { registerProjectMemberRoutes } from './routes/projectMembers'
 import { registerProjectRoutes } from './routes/projects'
 import { registerShareRoutes } from './routes/shares'
 import { registerStorageRoutes } from './routes/storage'
@@ -143,6 +144,7 @@ export async function buildServer(
   registerApiKeyRoutes(app, deps, guard)
   registerMemberRoutes(app, deps, guard)
   registerProjectRoutes(app, deps, guard)
+  registerProjectMemberRoutes(app, deps, guard)
   registerCapabilityRoutes(app, deps, guard)
   registerJobRoutes(app, deps, guard)
   registerTenantRoutes(app, deps, guard)

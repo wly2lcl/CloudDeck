@@ -41,7 +41,7 @@ Two ideas define the project:
 - Commercial: plans and quotas with pre-deduction, usage ledger, reconciliation,
   invoice snapshots, capability toggles, templates and public template market,
   read-only shares, member management and tenant audit logs.
-- Collaboration: project comments with an SSE stream.
+- Collaboration: project comments with an SSE stream; optional project-level ACL.
 - Security: JWT with refresh rotation and client auto-refresh, scoped API keys,
   password reset / email verification, AES-256-GCM model credentials, Helmet,
   rate limiting, raw-body HMAC webhooks, tenant audit logs.

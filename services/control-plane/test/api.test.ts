@@ -1187,3 +1187,57 @@ describe('邀请流程', () => {
     expect(members.json().data.some((item: { email: string }) => item.email === 'invitee@example.com')).toBe(true)
   })
 })
+
+describe('项目级 ACL', () => {
+  it('添加项目成员后仅成员与 owner/admin 可访问', async () => {
+    const aclReg = await api('/v1/auth/register', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'acl@example.com', password: 'password123' },
+    })
+    const aclId = aclReg.json().data.user.id as string
+    await api('/v1/auth/register', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'outsider@example.com', password: 'password123' },
+    })
+
+    for (const email of ['acl@example.com', 'outsider@example.com']) {
+      const added = await api(`/v1/tenants/${tenantId}/members`, {
+        method: 'POST',
+        payload: { email, role: 'editor' },
+      })
+      expect(added.statusCode).toBe(201)
+    }
+
+    const aclLogin = await api('/v1/auth/login', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'acl@example.com', password: 'password123', tenantId },
+    })
+    const aclToken = aclLogin.json().data.accessToken as string
+    const outsiderLogin = await api('/v1/auth/login', {
+      method: 'POST',
+      token: null,
+      payload: { email: 'outsider@example.com', password: 'password123', tenantId },
+    })
+    const outsiderToken = outsiderLogin.json().data.accessToken as string
+
+    const addedMember = await api(`/v1/projects/${projectId}/members`, {
+      method: 'POST',
+      payload: { email: 'acl@example.com', role: 'editor' },
+    })
+    expect(addedMember.statusCode).toBe(201)
+
+    expect((await api(`/v1/projects/${projectId}`, { token: aclToken })).statusCode).toBe(200)
+    expect((await api(`/v1/projects/${projectId}/assets`, { token: aclToken })).statusCode).toBe(200)
+    expect((await api(`/v1/projects/${projectId}`, { token: outsiderToken })).statusCode).toBe(404)
+    expect((await api(`/v1/projects/${projectId}/assets`, { token: outsiderToken })).statusCode).toBe(404)
+
+    const removed = await api(`/v1/projects/${projectId}/members/${aclId}`, {
+      method: 'DELETE',
+    })
+    expect(removed.statusCode).toBe(200)
+    expect((await api(`/v1/projects/${projectId}`, { token: outsiderToken })).statusCode).toBe(200)
+  })
+})

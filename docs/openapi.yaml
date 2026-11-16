@@ -396,6 +396,40 @@ paths:
       summary: Soft-delete project
       responses:
         '200': { $ref: '#/components/responses/Ok' }
+  /v1/projects/{id}/members:
+    get:
+      tags: [projects]
+      summary: List project members
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [projects]
+      summary: Add a tenant member to a project
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [editor, viewer] }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/projects/{id}/members/{userId}:
+    delete:
+      tags: [projects]
+      summary: Remove a project member
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
   /v1/projects/{id}/graph:
     parameters: [{ $ref: '#/components/parameters/ProjectId' }]
     get:

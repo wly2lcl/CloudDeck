@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Project-level ACL: `project_members` table and `/v1/projects/:id/members` management. Projects stay tenant-wide until the first member is added, then only members plus owner/admin can access project, assets, jobs, comments, and shares.
+
 ## [0.1.8] - 2026-11-16
 
 ### Verified

@@ -6,9 +6,7 @@ import {
   addAssetVersion,
   createAsset,
   createProject,
-  getAsset,
   getAssetVersionDetail,
-  getProject,
   linkAssets,
   listAssets,
   listAssetVersions,
@@ -21,6 +19,7 @@ import {
 } from '@clouddeck/db'
 import { storageKeyFor } from '@clouddeck/storage'
 import { requireAuth } from '../auth'
+import { assertAssetAccess, assertProjectAccess } from '../project-access'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { toIso } from '../time'
@@ -93,17 +92,18 @@ export function registerProjectRoutes(
   app.get('/v1/projects/:id', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
     const project = await withTenant(deps.db, auth.tenantId, (tx) =>
-      getProject(tx, auth.tenantId, param(request, 'id')),
+      assertProjectAccess(tx, auth, param(request, 'id')),
     )
-    if (!project) throw new AppError('NOT_FOUND', '项目不存在')
     return ok(request, serializeProject(project))
   })
 
   app.delete('/v1/projects/:id', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
-    const deleted = await withTenant(deps.db, auth.tenantId, (tx) =>
-      softDeleteProject(tx, auth.tenantId, param(request, 'id')),
-    )
+    const deleted = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const projectId = param(request, 'id')
+      await assertProjectAccess(tx, auth, projectId)
+      return softDeleteProject(tx, auth.tenantId, projectId)
+    })
     if (!deleted) throw new AppError('NOT_FOUND', '项目不存在')
     return ok(request, { deleted: true })
   })
@@ -112,8 +112,7 @@ export function registerProjectRoutes(
     const auth = requireAuth(request)
     const projectId = param(request, 'id')
     const assets = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const project = await getProject(tx, auth.tenantId, projectId)
-      if (!project) return null
+      await assertProjectAccess(tx, auth, projectId)
       return listAssets(tx, auth.tenantId, projectId)
     })
     if (!assets) throw new AppError('NOT_FOUND', '项目不存在')
@@ -124,8 +123,7 @@ export function registerProjectRoutes(
     const auth = requireAuth(request)
     const projectId = param(request, 'id')
     const graph = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const project = await getProject(tx, auth.tenantId, projectId)
-      if (!project) return null
+      await assertProjectAccess(tx, auth, projectId)
       return listProjectGraph(tx, auth.tenantId, projectId)
     })
     if (!graph) throw new AppError('NOT_FOUND', '项目不存在')
@@ -161,8 +159,7 @@ export function registerProjectRoutes(
     const name = query.name ?? upload.filename ?? 'upload.bin'
 
     const asset = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const project = await getProject(tx, auth.tenantId, projectId)
-      if (!project) throw new AppError('NOT_FOUND', '项目不存在')
+      await assertProjectAccess(tx, auth, projectId)
 
       const assetId = randomUUID()
       const key = storageKeyFor(auth.tenantId, projectId, assetId, 1, name)
@@ -189,8 +186,7 @@ export function registerProjectRoutes(
     const auth = requireAuth(request)
     const assetId = param(request, 'id')
     const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const asset = await getAsset(tx, auth.tenantId, assetId)
-      if (!asset) return null
+      const asset = await assertAssetAccess(tx, auth, assetId)
       const versions = await listAssetVersions(tx, auth.tenantId, assetId)
       return { asset, versions }
     })
@@ -216,8 +212,7 @@ export function registerProjectRoutes(
     const name = queryString(request, 'name') ?? upload.filename ?? 'version.bin'
 
     const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const asset = await getAsset(tx, auth.tenantId, assetId)
-      if (!asset) throw new AppError('NOT_FOUND', '资产不存在')
+      const asset = await assertAssetAccess(tx, auth, assetId)
       const nextVersion = asset.latest_version + 1
       const key = storageKeyFor(auth.tenantId, asset.project_id, asset.id, nextVersion, name)
       await deps.storage.put(key, data, upload.mimetype)
@@ -247,8 +242,7 @@ export function registerProjectRoutes(
     }
 
     const detail = await withTenant(deps.db, auth.tenantId, async (tx) => {
-      const asset = await getAsset(tx, auth.tenantId, assetId)
-      if (!asset) return null
+      await assertAssetAccess(tx, auth, assetId)
       return getAssetVersionDetail(tx, auth.tenantId, assetId, version)
     })
     if (!detail) throw new AppError('NOT_FOUND', '资产版本不存在')
@@ -264,9 +258,10 @@ export function registerProjectRoutes(
     if (!Number.isInteger(version) || version <= 0) {
       throw new AppError('VALIDATION_FAILED', '版本号非法')
     }
-    const detail = await withTenant(deps.db, auth.tenantId, (tx) =>
-      getAssetVersionDetail(tx, auth.tenantId, assetId, version),
-    )
+    const detail = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      await assertAssetAccess(tx, auth, assetId)
+      return getAssetVersionDetail(tx, auth.tenantId, assetId, version)
+    })
     if (!detail) throw new AppError('NOT_FOUND', '资产版本不存在')
     const url = await deps.storage.signedDownloadUrl(detail.storage_key, 300)
     return ok(request, { url, mime: detail.mime })
@@ -279,9 +274,10 @@ export function registerProjectRoutes(
     if (!Number.isInteger(version) || version <= 0) {
       throw new AppError('VALIDATION_FAILED', '版本号非法')
     }
-    const detail = await withTenant(deps.db, auth.tenantId, (tx) =>
-      getAssetVersionDetail(tx, auth.tenantId, assetId, version),
-    )
+    const detail = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      await assertAssetAccess(tx, auth, assetId)
+      return getAssetVersionDetail(tx, auth.tenantId, assetId, version)
+    })
     if (!detail) throw new AppError('NOT_FOUND', '资产版本不存在')
 
     const isText =
@@ -309,8 +305,10 @@ export function registerProjectRoutes(
       }),
       request.body,
     )
-    await withTenant(deps.db, auth.tenantId, (tx) =>
-      linkAssets(tx, {
+    await withTenant(deps.db, auth.tenantId, async (tx) => {
+      await assertProjectAccess(tx, auth, body.projectId)
+      await assertAssetAccess(tx, auth, param(request, 'id'))
+      await linkAssets(tx, {
         tenantId: auth.tenantId,
         projectId: body.projectId,
         fromAssetId: body.fromAssetId,
@@ -318,8 +316,8 @@ export function registerProjectRoutes(
         toAssetId: param(request, 'id'),
         toVersion: body.toVersion,
         relation: body.relation,
-      }),
-    )
+      })
+    })
     reply.status(201)
     return ok(request, { linked: true })
   })

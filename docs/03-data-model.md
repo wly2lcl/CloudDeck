@@ -135,6 +135,7 @@ capability_drivers(
 ## 审计
 
 ```text
+project_members(tenant_id, project_id, user_id, role, created_at)
 password_resets(id, user_id, token_hash, expires_at, used_at)
 email_verifications(id, user_id, token_hash, expires_at, used_at)
 audit_logs(
