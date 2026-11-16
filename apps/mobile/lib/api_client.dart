@@ -195,6 +195,20 @@ class ApiClient {
     return Job.fromJson(data as Map<String, dynamic>);
   }
 
+  Future<List<Comment>> comments(String projectId) async {
+    final data = await _request('GET', '/v1/projects/$projectId/comments') as List<dynamic>;
+    return data.map((item) => Comment.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<Comment> addComment(String projectId, String body) async {
+    final data = await _request(
+      'POST',
+      '/v1/projects/$projectId/comments',
+      body: {'body': body},
+    );
+    return Comment.fromJson(data as Map<String, dynamic>);
+  }
+
   Future<String> assetUrl(String assetId, int version) async {
     final data = await _request('GET', '/v1/assets/$assetId/versions/$version/url');
     return (data as Map<String, dynamic>)['url'] as String;

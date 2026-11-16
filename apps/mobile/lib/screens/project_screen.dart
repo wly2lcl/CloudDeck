@@ -19,6 +19,8 @@ class ProjectScreen extends StatefulWidget {
 class _ProjectScreenState extends State<ProjectScreen> {
   List<Asset> assets = const [];
   List<Capability> capabilities = const [];
+  List<Comment> comments = const [];
+  final commentController = TextEditingController();
   bool loading = true;
   String? error;
 
@@ -37,11 +39,13 @@ class _ProjectScreenState extends State<ProjectScreen> {
       final results = await Future.wait([
         widget.session.api.assets(widget.project.id),
         widget.session.api.capabilities(),
+        widget.session.api.comments(widget.project.id),
       ]);
       if (mounted) {
         setState(() {
           assets = results[0] as List<Asset>;
           capabilities = results[1] as List<Capability>;
+          comments = results[2] as List<Comment>;
         });
       }
     } on ApiException catch (caught) {
@@ -92,6 +96,23 @@ class _ProjectScreenState extends State<ProjectScreen> {
           const SnackBar(content: Text('该类型暂不支持预览')),
         );
       }
+    } on ApiException catch (caught) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(caught.message)));
+      }
+    }
+  }
+
+  Future<void> addComment() async {
+    final body = commentController.text.trim();
+    if (body.isEmpty) return;
+    try {
+      final comment = await widget.session.api.addComment(widget.project.id, body);
+      if (!mounted) return;
+      setState(() {
+        comments = [...comments, comment];
+        commentController.clear();
+      });
     } on ApiException catch (caught) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(caught.message)));
@@ -176,6 +197,12 @@ class _ProjectScreenState extends State<ProjectScreen> {
   }
 
   @override
+  void dispose() {
+    commentController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -226,6 +253,35 @@ class _ProjectScreenState extends State<ProjectScreen> {
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(height: 24),
+                Text('评论', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                if (comments.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('还没有评论。'),
+                  ),
+                ...comments.map(
+                  (comment) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(comment.body),
+                    subtitle: Text(comment.createdAt.toLocal().toString()),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: commentController,
+                        decoration: const InputDecoration(hintText: '写一条评论…'),
+                        onSubmitted: (_) => addComment(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(onPressed: addComment, child: const Text('发送')),
+                  ],
                 ),
               ],
             ),
