@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../models.dart';
 import '../session.dart';
+import '../i18n.dart';
 import 'audio_screen.dart';
 
 class JobScreen extends StatefulWidget {
@@ -122,7 +123,7 @@ class _JobScreenState extends State<JobScreen> {
             child: SingleChildScrollView(child: SelectableText(text)),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('关闭'))),
           ],
         ),
       );
@@ -136,16 +137,16 @@ class _JobScreenState extends State<JobScreen> {
     final current = job;
     return Scaffold(
       appBar: AppBar(
-        title: Text(current?.capabilityId ?? '任务'),
+        title: Text(current?.capabilityId ?? tr('任务')),
         actions: [
           if (current != null && !current.terminal)
-            TextButton(onPressed: cancel, child: const Text('取消')),
+            TextButton(onPressed: cancel, child: Text(tr('取消'))),
           if (current != null &&
               current.resumable &&
               (current.status == 'failed' || current.status == 'cancelled'))
-            TextButton(onPressed: resume, child: const Text('续作')),
+            TextButton(onPressed: resume, child: Text(tr('续作'))),
           if (current != null && (current.status == 'failed' || current.status == 'cancelled'))
-            TextButton(onPressed: retry, child: const Text('重试')),
+            TextButton(onPressed: retry, child: Text(tr('重试'))),
         ],
       ),
       body: ListView(
@@ -172,7 +173,7 @@ class _JobScreenState extends State<JobScreen> {
               ),
             if (current.outputs.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Text('产物', style: Theme.of(context).textTheme.titleMedium),
+              Text(tr('产物'), style: Theme.of(context).textTheme.titleMedium),
               ...current.outputs.map(
                 (output) => Card(
                   child: ListTile(
@@ -187,7 +188,7 @@ class _JobScreenState extends State<JobScreen> {
             ],
           ],
           const SizedBox(height: 16),
-          Text('事件', style: Theme.of(context).textTheme.titleMedium),
+          Text(tr('事件'), style: Theme.of(context).textTheme.titleMedium),
           ...logs.reversed.take(100).map(
                 (log) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),

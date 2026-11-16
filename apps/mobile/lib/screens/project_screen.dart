@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../models.dart';
 import '../session.dart';
+import '../i18n.dart';
 import 'audio_screen.dart';
 import 'job_screen.dart';
 import '../widgets/content_graph.dart';
@@ -89,7 +90,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
               child: SingleChildScrollView(child: SelectableText(text)),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+              TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('关闭'))),
             ],
           ),
         );
@@ -134,7 +135,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
     }
 
     var mode = 'continue';
-    var instruction = '续写下一段，保持原有叙事视角与节奏。';
+    var instruction = tr('续写下一段，保持原有叙事视角与节奏。');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -149,11 +150,11 @@ class _ProjectScreenState extends State<ProjectScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: mode,
-                  decoration: const InputDecoration(labelText: '模式'),
-                  items: const [
-                    DropdownMenuItem(value: 'continue', child: Text('续写')),
-                    DropdownMenuItem(value: 'rewrite', child: Text('改写')),
-                    DropdownMenuItem(value: 'check', child: Text('一致性检查')),
+                  decoration: InputDecoration(labelText: tr('模式')),
+                  items: [
+                    DropdownMenuItem(value: 'continue', child: Text(tr('续写'))),
+                    DropdownMenuItem(value: 'rewrite', child: Text(tr('改写'))),
+                    DropdownMenuItem(value: 'check', child: Text(tr('一致性检查'))),
                   ],
                   onChanged: (value) => setDialogState(() => mode = value ?? mode),
                 ),
@@ -161,15 +162,15 @@ class _ProjectScreenState extends State<ProjectScreen> {
                 TextFormField(
                   initialValue: instruction,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: '写作指令'),
+                  decoration: InputDecoration(labelText: tr('写作指令')),
                   onChanged: (value) => instruction = value,
                 ),
               ],
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('提交')),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('取消'))),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('提交'))),
           ],
         ),
       ),
@@ -223,7 +224,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   ),
-                Text('资产', style: Theme.of(context).textTheme.titleMedium),
+                Text(tr('资产'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 if (assets.isEmpty)
                   const Padding(
@@ -243,7 +244,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('内容链', style: Theme.of(context).textTheme.titleMedium),
+                Text(tr('内容链'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
                   '${(graph?['assets'] as List<dynamic>?)?.length ?? assets.length} 个节点 · '
@@ -252,7 +253,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
                 const SizedBox(height: 8),
                 ContentGraphView(graph: graph ?? const {}),
                 const SizedBox(height: 24),
-                Text('能力', style: Theme.of(context).textTheme.titleMedium),
+                Text(tr('能力'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 ...capabilities.map(
                   (capability) => Card(
@@ -262,18 +263,18 @@ class _ProjectScreenState extends State<ProjectScreen> {
                       isThreeLine: true,
                       trailing: FilledButton(
                         onPressed: () => run(capability),
-                        child: const Text('运行'),
+                        child: Text(tr('运行')),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('评论', style: Theme.of(context).textTheme.titleMedium),
+                Text(tr('评论'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 if (comments.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('还没有评论。'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(tr('还没有评论。')),
                   ),
                 ...comments.map(
                   (comment) => ListTile(
@@ -288,12 +289,12 @@ class _ProjectScreenState extends State<ProjectScreen> {
                     Expanded(
                       child: TextField(
                         controller: commentController,
-                        decoration: const InputDecoration(hintText: '写一条评论…'),
+                        decoration: InputDecoration(hintText: tr('写一条评论…')),
                         onSubmitted: (_) => addComment(),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    FilledButton(onPressed: addComment, child: const Text('发送')),
+                    FilledButton(onPressed: addComment, child: Text(tr('发送'))),
                   ],
                 ),
               ],

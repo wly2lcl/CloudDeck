@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../models.dart';
 import '../session.dart';
+import '../i18n.dart';
 import 'project_screen.dart';
 import 'settings_screen.dart';
 
@@ -49,17 +50,17 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('新建项目'),
+        title: Text(tr('新建项目')),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: '项目名称'),
+          decoration: InputDecoration(labelText: tr('项目名称')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('取消'))),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('创建'),
+            child: Text(tr('创建')),
           ),
         ],
       ),
@@ -106,7 +107,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: createProject,
         icon: const Icon(Icons.add),
-        label: const Text('新建项目'),
+        label: Text(tr('新建项目')),
       ),
       body: RefreshIndicator(
         onRefresh: load,
@@ -121,9 +122,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                     ),
                   if (projects.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 80),
-                      child: Center(child: Text('还没有项目，先创建一个。')),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 80),
+                      child: Center(child: Text(tr('还没有项目，先创建一个。'))),
                     ),
                   ...projects.map(
                     (project) => Card(

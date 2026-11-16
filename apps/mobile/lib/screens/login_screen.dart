@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api_client.dart';
 import '../session.dart';
+import '../i18n.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.session, required this.onSignedIn});
@@ -74,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text('CloudDeck', style: Theme.of(context).textTheme.headlineMedium),
                       const SizedBox(height: 6),
                       Text(
-                        register ? '创建你的内容工作空间' : '登录你的内容工作台',
+                        register ? tr('创建你的内容工作空间') : tr('登录你的内容工作台'),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 24),
@@ -82,19 +83,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
                         autocorrect: false,
-                        decoration: const InputDecoration(labelText: '邮箱'),
+                        decoration: InputDecoration(labelText: tr('邮箱')),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: passwordController,
                         obscureText: true,
-                        decoration: const InputDecoration(labelText: '密码'),
+                        decoration: InputDecoration(labelText: tr('密码')),
                       ),
                       if (register) ...[
                         const SizedBox(height: 12),
                         TextField(
                           controller: nameController,
-                          decoration: const InputDecoration(labelText: '昵称（可选）'),
+                          decoration: InputDecoration(labelText: tr('昵称（可选）')),
                         ),
                       ],
                       if (error != null) ...[
@@ -104,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 20),
                       FilledButton(
                         onPressed: busy ? null : submit,
-                        child: Text(busy ? '请稍候…' : (register ? '注册并登录' : '登录')),
+                        child: Text(busy ? tr('请稍候…') : (register ? tr('注册并登录') : tr('登录'))),
                       ),
                       TextButton(
                         onPressed: busy
@@ -113,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   register = !register;
                                   error = null;
                                 }),
-                        child: Text(register ? '已有账号？去登录' : '没有账号？创建一个'),
+                        child: Text(register ? tr('已有账号？去登录') : tr('没有账号？创建一个')),
                       ),
                     ],
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api_client.dart';
 import '../session.dart';
+import '../i18n.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.session, required this.onLogout});
@@ -75,7 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = me?['user'] as Map<String, dynamic>?;
     final tenants = (me?['tenants'] as List<dynamic>?) ?? const [];
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text(tr('设置'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -83,12 +84,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.person_outline),
-              title: Text((user?['email'] as String?) ?? '当前用户'),
+              title: Text((user?['email'] as String?) ?? tr('当前用户')),
               subtitle: Text((user?['displayName'] as String?) ?? ''),
             ),
           ),
           const SizedBox(height: 16),
-          Text('租户', style: Theme.of(context).textTheme.titleMedium),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('语言 / Language'),
+            trailing: TextButton(
+              onPressed: () {
+                appLocale.value =
+                    appLocale.value == AppLocale.zh ? AppLocale.en : AppLocale.zh;
+              },
+              child: Text(appLocale.value == AppLocale.zh ? 'English' : '中文'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(tr('租户'), style: Theme.of(context).textTheme.titleMedium),
           ...tenants.map(
             (tenant) => ListTile(
               title: Text((tenant as Map<String, dynamic>)['name'] as String),
@@ -96,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('本月配额', style: Theme.of(context).textTheme.titleMedium),
+          Text(tr('本月配额'), style: Theme.of(context).textTheme.titleMedium),
           if (quota != null)
             Card(
               child: ListTile(
@@ -107,11 +120,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           const SizedBox(height: 24),
-          Text('推送注册', style: Theme.of(context).textTheme.titleMedium),
+          Text(tr('推送注册'), style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           TextField(
             controller: deviceController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'FCM / APNs 设备令牌',
               helperText: '令牌由 Firebase/APNs SDK 获取后粘贴注册',
             ),
@@ -128,12 +141,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onChanged: (value) => setState(() => platform = value ?? platform),
               ),
               const SizedBox(width: 12),
-              FilledButton(onPressed: registerDevice, child: const Text('注册推送')),
+              FilledButton(onPressed: registerDevice, child: Text(tr('注册推送'))),
             ],
           ),
           if (deviceMessage != null) Text(deviceMessage!),
           const SizedBox(height: 24),
-          FilledButton.tonal(onPressed: logout, child: const Text('退出登录')),
+          FilledButton.tonal(onPressed: logout, child: Text(tr('退出登录'))),
         ],
       ),
     );

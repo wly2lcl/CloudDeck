@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/projects_screen.dart';
 import 'session.dart';
+import 'i18n.dart';
 
 void main() {
   runApp(const CloudDeckApp());
@@ -29,7 +30,9 @@ class _CloudDeckAppState extends State<CloudDeckApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return ValueListenableBuilder<AppLocale>(
+      valueListenable: appLocale,
+      builder: (context, _, _) => MaterialApp(
       title: 'CloudDeck',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -51,6 +54,7 @@ class _CloudDeckAppState extends State<CloudDeckApp> {
                   session: session,
                   onSignedIn: () => setState(() {}),
                 ),
+      ),
     );
   }
 }
