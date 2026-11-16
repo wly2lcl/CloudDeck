@@ -1241,3 +1241,41 @@ describe('项目级 ACL', () => {
     expect((await api(`/v1/projects/${projectId}`, { token: outsiderToken })).statusCode).toBe(200)
   })
 })
+
+describe('控制面模型网关', () => {
+  it('代理 chat/completions 并返回文本与用量', async () => {
+    const server = createServer((request, response) => {
+      let body = ''
+      request.on('data', (chunk) => {
+        body += chunk
+      })
+      request.on('end', () => {
+        const payload = JSON.parse(body) as { model?: string }
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(
+          JSON.stringify({
+            choices: [{ message: { content: `echo:${payload.model}` } }],
+            usage: { prompt_tokens: 3, completion_tokens: 5 },
+          }),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+    const previous = ctx.config.gatewayBaseUrl
+    ctx.config.gatewayBaseUrl = `http://127.0.0.1:${port}`
+    try {
+      const response = await api('/v1/gateway/chat', {
+        method: 'POST',
+        payload: { messages: [{ role: 'user', content: 'hello' }], maxTokens: 16 },
+      })
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.text).toBe('echo:test-model')
+      expect(response.json().data.usage.inputTokens).toBe(3)
+    } finally {
+      ctx.config.gatewayBaseUrl = previous
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+})

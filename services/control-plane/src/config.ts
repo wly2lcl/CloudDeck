@@ -31,6 +31,9 @@ export interface AppConfig {
   smtpSecure?: boolean
   smtpUser?: string
   smtpPass?: string
+  gatewayBaseUrl?: string
+  gatewayModel?: string
+  gatewayToken?: string
 }
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
@@ -78,5 +81,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     smtpSecure: env.MAIL_SMTP_SECURE === 'true',
     smtpUser: env.MAIL_SMTP_USER,
     smtpPass: env.MAIL_SMTP_PASS,
+    gatewayBaseUrl: env.GATEWAY_BASE_URL ?? env.LLM_HTTP_URL,
+    gatewayModel: env.GATEWAY_MODEL ?? env.LLM_MODEL,
+    gatewayToken: env.GATEWAY_TOKEN ?? env.LLM_HTTP_TOKEN,
   }
 }

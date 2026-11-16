@@ -17,6 +17,7 @@ import { registerCommentRoutes } from './routes/comments'
 import { registerCredentialRoutes } from './routes/credentials'
 import { registerDeviceRoutes } from './routes/devices'
 import { registerPaymentRoutes } from './routes/payments'
+import { registerGatewayRoutes } from './routes/gateway'
 import { registerJobRoutes } from './routes/jobs'
 import { registerMemberRoutes } from './routes/members'
 import { registerProjectMemberRoutes } from './routes/projectMembers'
@@ -146,6 +147,7 @@ export async function buildServer(
   registerProjectRoutes(app, deps, guard)
   registerProjectMemberRoutes(app, deps, guard)
   registerCapabilityRoutes(app, deps, guard)
+  registerGatewayRoutes(app, deps, guard)
   registerJobRoutes(app, deps, guard)
   registerTenantRoutes(app, deps, guard)
   registerCommentRoutes(app, deps, guard)

@@ -46,6 +46,7 @@ export async function createTestContext(): Promise<TestContext> {
     platformAdminEmails: ['owner@example.com'],
     mailProvider: 'mock',
     mailFrom: 'CloudDeck <noreply@test.local>',
+    gatewayModel: 'test-model',
   }
 
   await syncCapabilities(db, CAPABILITIES_DIR)

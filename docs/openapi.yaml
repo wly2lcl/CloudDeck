@@ -496,6 +496,31 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
 
+  /v1/gateway/chat:
+    post:
+      tags: [capabilities]
+      summary: Control-plane model gateway with quota check
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [system, user, assistant] }
+                      content: { type: string }
+                model: { type: string }
+                maxTokens: { type: integer }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '429': { $ref: '#/components/responses/Error' }
   /v1/capabilities:
     get:
       tags: [capabilities]

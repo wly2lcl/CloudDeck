@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Control-plane model gateway `POST /v1/gateway/chat`: quota pre-check and OpenAI-compatible proxy (`GATEWAY_BASE_URL` / `GATEWAY_MODEL` / `GATEWAY_TOKEN`).
+
 ## [0.1.12] - 2026-11-16
 
 ### Added

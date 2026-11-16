@@ -25,8 +25,8 @@
 
 ## 模型网关
 
-> **实现状态（v0.1.12 开发中）**：worker 级网关已支持主/备 provider 降级、成本上限与
-> `LLM_FALLBACK_*` 配置；控制面统一网关与短期 token 仍未落地，计费由 driver 上报 usage。
+> **实现状态（v0.1.13 开发中）**：worker 级网关支持主/备 provider 降级；控制面新增
+> `/v1/gateway/chat` 预算校验与 OpenAI 兼容代理。短期 token、跨 driver 自动路由仍未落地。
 
 目标设计是所有模型调用经过 `control-plane` 的模型网关，不直连 provider：
 
