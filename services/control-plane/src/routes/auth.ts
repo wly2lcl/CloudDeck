@@ -131,6 +131,13 @@ export function registerAuthRoutes(
       tokenHash: hashToken(verificationToken),
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     })
+    await deps.mailer
+      .send({
+        to: user.email,
+        subject: '验证你的 CloudDeck 邮箱',
+        text: `${deps.config.webOrigin}/verify-email?token=${verificationToken}`,
+      })
+      .catch((error: unknown) => console.error('验证邮件发送失败', error))
     await audit(deps.db, {
       tenantId: tenant.id,
       actorType: 'user',
@@ -248,6 +255,13 @@ export function registerAuthRoutes(
         tokenHash: hashToken(token),
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       })
+      await deps.mailer
+        .send({
+          to: user.email,
+          subject: '重置你的 CloudDeck 密码',
+          text: `${deps.config.webOrigin}/reset-password?token=${token}`,
+        })
+        .catch((error: unknown) => console.error('重置邮件发送失败', error))
       return ok(request, {
         sent: true,
         ...(deps.config.exposeAuthTokens ? { token } : {}),

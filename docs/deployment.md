@@ -36,9 +36,13 @@ POSTGRES_PASSWORD=<strong-password>
 AUTH_EXPOSE_TOKENS=true
 WORKSPACE_TTL_HOURS=24
 PLATFORM_ADMIN_EMAILS=admin@example.com,ops@example.com
+MAIL_PROVIDER=http
+MAIL_HTTP_URL=https://mail-gateway.example.com/send
+MAIL_HTTP_TOKEN=...
+MAIL_FROM='CloudDeck <noreply@example.com>'
 ```
 
-生产必须保持 `AUTH_EXPOSE_TOKENS=false`，并接入邮件服务发送令牌。
+生产必须保持 `AUTH_EXPOSE_TOKENS=false`。`MAIL_PROVIDER=mock` 只打印邮件；`MAIL_PROVIDER=http` 会把 `{to,subject,text,from}` POST 到 `MAIL_HTTP_URL`。
 
 ### 使用 S3 / MinIO
 

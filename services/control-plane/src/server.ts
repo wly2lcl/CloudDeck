@@ -3,6 +3,7 @@ import { createDb, migrate } from '@clouddeck/db'
 import { createStorage } from '@clouddeck/storage'
 import { buildServer } from './app'
 import { loadConfig } from './config'
+import { createMailer } from './mailer'
 import { syncCapabilities } from './registry'
 
 async function main(): Promise<void> {
@@ -39,7 +40,7 @@ async function main(): Promise<void> {
       : undefined,
   })
 
-  const app = await buildServer({ db, storage, config }, { logger: true })
+  const app = await buildServer({ db, storage, config, mailer: createMailer(config) }, { logger: true })
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, '正在关闭控制面')

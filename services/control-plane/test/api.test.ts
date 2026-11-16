@@ -98,6 +98,8 @@ describe('M1 端到端', () => {
     tenantId = body.tenantId
     expect(tenantId).toBeTruthy()
 
+    expect(ctx.mailer.sent.some((mail) => mail.subject.includes('验证'))).toBe(true)
+
     const me = await api('/v1/me')
     expect(me.statusCode).toBe(200)
     expect(me.json().data.user.email).toBe('owner@example.com')
@@ -760,6 +762,7 @@ describe('M1 端到端', () => {
       db: ctx.db,
       storage: ctx.storage,
       config: ctx.config,
+      mailer: ctx.mailer,
     })
     await limited.ready()
     try {
@@ -1058,6 +1061,7 @@ describe('第一阶段收口', () => {
     expect(forgot.statusCode).toBe(200)
     const resetToken = forgot.json().data.token as string
     expect(resetToken).toBeTruthy()
+    expect(ctx.mailer.sent.some((mail) => mail.text.includes(resetToken))).toBe(true)
 
     const reset = await api('/v1/auth/reset-password', {
       method: 'POST',
@@ -1159,6 +1163,7 @@ describe('邀请流程', () => {
     expect(invited.json().data.invited).toBe(true)
     const token = invited.json().data.token as string
     expect(token).toBeTruthy()
+    expect(ctx.mailer.sent.some((mail) => mail.text.includes(token))).toBe(true)
 
     const list = await api('/v1/tenant-invitations')
     expect(list.json().data.some((item: { email: string }) => item.email === 'invitee@example.com')).toBe(true)

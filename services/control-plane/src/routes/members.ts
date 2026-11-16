@@ -93,6 +93,13 @@ export function registerMemberRoutes(
         invitedBy: auth.userId,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       })
+      await deps.mailer
+        .send({
+          to: body.email,
+          subject: '邀请你加入 CloudDeck 工作空间',
+          text: `${deps.config.webOrigin}/accept-invite?token=${token}`,
+        })
+        .catch((error: unknown) => console.error('邀请邮件发送失败', error))
       await audit(deps.db, {
         tenantId,
         actorType: 'user',

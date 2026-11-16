@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Mailer abstraction with mock and HTTP providers; verification, password reset, and invitation emails are sent automatically.
+- `/verify-email` web page.
+- `MAIL_PROVIDER` / `MAIL_HTTP_URL` / `MAIL_HTTP_TOKEN` / `MAIL_FROM` configuration.
+
 ## [0.1.5] - 2026-11-16
 
 ### Added

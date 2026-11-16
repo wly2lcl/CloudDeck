@@ -36,7 +36,7 @@
 | 税务发票 | 只有可打印 HTML 账单 | 合规开票服务 |
 | 移动端推送 | 服务端设备令牌与推送网关就绪；客户端未接 | Firebase/APNs 项目与证书 |
 | 多语言 | 文档与 UI 以中文为主，README 中英双语 | 目标语言文案与本地化评审 |
-| 邮件发送 | 验证/重置/邀请令牌已实现；未接邮件服务，仅开发模式返回令牌 | 配置 SMTP/SES 并关闭 `AUTH_EXPOSE_TOKENS` |
+| 邮件发送 | 验证/重置/邀请邮件已接入 mock/http mailer；未内置 SMTP | 对接 SMTP/SES 网关并关闭 `AUTH_EXPOSE_TOKENS` |
 | 成员邀请 | 支持邀请未注册邮箱并接受；邮件发送仍需外部服务 | 配置 SMTP/SES 并关闭 `AUTH_EXPOSE_TOKENS` |
 | 项目级权限 | 租户内成员可见全部项目 | 增加 project_members 与路由校验 |
 | 实时协作 | 评论 SSE；无多人同时编辑 | CRDT/OT 方案 |

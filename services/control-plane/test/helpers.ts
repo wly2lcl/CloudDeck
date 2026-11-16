@@ -9,6 +9,7 @@ import type { FastifyInstance } from 'fastify'
 import { buildServer } from '../src/app'
 import type { AppConfig } from '../src/config'
 import { syncCapabilities } from '../src/registry'
+import { MockMailer } from '../src/mailer'
 
 export interface TestContext {
   app: FastifyInstance
@@ -16,6 +17,7 @@ export interface TestContext {
   storage: Storage
   storageRoot: string
   config: AppConfig
+  mailer: MockMailer
   cleanup(): Promise<void>
 }
 
@@ -42,6 +44,8 @@ export async function createTestContext(): Promise<TestContext> {
     rateLimitMax: 10_000,
     exposeAuthTokens: true,
     platformAdminEmails: ['owner@example.com'],
+    mailProvider: 'mock',
+    mailFrom: 'CloudDeck <noreply@test.local>',
   }
 
   await syncCapabilities(db, CAPABILITIES_DIR)
@@ -51,7 +55,8 @@ export async function createTestContext(): Promise<TestContext> {
     secret: config.storageLocalSecret,
     publicBase: config.publicApiBase,
   })
-  const app = await buildServer({ db, storage, config })
+  const mailer = new MockMailer()
+  const app = await buildServer({ db, storage, config, mailer })
   await app.ready()
 
   return {
@@ -60,6 +65,7 @@ export async function createTestContext(): Promise<TestContext> {
     storage,
     storageRoot,
     config,
+    mailer,
     async cleanup() {
       await app.close()
       await close()

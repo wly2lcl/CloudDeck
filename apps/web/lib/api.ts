@@ -775,3 +775,7 @@ export async function acceptInvite(
     auth: false,
   })
 }
+
+export async function verifyEmail(token: string): Promise<{ verified: boolean }> {
+  return api('/v1/auth/verify-email', { method: 'POST', body: { token }, auth: false })
+}
