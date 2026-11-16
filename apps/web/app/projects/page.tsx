@@ -5,9 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Nav } from '../../components/nav'
 import { ApiError, api, clearTokens, getToken, type Project } from '../../lib/api'
+import { useI18n } from '../../lib/i18n'
 
 export default function ProjectsPage() {
   const router = useRouter()
+  const { t } = useI18n()
   const [projects, setProjects] = useState<Project[]>([])
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -57,16 +59,16 @@ export default function ProjectsPage() {
       <main className="page">
         <header className="page-head">
           <div>
-            <p className="eyebrow">工作台</p>
-            <h1>项目</h1>
+            <p className="eyebrow">{t('projects.eyebrow')}</p>
+            <h1>{t('projects.title')}</h1>
           </div>
           <form className="row" onSubmit={create}>
             <input
-              placeholder="新项目名称"
+              placeholder={t('projects.newPlaceholder')}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
-            <button type="submit">创建</button>
+            <button type="submit">{t('projects.create')}</button>
           </form>
         </header>
 
@@ -74,7 +76,7 @@ export default function ProjectsPage() {
         {loading ? (
           <p className="muted">加载中…</p>
         ) : projects.length === 0 ? (
-          <p className="muted">还没有项目。上传一部小说，开始你的第一条内容链。</p>
+          <p className="muted">{t('projects.empty')}</p>
         ) : (
           <ul className="list">
             {projects.map((project) => (
@@ -82,7 +84,7 @@ export default function ProjectsPage() {
                 <Link href={`/projects/${project.id}`} className="list-item">
                   <span>
                     <strong>{project.name}</strong>
-                    <small className="muted">{project.description || '暂无描述'}</small>
+                    <small className="muted">{project.description || t('projects.noDescription')}</small>
                   </span>
                   <span className="muted">{new Date(project.createdAt).toLocaleString()}</span>
                 </Link>

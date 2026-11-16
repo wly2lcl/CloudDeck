@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ApiError, api, setTokens } from '../../lib/api'
+import { useI18n } from '../../lib/i18n'
 
 interface AuthResult {
   accessToken: string
@@ -11,6 +12,7 @@ interface AuthResult {
 
 export default function LoginPage() {
   const router = useRouter()
+  const { t } = useI18n()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -40,14 +42,14 @@ export default function LoginPage() {
     <main className="shell">
       <section className="card narrow">
         <p className="eyebrow">CloudDeck</p>
-        <h1>{mode === 'login' ? '登录' : '创建工作空间'}</h1>
+        <h1>{mode === 'login' ? t('login.title') : t('login.registerTitle')}</h1>
         <p className="lede">
-          {mode === 'login' ? '使用邮箱登录你的内容工作台。' : '注册后自动创建一个个人租户。'}
+          {mode === 'login' ? t('login.lede') : t('login.registerLede')}
         </p>
 
         <form onSubmit={submit} className="stack">
           <label>
-            邮箱
+            {t('login.email')}
             <input
               type="email"
               value={email}
@@ -57,7 +59,7 @@ export default function LoginPage() {
             />
           </label>
           <label>
-            密码
+            {t('login.password')}
             <input
               type="password"
               value={password}
@@ -69,7 +71,7 @@ export default function LoginPage() {
           </label>
           {mode === 'register' && (
             <label>
-              昵称（可选）
+              {t('login.name')}
               <input
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
@@ -81,7 +83,7 @@ export default function LoginPage() {
           {error && <p className="error">{error}</p>}
 
           <button type="submit" disabled={busy}>
-            {busy ? '请稍候…' : mode === 'login' ? '登录' : '注册并登录'}
+            {busy ? t('login.busy') : mode === 'login' ? t('login.submit') : t('login.registerSubmit')}
           </button>
         </form>
 
@@ -93,11 +95,11 @@ export default function LoginPage() {
             setError(null)
           }}
         >
-          {mode === 'login' ? '没有账号？创建一个' : '已有账号？去登录'}
+          {mode === 'login' ? t('login.toRegister') : t('login.toLogin')}
         </button>
         {mode === 'login' && (
           <a className="link-button" href="/forgot-password">
-            忘记密码？
+            {t('login.forgot')}
           </a>
         )}
       </section>

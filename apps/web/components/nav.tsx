@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { clearTokens, getMe } from '../lib/api'
+import { useI18n } from '../lib/i18n'
 
 export function Nav() {
   const router = useRouter()
   const [platformAdmin, setPlatformAdmin] = useState(false)
+  const { locale, setLocale, t } = useI18n()
 
   useEffect(() => {
     void getMe()
@@ -21,10 +23,17 @@ export function Nav() {
         <Link href="/projects" className="brand">
           CloudDeck
         </Link>
-        <Link href="/projects">项目</Link>
-        <Link href="/settings">设置</Link>
-        {platformAdmin && <Link href="/admin">管理</Link>}
+        <Link href="/projects">{t('nav.projects')}</Link>
+        <Link href="/settings">{t('nav.settings')}</Link>
+        {platformAdmin && <Link href="/admin">{t('nav.admin')}</Link>}
       </div>
+      <button
+        type="button"
+        className="ghost"
+        onClick={() => setLocale(locale === 'zh' ? 'en' : 'zh')}
+      >
+        {t('nav.lang')}
+      </button>
       <button
         type="button"
         className="ghost"
@@ -33,7 +42,7 @@ export function Nav() {
           router.push('/login')
         }}
       >
-        退出
+        {t('nav.logout')}
       </button>
     </nav>
   )

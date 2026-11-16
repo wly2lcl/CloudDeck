@@ -39,4 +39,8 @@ test('register, create project, upload, run demo capability', async ({ page }) =
   await page.getByRole('link', { name: '设置' }).click()
   await expect(page.getByText('团队与安全')).toBeVisible()
   await expect(page.getByText('审计日志')).toBeVisible()
+
+  await page.getByRole('button', { name: 'EN' }).click()
+  await expect(page.getByRole('link', { name: 'Projects' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
