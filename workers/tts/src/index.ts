@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
 import { createProviderFromEnv, type TtsProvider } from './providers'
@@ -25,6 +25,10 @@ export interface TtsDriverOptions {
   failAtChunk?: number
   /** 并行合成的块数，默认 2 */
   concurrency?: number
+  /** 是否对最终音轨做 EBU R128 响度归一，默认 true */
+  loudnorm?: boolean
+  /** 目标响度，默认 -16 LUFS */
+  targetLufs?: number
 }
 
 interface TtsParams {
@@ -98,6 +102,34 @@ async function listArtifacts(outputDir: string, type: string): Promise<ArtifactS
       path: join(outputDir, file),
       mime: 'audio/wav',
     }))
+}
+
+async function normalizeLoudness(
+  ctx: TaskContext,
+  path: string,
+  targetLufs: number,
+): Promise<boolean> {
+  const output = `${path}.norm.wav`
+  const result = await ctx.commands.run(
+    'ffmpeg',
+    [
+      '-y',
+      '-i',
+      path,
+      '-af',
+      `loudnorm=I=${targetLufs}:TP=-1.5:LRA=11`,
+      '-ar',
+      '24000',
+      output,
+    ],
+    { cwd: ctx.outputDir, timeoutMs: 120_000 },
+  )
+  if (result.exitCode === 0 && (await fileExists(output))) {
+    await rename(output, path)
+    return true
+  }
+  await rm(output, { force: true })
+  return false
 }
 
 export function createTtsDriver(options: TtsDriverOptions = {}): Driver {
@@ -238,7 +270,23 @@ export function createTtsDriver(options: TtsDriverOptions = {}): Driver {
 
       if (chapterBuffers.length > 0) {
         const audiobook = concatWav(chapterBuffers)
-        await writeFile(join(ctx.outputDir, 'audiobook.wav'), audiobook)
+        const audiobookPath = join(ctx.outputDir, 'audiobook.wav')
+        await writeFile(audiobookPath, audiobook)
+        if (options.loudnorm !== false) {
+          const normalized = await normalizeLoudness(
+            ctx,
+            audiobookPath,
+            options.targetLufs ?? -16,
+          )
+          yield {
+            type: 'log',
+            level: normalized ? 'info' : 'warn',
+            message: normalized
+              ? `响度归一完成（${options.targetLufs ?? -16} LUFS）`
+              : 'ffmpeg loudnorm 不可用，保留峰值归一结果',
+            at: at(),
+          }
+        }
       }
 
       const artifacts = await listArtifacts(ctx.outputDir, outputType)
