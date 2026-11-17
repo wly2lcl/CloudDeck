@@ -2160,3 +2160,29 @@ export async function isProjectMember(
   )
   return row?.exists ?? false
 }
+
+export async function getCollabDoc(
+  db: Database,
+  tenantId: string,
+  projectId: string,
+  docId: string,
+): Promise<string | null> {
+  const row = await one<{ state_b64: string }>(
+    db,
+    sql`SELECT state_b64 FROM collab_docs
+        WHERE tenant_id = ${tenantId} AND project_id = ${projectId} AND doc_id = ${docId}`,
+  )
+  return row?.state_b64 ?? null
+}
+
+export async function upsertCollabDoc(
+  db: Database,
+  input: { tenantId: string; projectId: string; docId: string; stateB64: string },
+): Promise<void> {
+  await db.execute(
+    sql`INSERT INTO collab_docs (tenant_id, project_id, doc_id, state_b64)
+        VALUES (${input.tenantId}, ${input.projectId}, ${input.docId}, ${input.stateB64})
+        ON CONFLICT (tenant_id, project_id, doc_id) DO UPDATE
+        SET state_b64 = EXCLUDED.state_b64, updated_at = now()`,
+  )
+}

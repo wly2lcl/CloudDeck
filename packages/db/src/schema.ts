@@ -97,6 +97,18 @@ export const projectMembers = pgTable(
   (table) => [uniqueIndex('project_members_project_user_idx').on(table.projectId, table.userId)],
 )
 
+export const collabDocs = pgTable(
+  'collab_docs',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    docId: text('doc_id').notNull(),
+    stateB64: text('state_b64').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [primaryKey({ columns: [table.tenantId, table.projectId, table.docId] })],
+)
+
 export const invitations = pgTable('invitations', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull(),
@@ -506,6 +518,7 @@ export const schema = {
   emailVerifications,
   apiKeys,
   invitations,
+  collabDocs,
   projectMembers,
   projects,
   assets,

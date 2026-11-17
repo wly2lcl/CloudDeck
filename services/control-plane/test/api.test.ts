@@ -4,7 +4,7 @@ import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CLAUDE_DRIVER_ID, createClaudeCodeDriver } from '@clouddeck/driver-claude-code'
-import { createModelCredential, listModelCredentials, withTenant } from '@clouddeck/db'
+import { createModelCredential, getCollabDoc, listModelCredentials, withTenant } from '@clouddeck/db'
 import { decryptSecret, deriveMasterKey, encryptSecret } from '@clouddeck/secrets'
 import { registerDriver, runOnce, signWebhook } from '@clouddeck/job-runner'
 import { createLlmDriver, LLM_DRIVER_ID } from '@clouddeck/worker-llm'
@@ -1325,11 +1325,32 @@ describe('实时协作', () => {
         }, 3000)
       })
       expect(docB.getText('content').toString()).toBe('协作内容')
+      providerA.destroy()
+      providerB.destroy()
     } finally {
       providerA.destroy()
       providerB.destroy()
       docA.destroy()
       docB.destroy()
     }
+  })
+})
+
+
+describe('协作文档持久化', () => {
+  it('按租户/项目/文档读写 Yjs 状态', async () => {
+    const { upsertCollabDoc } = await import('@clouddeck/db')
+    await withTenant(ctx.db, tenantId, (tx) =>
+      upsertCollabDoc(tx, {
+        tenantId,
+        projectId,
+        docId: 'persist-test',
+        stateB64: Buffer.from('state').toString('base64'),
+      }),
+    )
+    const saved = await withTenant(ctx.db, tenantId, (tx) =>
+      getCollabDoc(tx, tenantId, projectId, 'persist-test'),
+    )
+    expect(saved).toBe(Buffer.from('state').toString('base64'))
   })
 })

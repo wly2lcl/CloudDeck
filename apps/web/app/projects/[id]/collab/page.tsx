@@ -6,7 +6,7 @@ import Link from 'next/link'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { Nav } from '../../../../components/nav'
-import { getApiBase, getToken } from '../../../../lib/api'
+import { api, getApiBase, getToken } from '../../../../lib/api'
 
 export default function CollabPage() {
   const params = useParams<{ id: string }>()
@@ -15,6 +15,8 @@ export default function CollabPage() {
   const [text, setText] = useState('')
   const [status, setStatus] = useState('connecting')
   const [peers, setPeers] = useState(1)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
   const ytextRef = useRef<Y.Text | null>(null)
 
   useEffect(() => {
@@ -51,6 +53,25 @@ export default function CollabPage() {
       ytextRef.current = null
     }
   }, [projectId, router])
+
+  const saveDraft = async () => {
+    setSaving(true)
+    setMessage(null)
+    try {
+      const name = `collab-${new Date().toISOString().slice(0, 19)}.md`
+      const formData = new FormData()
+      formData.append('file', new Blob([text], { type: 'text/markdown' }), name)
+      await api(`/v1/projects/${projectId}/assets?type=novel_manuscript&name=${encodeURIComponent(name)}`, {
+        method: 'POST',
+        formData,
+      })
+      setMessage('已保存为新资产版本')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '保存失败')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const applyText = (value: string) => {
     const ytext = ytextRef.current
@@ -90,9 +111,15 @@ export default function CollabPage() {
               状态：{status} · {peers} 人在线 · 草稿实时同步，暂不自动写入资产版本
             </p>
           </div>
-          <Link href={`/projects/${projectId}`} className="ghost">
-            返回项目
-          </Link>
+          <div className="row">
+            {message && <span className="muted">{message}</span>}
+            <button type="button" onClick={() => void saveDraft()} disabled={saving}>
+              {saving ? '保存中…' : '保存为资产'}
+            </button>
+            <Link href={`/projects/${projectId}`} className="ghost">
+              返回项目
+            </Link>
+          </div>
         </header>
         <section className="panel">
           <textarea
