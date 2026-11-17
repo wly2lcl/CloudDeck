@@ -12,6 +12,12 @@ All notable changes to this project are documented here. The format follows
 - Subtitle burn-in via `subtitles`/libass when available; runner image installs Noto CJK fonts.
 - `VIDEO_CROSSFADE` / `VIDEO_BURN_SUBTITLES` toggles.
 
+## [Unreleased]
+
+### Verified
+
+- Runner image produces a 1.76s clip with xfade crossfade and burned-in Chinese subtitles.
+
 ## [0.1.19] - 2026-11-17
 
 ### Added
