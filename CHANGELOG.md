@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Video crossfade via ffmpeg `xfade` when available, with fade fallback.
+- Subtitle burn-in via `subtitles`/libass when available; runner image installs Noto CJK fonts.
+- `VIDEO_CROSSFADE` / `VIDEO_BURN_SUBTITLES` toggles.
+
 ## [0.1.19] - 2026-11-17
 
 ### Added

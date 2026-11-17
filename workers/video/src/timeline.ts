@@ -91,3 +91,35 @@ export function fadeFilter(durationMs: number): string {
   const fade = Math.min(0.3, duration / 4)
   return `fade=t=in:st=0:d=${fade.toFixed(3)},fade=t=out:st=${(duration - fade).toFixed(3)}:d=${fade.toFixed(3)}`
 }
+
+export interface XfadePlan {
+  filter: string
+  outputLabel: string
+  durationMs: number
+  transitionMs: number
+}
+
+/** 生成 xfade 链式滤镜；输入为各镜头时长（毫秒）。 */
+export function buildXfadeFilter(durationsMs: number[], transitionMs = 500): XfadePlan {
+  if (durationsMs.length < 2) throw new Error('xfade 至少需要两个镜头')
+  const shortest = Math.min(...durationsMs)
+  const transition = Math.max(100, Math.min(transitionMs, Math.floor(shortest / 4)))
+  const parts: string[] = []
+  let previous = '[0:v]'
+  let cumulative = durationsMs[0] as number
+  for (let index = 1; index < durationsMs.length; index += 1) {
+    const outputLabel = `[v${index}]`
+    const offset = Math.max(0, cumulative - transition * index) / 1000
+    parts.push(
+      `${previous}[${index}:v]xfade=transition=fade:duration=${(transition / 1000).toFixed(3)}:offset=${offset.toFixed(3)}${outputLabel}`,
+    )
+    previous = outputLabel
+    cumulative += durationsMs[index] as number
+  }
+  return {
+    filter: parts.join(';'),
+    outputLabel: previous,
+    durationMs: cumulative - transition * (durationsMs.length - 1),
+    transitionMs: transition,
+  }
+}

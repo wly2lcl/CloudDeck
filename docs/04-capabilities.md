@@ -3,7 +3,7 @@
 > **实现状态（v0.1.4 开发中）**：
 > `novel.edit` 支持向量 RAG（配置 `EMBEDDING_HTTP_URL/MODEL` 时）与词法 RAG-lite 回退；
 > 有声合成默认 2 路并发，每块做峰值归一，最终音轨优先用 ffmpeg loudnorm 归一到 -16 LUFS；
-> 视频镜头加入首尾淡入淡出，仍不是交叉溶解转场；`voice_profile` 资产类型已定义但
+> 视频在 ffmpeg 支持 xfade 时使用交叉溶解，字幕可烧录（runner 镜像已带 libass/CJK 字体）；`voice_profile` 资产类型已定义但
 > 尚未接入 manifest，音色通过 `params.voiceMap` 或角色音色库 `voiceProfileId` 传入。
 
 ## 能力包结构

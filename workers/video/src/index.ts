@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
 import { createShotFrame } from './bmp'
-import { buildTimeline, fadeFilter, parseStoryboard, toSrt, totalDurationMs } from './timeline'
+import { buildTimeline, buildXfadeFilter, fadeFilter, parseStoryboard, toSrt, totalDurationMs } from './timeline'
 
 export const VIDEO_DRIVER_ID = 'workers/video'
 
@@ -11,6 +11,8 @@ export interface VideoDriverOptions {
   width?: number
   height?: number
   fps?: number
+  crossfade?: boolean
+  burnSubtitles?: boolean
 }
 
 const at = () => new Date().toISOString()
@@ -83,6 +85,15 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
 
       await writeFile(join(ctx.outputDir, 'subtitles.srt'), toSrt(timeline))
 
+      const filtersProbe = await ctx.commands.run(ffmpeg, ['-hide_banner', '-filters'], {
+        cwd: ctx.outputDir,
+        timeoutMs: 30_000,
+      }).catch(() => null)
+      const filterList = filtersProbe?.stdout ?? ''
+      const useXfade = options.crossfade !== false && filterList.includes(' xfade ')
+      const canBurnSubtitles =
+        options.burnSubtitles !== false && filterList.includes(' subtitles ')
+
       const clips: string[] = []
       for (const item of timeline) {
         if (ctx.signal.aborted) {
@@ -103,7 +114,7 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
             '-t',
             seconds,
             '-vf',
-            `zoompan=z='min(zoom+0.0015,1.12)':d=${Math.max(1, Math.round(fps * (item.durationMs / 1000)))}:s=${width}x${height}:fps=${fps},${fadeFilter(item.durationMs)}`,
+            `zoompan=z='min(zoom+0.0015,1.12)':d=${Math.max(1, Math.round(fps * (item.durationMs / 1000)))}:s=${width}x${height}:fps=${fps}${useXfade ? '' : `,${fadeFilter(item.durationMs)}`}`,
             '-pix_fmt',
             'yuv420p',
             '-c:v',
@@ -138,16 +149,59 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         clips.map((clip) => `file '${clip}'`).join('\n'),
       )
 
-      const concat = await ctx.commands.run(
-        ffmpeg,
-        ['-y', '-f', 'concat', '-safe', '0', '-i', 'clips.txt', '-c', 'copy', 'silent.mp4'],
-        { cwd: ctx.outputDir, signal: ctx.signal, timeoutMs: 120_000 },
-      )
-      if (concat.exitCode !== 0) {
-        yield { type: 'error', code: 'FFMPEG_FAILED', message: tail(concat.stderr), retryable: true, at: at() }
-        return
+      let transitionApplied = false
+      if (useXfade && clips.length > 1) {
+        const plan = buildXfadeFilter(
+          timeline.map((item) => item.durationMs),
+          500,
+        )
+        const args = ['-y']
+        for (const clip of clips) args.push('-i', clip)
+        args.push(
+          '-filter_complex',
+          plan.filter,
+          '-map',
+          plan.outputLabel,
+          '-c:v',
+          'libx264',
+          '-preset',
+          'veryfast',
+          '-pix_fmt',
+          'yuv420p',
+          '-an',
+          'silent.mp4',
+        )
+        const xfade = await ctx.commands.run(ffmpeg, args, {
+          cwd: ctx.outputDir,
+          signal: ctx.signal,
+          timeoutMs: 300_000,
+        })
+        transitionApplied = xfade.exitCode === 0
+        if (!transitionApplied) {
+          yield {
+            type: 'log',
+            level: 'warn',
+            message: `xfade 失败，回退直接拼接: ${tail(xfade.stderr)}`,
+            at: at(),
+          }
+        }
+      }
+      if (!transitionApplied) {
+        const concat = await ctx.commands.run(
+          ffmpeg,
+          ['-y', '-f', 'concat', '-safe', '0', '-i', 'clips.txt', '-c', 'copy', 'silent.mp4'],
+          { cwd: ctx.outputDir, signal: ctx.signal, timeoutMs: 120_000 },
+        )
+        if (concat.exitCode !== 0) {
+          yield { type: 'error', code: 'FFMPEG_FAILED', message: tail(concat.stderr), retryable: true, at: at() }
+          return
+        }
       }
 
+      const burn = canBurnSubtitles
+      const videoArgs = burn
+        ? ['-vf', 'subtitles=subtitles.srt', '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
+        : ['-c:v', 'copy']
       if (audioInput) {
         const mux = await ctx.commands.run(
           ffmpeg,
@@ -157,8 +211,7 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
             'silent.mp4',
             '-i',
             audioInput.path,
-            '-c:v',
-            'copy',
+            ...videoArgs,
             '-c:a',
             'aac',
             '-shortest',
@@ -170,6 +223,16 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         )
         if (mux.exitCode !== 0) {
           yield { type: 'error', code: 'FFMPEG_FAILED', message: tail(mux.stderr), retryable: true, at: at() }
+          return
+        }
+      } else if (burn) {
+        const burned = await ctx.commands.run(
+          ffmpeg,
+          ['-y', '-i', 'silent.mp4', ...videoArgs, '-movflags', '+faststart', 'video.mp4'],
+          { cwd: ctx.outputDir, signal: ctx.signal, timeoutMs: 300_000 },
+        )
+        if (burned.exitCode !== 0) {
+          yield { type: 'error', code: 'FFMPEG_FAILED', message: tail(burned.stderr), retryable: true, at: at() }
           return
         }
       } else {

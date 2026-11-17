@@ -69,6 +69,8 @@ const DRIVERS: Record<string, DriverFactory> = {
       width: Number(process.env.VIDEO_WIDTH ?? 640),
       height: Number(process.env.VIDEO_HEIGHT ?? 360),
       fps: Number(process.env.VIDEO_FPS ?? 25),
+      crossfade: process.env.VIDEO_CROSSFADE !== 'false',
+      burnSubtitles: process.env.VIDEO_BURN_SUBTITLES !== 'false',
     }),
 }
 

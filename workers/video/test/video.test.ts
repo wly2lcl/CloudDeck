@@ -128,3 +128,15 @@ describe('转场', () => {
     expect(filter).toContain('st=0.750')
   })
 })
+
+describe('交叉溶解', () => {
+  it('生成链式 xfade 滤镜与偏移', async () => {
+    const { buildXfadeFilter } = await import('../src/timeline')
+    const plan = buildXfadeFilter([1000, 1000, 1000], 500)
+    expect(plan.filter).toContain('xfade=transition=fade')
+    expect(plan.filter).toContain('offset=0.750')
+    expect(plan.filter).toContain('offset=1.500')
+    expect(plan.outputLabel).toBe('[v2]')
+    expect(plan.durationMs).toBe(2500)
+  })
+})
