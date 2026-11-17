@@ -57,7 +57,7 @@
 - Kubernetes 清单（`infra/k8s`）与 Prometheus 告警规则（`infra/observability`）已提供；备份/恢复脚本完成一次真实演练，生产周期性演练与异地备份仍缺失。
 - 控制面输出结构化 JSON 日志；job-runner 仍为文本日志。
 - `/metrics` 为全局聚合，未按租户拆分。
-- 读接口基线约 4k rps；demo.echo 20 任务实测 p50 349ms、p95 569ms、总耗时 30s（单机 compose，runner 默认并发 1）。
+- 读接口基线约 4k rps；demo.echo 20 任务 p50 349ms、p95 569ms；audiobook 5 任务（伪 TTS）p50 411ms、p95 455ms，均单机 compose、runner 默认并发 1。
 - 无负载均衡下的 SSE 粘性会话配置示例。
 - 孤儿对象清理需手动执行 `pnpm cleanup:storage`（默认 dry-run）；工作区按 `WORKSPACE_TTL_HOURS` 自动清理。
 

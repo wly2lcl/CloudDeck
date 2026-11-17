@@ -12,7 +12,7 @@
 | 协作草稿保存资产 | 已完成 | Web 编辑器「保存为资产」创建 `novel_manuscript` 资产 |
 | SBOM 与依赖审计 | 已完成 | `pnpm sbom` 生成 CycloneDX 1.5，CI 归档 `sbom.json` |
 | 备份自动化 | 已完成（脚本） | `backup-docker.sh` / `restore-docker.sh`，支持 compose 容器与存储卷 |
-| 媒体容量基线 | 待做 | 有声/视频并发任务压测与资源画像 |
+| 媒体容量基线 | 已完成（有声） | 5 个 audiobook 任务（伪 TTS）p50 411ms、p95 455ms、总耗时 30s；视频与真实 TTS 待补 |
 | 可观测性面板 | 已完成（模板） | `infra/observability/dashboard.json` 提供任务、5xx、用量面板 |
 | K8s 校验 | 已完成（基础） | `pnpm k8s:check` 校验 YAML 结构与必填字段，纳入 `pnpm check` |
 | 网关 job token | 已完成（接口） | `POST /v1/jobs/:id/gateway-token` 签发 5 分钟 token；driver 自动接入待做 |

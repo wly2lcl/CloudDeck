@@ -27,6 +27,12 @@ All notable changes to this project are documented here. The format follows
 
 - Short-lived gateway job tokens (`POST /v1/jobs/:id/gateway-token`, 5 minutes) accepted by `/v1/gateway/chat`.
 
+## [Unreleased]
+
+### Verified
+
+- Audiobook media baseline: 5 fake-TTS jobs, p50 411ms, p95 455ms, 30s wall time on single-node compose.
+
 ## [0.1.16] - 2026-11-17
 
 ### Added
