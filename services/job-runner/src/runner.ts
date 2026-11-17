@@ -10,6 +10,7 @@ import {
   createAsset,
   getAssetVersionDetail,
   getCapability,
+  getVoiceProfile,
   insertJobArtifact,
   insertUsage,
   isCancelRequested,
@@ -21,6 +22,7 @@ import {
   releaseQuota,
   setJobStatus,
   sumJobUsage,
+  withTenant,
   type Database,
   type JobRow,
 } from '@clouddeck/db'
@@ -365,6 +367,24 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
       })
     }, 250)
 
+    let jobParams = job.params as Record<string, unknown>
+    if (capability.id === 'audiobook.render' && typeof jobParams.voiceProfileId === 'string') {
+      const profile = await withTenant(deps.db, job.tenant_id, (tx) =>
+        getVoiceProfile(tx, job.tenant_id, jobParams.voiceProfileId as string),
+      ).catch(() => null)
+      if (profile) {
+        const existingMap =
+          jobParams.voiceMap && typeof jobParams.voiceMap === 'object'
+            ? (jobParams.voiceMap as Record<string, string>)
+            : {}
+        jobParams = {
+          ...jobParams,
+          defaultVoice: profile.voice_id,
+          voiceMap: { ...profile.role_map, ...existingMap },
+        }
+      }
+    }
+
     const ctx: TaskContext = {
       jobId: job.id,
       tenantId: job.tenant_id,
@@ -374,7 +394,7 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
         outputs: capability.manifest.outputs,
         ...(systemPrompt ? { systemPrompt } : {}),
       },
-      params: job.params,
+      params: jobParams,
       inputs,
       workspace,
       outputDir,

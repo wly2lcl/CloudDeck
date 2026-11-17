@@ -97,6 +97,22 @@ export const projectMembers = pgTable(
   (table) => [uniqueIndex('project_members_project_user_idx').on(table.projectId, table.userId)],
 )
 
+export const voiceProfiles = pgTable(
+  'voice_profiles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    name: text('name').notNull(),
+    provider: text('provider').notNull().default('dashscope'),
+    voiceId: text('voice_id').notNull(),
+    roleMap: jsonb('role_map').notNull().default({}),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [uniqueIndex('voice_profiles_tenant_name_idx').on(table.tenantId, table.name)],
+)
+
 export const collabDocs = pgTable(
   'collab_docs',
   {
@@ -520,6 +536,7 @@ export const schema = {
   apiKeys,
   invitations,
   collabDocs,
+  voiceProfiles,
   projectMembers,
   projects,
   assets,

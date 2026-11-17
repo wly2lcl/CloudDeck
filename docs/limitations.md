@@ -12,9 +12,9 @@
 | 字幕 | 输出独立 SRT；当前 ffmpeg 构建无 libass，不做烧录 | 使用带 libass 的 ffmpeg 或引入字幕渲染步骤 |
 | 音画同步 | 只在短视频上抽检，未做 3 分钟级基线 | 增加媒体回归样例与测量 |
 | GPU | compose GPU profile 已提供，未做真实调度验证 | 提供 NVIDIA 节点并跑基准 |
-| 有声质量 | 默认 2 路并发；每块峰值归一，最终音轨用 ffmpeg loudnorm 归一到 -16 LUFS（失败回退峰值） | 增加按角色音色与自适应并发 |
+| 有声质量 | 2 路并发、峰值归一、最终 -16 LUFS；角色音色库已接入 `voiceProfileId` | 增加音色试听与自适应并发 |
 | 视频转场 | 镜头首尾淡入淡出，无交叉溶解 | 引入 xfade/转场步骤 |
-| 检索增强 | 章节级 RAG-lite（关键词+就近），非向量检索 | 引入 embedding 与引用溯源 |
+| 检索增强 | 配置 embedding 时走向量 RAG，否则词法 RAG-lite；暂无引用溯源 | 增加引用标注与缓存 |
 | 统一模型网关 | 控制面 `/gateway/chat`；任务创建签发 token，runner 注入后 LLM worker 走网关 | 增加跨 provider 自动路由与预算硬熔断 |
 | Webhook 投递 | 自动重试 3 次；支持手动 replay | 增加死信队列与定时补偿 |
 

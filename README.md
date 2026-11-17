@@ -37,7 +37,7 @@ Two ideas define the project:
 - Durable jobs: PostgreSQL queue, SSE progress, cancel, retry, checkpoint resume.
 - Delivery: signed webhooks with retries and manual replay.
 - Sandboxes: local process or Docker (optional gVisor runtime), per-job workspace.
-- Drivers: Claude Code with chapter-level RAG-lite, OpenAI-compatible LLM with fallback gateway and control-plane `/gateway/chat`, DashScope TTS with concurrent chunks, peak normalization, and EBU R128 loudnorm, ffmpeg video with fades.
+- Drivers: Claude Code with vector RAG (embedding optional) / lexical fallback, OpenAI-compatible LLM with fallback gateway and control-plane `/gateway/chat`, DashScope TTS with voice-profile library, concurrent chunks, and EBU R128 loudnorm, ffmpeg video with fades.
 - Commercial: plans and quotas with pre-deduction, usage ledger, reconciliation,
   invoice snapshots, capability toggles, templates and public template market,
   read-only shares, member management and tenant audit logs.

@@ -2195,3 +2195,67 @@ export async function upsertCollabDoc(
         SET state_b64 = EXCLUDED.state_b64, updated_at = now()`,
   )
 }
+
+export interface VoiceProfileRow {
+  id: string
+  tenant_id: string
+  name: string
+  provider: string
+  voice_id: string
+  role_map: Record<string, string>
+  description: string | null
+  created_at: Date
+  updated_at: Date
+}
+
+export async function listVoiceProfiles(db: Database, tenantId: string): Promise<VoiceProfileRow[]> {
+  return rows<VoiceProfileRow>(
+    db,
+    sql`SELECT * FROM voice_profiles WHERE tenant_id = ${tenantId} ORDER BY created_at DESC`,
+  )
+}
+
+export async function getVoiceProfile(
+  db: Database,
+  tenantId: string,
+  id: string,
+): Promise<VoiceProfileRow | null> {
+  return one<VoiceProfileRow>(
+    db,
+    sql`SELECT * FROM voice_profiles WHERE tenant_id = ${tenantId} AND id = ${id}`,
+  )
+}
+
+export async function createVoiceProfile(
+  db: Database,
+  input: {
+    tenantId: string
+    name: string
+    provider: string
+    voiceId: string
+    roleMap?: Record<string, string>
+    description?: string
+  },
+): Promise<VoiceProfileRow> {
+  const row = await one<VoiceProfileRow>(
+    db,
+    sql`INSERT INTO voice_profiles (tenant_id, name, provider, voice_id, role_map, description)
+        VALUES (${input.tenantId}, ${input.name}, ${input.provider}, ${input.voiceId},
+                ${json(input.roleMap ?? {})}, ${input.description ?? null})
+        RETURNING *`,
+  )
+  if (!row) throw new Error('创建音色配置失败')
+  return row
+}
+
+export async function deleteVoiceProfile(
+  db: Database,
+  tenantId: string,
+  id: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM voice_profiles WHERE tenant_id = ${tenantId} AND id = ${id} RETURNING id`,
+  )
+  return row !== null
+}

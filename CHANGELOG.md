@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Vector RAG for `novel.edit` when `EMBEDDING_HTTP_URL/MODEL` are configured, with lexical RAG-lite fallback.
+- Tenant voice-profile library (`/v1/voice-profiles`) and `voiceProfileId` injection for audiobook jobs.
+- Settings UI to manage voice profiles.
+
 ## [0.1.18] - 2026-11-17
 
 ### Added

@@ -521,6 +521,38 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '429': { $ref: '#/components/responses/Error' }
+  /v1/voice-profiles:
+    get:
+      tags: [capabilities]
+      summary: List tenant voice profiles
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [capabilities]
+      summary: Create a voice profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, voiceId]
+              properties:
+                name: { type: string }
+                provider: { type: string }
+                voiceId: { type: string }
+                roleMap: { type: object, additionalProperties: { type: string } }
+                description: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/voice-profiles/{id}:
+    delete:
+      tags: [capabilities]
+      summary: Delete a voice profile
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
   /v1/capabilities:
     get:
       tags: [capabilities]

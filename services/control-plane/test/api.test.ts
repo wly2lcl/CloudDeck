@@ -1363,3 +1363,25 @@ describe('协作文档持久化', () => {
     expect(saved).toBe(Buffer.from('state').toString('base64'))
   })
 })
+
+describe('角色音色库', () => {
+  it('创建、列出并删除音色配置', async () => {
+    const created = await api('/v1/voice-profiles', {
+      method: 'POST',
+      payload: {
+        name: '旁白音色',
+        provider: 'dashscope',
+        voiceId: 'longanhuan_v3.1',
+        roleMap: { 旁白: 'longanhuan_v3.1' },
+      },
+    })
+    expect(created.statusCode).toBe(201)
+    const id = created.json().data.id as string
+
+    const list = await api('/v1/voice-profiles')
+    expect(list.json().data.some((item: { id: string }) => item.id === id)).toBe(true)
+
+    const deleted = await api(`/v1/voice-profiles/${id}`, { method: 'DELETE' })
+    expect(deleted.statusCode).toBe(200)
+  })
+})

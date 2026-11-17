@@ -35,6 +35,7 @@ interface TtsParams {
   defaultVoice?: string
   voiceMap?: string | Record<string, string>
   maxCharsPerChunk?: number
+  voiceProfile?: { voiceId?: string; roleMap?: Record<string, string> }
 }
 
 const at = () => new Date().toISOString()

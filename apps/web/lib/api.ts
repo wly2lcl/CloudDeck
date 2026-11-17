@@ -783,3 +783,31 @@ export async function acceptInvite(
 export async function verifyEmail(token: string): Promise<{ verified: boolean }> {
   return api('/v1/auth/verify-email', { method: 'POST', body: { token }, auth: false })
 }
+
+export interface VoiceProfile {
+  id: string
+  name: string
+  provider: string
+  voiceId: string
+  roleMap: Record<string, string>
+  description: string | null
+  createdAt: string
+}
+
+export async function getVoiceProfiles(): Promise<VoiceProfile[]> {
+  return api<VoiceProfile[]>('/v1/voice-profiles')
+}
+
+export async function createVoiceProfile(input: {
+  name: string
+  provider: string
+  voiceId: string
+  roleMap: Record<string, string>
+  description?: string
+}): Promise<VoiceProfile> {
+  return api<VoiceProfile>('/v1/voice-profiles', { method: 'POST', body: input })
+}
+
+export async function deleteVoiceProfile(id: string): Promise<void> {
+  await api(`/v1/voice-profiles/${id}`, { method: 'DELETE' })
+}

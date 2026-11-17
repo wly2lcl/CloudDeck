@@ -13,8 +13,11 @@ import {
   createModelCredential,
   createProjectFromTemplate,
   createTemplate,
+  createVoiceProfile,
   deleteModelCredential,
   deleteTemplate,
+  deleteVoiceProfile,
+  getVoiceProfiles,
   getApiKeys,
   getAuditLogs,
   getMembers,
@@ -47,6 +50,7 @@ import {
   type Reconciliation,
   type Template,
   type Tenant,
+  type VoiceProfile,
 } from '../../lib/api'
 
 const TIERS: Tenant['tier'][] = ['free', 'pro', 'team']
@@ -71,6 +75,10 @@ export default function SettingsPage() {
   const [apiKeyName, setApiKeyName] = useState('')
   const [newApiKey, setNewApiKey] = useState<string | null>(null)
   const [newInviteToken, setNewInviteToken] = useState<string | null>(null)
+  const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([])
+  const [voiceName, setVoiceName] = useState('')
+  const [voiceId, setVoiceId] = useState('longanhuan_v3.1')
+  const [voiceRoleMap, setVoiceRoleMap] = useState('{"旁白":"longanhuan_v3.1"}')
   const [credentialProvider, setCredentialProvider] = useState('dashscope')
   const [credentialLabel, setCredentialLabel] = useState('')
   const [credentialSecret, setCredentialSecret] = useState('')
@@ -111,14 +119,16 @@ export default function SettingsPage() {
       setReconciliation(reconciliationData)
       setInvoices(invoiceData)
       setPublicTemplates(publicTemplateData)
-      const [memberData, keyData, auditData] = await Promise.all([
+      const [memberData, keyData, auditData, voiceData] = await Promise.all([
         getMembers(tenantData.id),
         getApiKeys(),
         getAuditLogs(),
+        getVoiceProfiles(),
       ])
       setMembers(memberData)
       setApiKeys(keyData)
       setAuditLogs(auditData)
+      setVoiceProfiles(voiceData as VoiceProfile[])
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         clearTokens()
@@ -246,6 +256,39 @@ export default function SettingsPage() {
       setApiKeys(await getApiKeys())
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '撤销 API Key 失败')
+    }
+  }
+
+  const addVoiceProfile = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!voiceName.trim() || !voiceId.trim()) return
+    let roleMap: Record<string, string> = {}
+    try {
+      roleMap = JSON.parse(voiceRoleMap) as Record<string, string>
+    } catch {
+      setError('角色音色映射必须是 JSON')
+      return
+    }
+    try {
+      await createVoiceProfile({
+        name: voiceName.trim(),
+        provider: 'dashscope',
+        voiceId: voiceId.trim(),
+        roleMap,
+      })
+      setVoiceProfiles(await getVoiceProfiles())
+      setVoiceName('')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '创建音色失败')
+    }
+  }
+
+  const dropVoiceProfile = async (profile: VoiceProfile) => {
+    try {
+      await deleteVoiceProfile(profile.id)
+      setVoiceProfiles(await getVoiceProfiles())
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '删除音色失败')
     }
   }
 
@@ -595,6 +638,45 @@ export default function SettingsPage() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="panel">
+          <h2>角色音色库</h2>
+          <ul className="list">
+            {voiceProfiles.map((profile) => (
+              <li key={profile.id} className="list-item">
+                <div>
+                  <strong>{profile.name}</strong>
+                  <p className="muted">
+                    {profile.voiceId} · ID: {profile.id}
+                  </p>
+                </div>
+                <button type="button" className="ghost" onClick={() => void dropVoiceProfile(profile)}>
+                  删除
+                </button>
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={addVoiceProfile} className="stack">
+            <input
+              placeholder="音色名称，如 旁白"
+              value={voiceName}
+              onChange={(event) => setVoiceName(event.target.value)}
+              required
+            />
+            <input
+              placeholder="voice_id，如 longanhuan_v3.1"
+              value={voiceId}
+              onChange={(event) => setVoiceId(event.target.value)}
+              required
+            />
+            <input
+              placeholder='角色映射 JSON，如 {"旁白":"longanhuan_v3.1"}'
+              value={voiceRoleMap}
+              onChange={(event) => setVoiceRoleMap(event.target.value)}
+            />
+            <button type="submit">添加音色</button>
+          </form>
         </section>
 
         <section className="panel">

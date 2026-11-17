@@ -65,6 +65,8 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | PATCH | `/admin/capabilities/:id` | 全局启用/停用能力 |
 | POST | `/gateway/chat` | 控制面模型网关（预算校验 + OpenAI 兼容代理） |
 | WS | `/collab/:room?token=` | Yjs 实时协作房间（room=`projectId_docId`） |
+| GET/POST | `/voice-profiles` | 角色音色库列表/创建 |
+| DELETE | `/voice-profiles/:id` | 删除音色 |
 | GET | `/tenant` | 当前租户与角色 |
 | PATCH | `/tenant` | 切换套餐（owner/admin） |
 

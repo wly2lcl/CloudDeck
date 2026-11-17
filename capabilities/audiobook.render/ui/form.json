@@ -17,6 +17,11 @@
       "default": 200,
       "minimum": 50,
       "maximum": 1000
+    },
+    "voiceProfileId": {
+      "type": "string",
+      "title": "音色库 ID（可选）",
+      "default": ""
     }
   }
 }

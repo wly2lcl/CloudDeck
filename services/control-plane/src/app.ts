@@ -28,6 +28,7 @@ import { registerShareRoutes } from './routes/shares'
 import { registerStorageRoutes } from './routes/storage'
 import { registerTemplateRoutes } from './routes/templates'
 import { registerTenantRoutes } from './routes/tenant'
+import { registerVoiceProfileRoutes } from './routes/voiceProfiles'
 import { registerWebhookRoutes } from './routes/webhooks'
 
 export interface BuildServerOptions {
@@ -162,6 +163,7 @@ export async function buildServer(
   registerTemplateRoutes(app, deps, guard)
   registerShareRoutes(app, deps, guard)
   registerWebhookRoutes(app, deps, guard)
+  registerVoiceProfileRoutes(app, deps, guard)
   registerStorageRoutes(app, deps)
 
   return app

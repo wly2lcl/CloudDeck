@@ -1,6 +1,7 @@
 import { access, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
+import { createEmbedderFromEnv, selectVectorContext } from './embeddings'
 import { selectContext } from './retrieval'
 
 export const CLAUDE_DRIVER_ID = 'drivers/claude-code'
@@ -118,7 +119,15 @@ async function buildPrompt(ctx: TaskContext): Promise<string> {
     if (!/^(text\/|application\/json)/.test(input.mime)) continue
     const text = await readFile(input.path, 'utf8').catch(() => '')
     if (!text) continue
-    const snippet = selectContext(text, instruction, params.chapter as string | undefined)
+    const embedder = createEmbedderFromEnv(ctx.env)
+    const snippet = embedder
+      ? await selectVectorContext(
+          text,
+          instruction,
+          params.chapter as string | undefined,
+          embedder,
+        ).catch(() => selectContext(text, instruction, params.chapter as string | undefined))
+      : selectContext(text, instruction, params.chapter as string | undefined)
     if (snippet) context.push(`### ${input.path}\n${snippet}`)
   }
 
