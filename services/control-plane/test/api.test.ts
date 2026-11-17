@@ -1279,3 +1279,57 @@ describe('控制面模型网关', () => {
     }
   })
 })
+
+describe('实时协作', () => {
+  it('两个客户端通过 Yjs 房间同步文本', async () => {
+    const { default: WebSocket } = await import('ws')
+    const Y = await import('yjs')
+    const { WebsocketProvider } = await import('y-websocket')
+    const url = await ensureListening()
+    const wsUrl = url.replace(/^http/, 'ws')
+
+    const docA = new Y.Doc()
+    const docB = new Y.Doc()
+    const providerA = new WebsocketProvider(wsUrl, `${projectId}_manuscript`, docA, {
+      params: { token: accessToken },
+      WebSocketPolyfill: WebSocket as never,
+    })
+    const providerB = new WebsocketProvider(wsUrl, `${projectId}_manuscript`, docB, {
+      params: { token: accessToken },
+      WebSocketPolyfill: WebSocket as never,
+    })
+
+    try {
+      await new Promise<void>((resolve) => {
+        let ready = 0
+        const check = () => {
+          ready += 1
+          if (ready >= 2) resolve()
+        }
+        providerA.on('sync', check)
+        providerB.on('sync', check)
+        setTimeout(resolve, 3000)
+      })
+
+      docA.getText('content').insert(0, '协作内容')
+      await new Promise<void>((resolve) => {
+        const timer = setInterval(() => {
+          if (docB.getText('content').toString() === '协作内容') {
+            clearInterval(timer)
+            resolve()
+          }
+        }, 50)
+        setTimeout(() => {
+          clearInterval(timer)
+          resolve()
+        }, 3000)
+      })
+      expect(docB.getText('content').toString()).toBe('协作内容')
+    } finally {
+      providerA.destroy()
+      providerB.destroy()
+      docA.destroy()
+      docB.destroy()
+    }
+  })
+})

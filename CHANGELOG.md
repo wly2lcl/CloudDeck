@@ -10,6 +10,13 @@ All notable changes to this project are documented here. The format follows
 
 - Mobile zh/en toggle with static label translations across login, projects, settings, project, and job screens.
 
+## [Unreleased]
+
+### Added
+
+- Yjs + y-websocket real-time collaborative draft at `/projects/:id/collab`, with project ACL on the WebSocket handshake.
+- WebSocket sync integration test between two Yjs clients.
+
 ## [0.1.15] - 2026-11-16
 
 ### Added

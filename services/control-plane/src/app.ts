@@ -3,6 +3,7 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
+import websocket from '@fastify/websocket'
 import Fastify, { type FastifyInstance } from 'fastify'
 import rawBody from 'fastify-raw-body'
 import { globalJobStatusCounts, globalUsageTotal } from '@clouddeck/db'
@@ -13,6 +14,7 @@ import { registerAdminRoutes } from './routes/admin'
 import { registerApiKeyRoutes } from './routes/apiKeys'
 import { registerAuthRoutes } from './routes/auth'
 import { registerCapabilityRoutes } from './routes/capabilities'
+import { registerCollabRoutes } from './routes/collab'
 import { registerCommentRoutes } from './routes/comments'
 import { registerCredentialRoutes } from './routes/credentials'
 import { registerDeviceRoutes } from './routes/devices'
@@ -48,6 +50,8 @@ export async function buildServer(
     origin: deps.config.webOrigin,
     credentials: true,
   })
+
+  await app.register(websocket)
 
   await app.register(multipart, {
     limits: { fileSize: 100 * 1024 * 1024, files: 1 },
@@ -151,6 +155,7 @@ export async function buildServer(
   registerJobRoutes(app, deps, guard)
   registerTenantRoutes(app, deps, guard)
   registerCommentRoutes(app, deps, guard)
+  registerCollabRoutes(app, deps)
   registerCredentialRoutes(app, deps, guard)
   registerDeviceRoutes(app, deps, guard)
   registerPaymentRoutes(app, deps, guard)

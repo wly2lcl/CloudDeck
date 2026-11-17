@@ -64,6 +64,7 @@ Base：`/v1`。所有请求/响应 `application/json`（上传与事件流除外
 | GET | `/admin/jobs` | 跨租户任务 |
 | PATCH | `/admin/capabilities/:id` | 全局启用/停用能力 |
 | POST | `/gateway/chat` | 控制面模型网关（预算校验 + OpenAI 兼容代理） |
+| WS | `/collab/:room?token=` | Yjs 实时协作房间（room=`projectId_docId`） |
 | GET | `/tenant` | 当前租户与角色 |
 | PATCH | `/tenant` | 切换套餐（owner/admin） |
 

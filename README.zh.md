@@ -32,7 +32,7 @@ CloudDeck 是可自托管的 AI 内容生产工作台：把「一个想法」推
 - 沙箱：本地进程或 Docker（可选 gVisor），每任务独立工作区
 - 引擎：Claude Code（章节级 RAG-lite）、OpenAI 兼容 LLM（主备降级 + 控制面 `/gateway/chat` 预算代理）、百炼 TTS（峰值归一 + 并发分块）、ffmpeg 视频（淡入淡出）
 - 商业化：套餐配额（预扣）、用量账本、对账、账单快照、能力开关、模板市场、只读分享、成员管理、租户审计
-- 协作：项目评论与 SSE 实时流；可选项目级 ACL
+- 协作：项目评论与 SSE 实时流；可选项目级 ACL；Yjs 实时共享草稿
 - 安全：JWT refresh 轮换与客户端自动续期、API Key、密码重置/邮箱验证、AES-256-GCM 凭据、Helmet、限流、原始 body HMAC 回调、审计日志
 - 客户端：Next.js Web（中英切换）与 Flutter 移动端（中英切换；项目、资产、任务、评论、内容链 DAG、设置/配额、推送令牌注册）
 - 运维：Docker Compose、Kubernetes 清单、Prometheus 告警、存储/工作区清理、备份/恢复脚本、队列压测
