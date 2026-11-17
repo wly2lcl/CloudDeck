@@ -10,11 +10,11 @@
 |---|---|---|
 | Yjs 协作持久化 | 已完成 | `collab_docs` 按租户/项目/文档保存 Yjs 状态，连接时恢复、更新后写回 |
 | 协作草稿保存资产 | 已完成 | Web 编辑器「保存为资产」创建 `novel_manuscript` 资产 |
-| SBOM 与依赖审计 | 待做 | 生成 CycloneDX SBOM，CI 归档并扫描高危依赖 |
-| 备份自动化 | 待做 | 定时 pg_dump + 存储快照，保留策略与失败告警 |
+| SBOM 与依赖审计 | 已完成 | `pnpm sbom` 生成 CycloneDX 1.5，CI 归档 `sbom.json` |
+| 备份自动化 | 已完成（脚本） | `backup-docker.sh` / `restore-docker.sh`，支持 compose 容器与存储卷 |
 | 媒体容量基线 | 待做 | 有声/视频并发任务压测与资源画像 |
-| 可观测性面板 | 待做 | 队列、失败率、成本、SSE 连接数面板 |
-| K8s 校验 | 待做 | kubeconform/kustomize 校验与最小集群 smoke |
+| 可观测性面板 | 已完成（模板） | `infra/observability/dashboard.json` 提供任务、5xx、用量面板 |
+| K8s 校验 | 已完成（基础） | `pnpm k8s:check` 校验 YAML 结构与必填字段，纳入 `pnpm check` |
 | 网关 job token | 待做 | 短期 token、driver 接入、预算硬拦截 |
 
 ## 完成标准

@@ -16,7 +16,7 @@
     "mobile:test": "cd apps/mobile && flutter test",
     "boundaries": "tsx scripts/check-boundaries.ts",
     "smoke:llm": "pnpm --filter @clouddeck/worker-llm smoke",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries && pnpm openapi:check",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundaries && pnpm openapi:check && pnpm k8s:check",
     "format": "prettier --write .",
     "smoke:tts": "pnpm --filter @clouddeck/worker-tts smoke",
     "sandbox:check": "tsx scripts/sandbox-preflight.ts",
@@ -26,7 +26,9 @@
     "build:docs": "tsx scripts/build-docs.ts",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "cleanup:storage": "tsx scripts/cleanup-storage.ts",
-    "load:jobs": "tsx scripts/load-jobs.ts"
+    "load:jobs": "tsx scripts/load-jobs.ts",
+    "sbom": "tsx scripts/sbom.ts",
+    "k8s:check": "tsx scripts/check-k8s.ts"
   },
   "devDependencies": {
     "@clouddeck/db": "workspace:*",

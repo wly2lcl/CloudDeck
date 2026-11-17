@@ -1,0 +1,40 @@
+{
+  "title": "CloudDeck Production",
+  "uid": "clouddeck-production",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Jobs by status",
+      "targets": [{ "expr": "clouddeck_jobs", "legendFormat": "{{status}}" }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HTTP 5xx ratio",
+      "targets": [{
+        "expr": "sum(rate(clouddeck_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(clouddeck_http_requests_total[5m])), 1)",
+        "legendFormat": "5xx ratio"
+      }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Usage USD total",
+      "targets": [{ "expr": "clouddeck_usage_usd_total" }],
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HTTP requests",
+      "targets": [{ "expr": "sum by (status) (rate(clouddeck_http_requests_total[5m]))", "legendFormat": "{{status}}" }],
+      "gridPos": { "h": 6, "w": 16, "x": 8, "y": 8 }
+    }
+  ]
+}

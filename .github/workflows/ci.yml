@@ -58,6 +58,15 @@ jobs:
       - name: OpenAPI 校验
         run: pnpm openapi:check
 
+      - name: 生成 SBOM
+        run: pnpm sbom
+
+      - name: 归档 SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
       - name: 构建 Web
         run: pnpm --filter @clouddeck/web build
 

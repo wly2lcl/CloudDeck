@@ -36,3 +36,6 @@ redis-data/
 site/
 test-results/
 playwright-report/
+
+# 生成的 SBOM
+sbom.json

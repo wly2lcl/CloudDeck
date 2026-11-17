@@ -12,6 +12,15 @@ All notable changes to this project are documented here. The format follows
 - "Save as asset" action in the collaborative editor.
 - Phase 3 production checklist in `docs/14-phase3-production.md`.
 
+## [Unreleased]
+
+### Added
+
+- CycloneDX SBOM generation (`pnpm sbom`) archived by CI.
+- Docker backup/restore scripts for compose Postgres + storage volume.
+- Grafana production dashboard template.
+- K8s manifest structural validation in `pnpm check`.
+
 ## [0.1.16] - 2026-11-17
 
 ### Added
