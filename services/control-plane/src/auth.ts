@@ -9,6 +9,7 @@ export interface AuthContext {
   userId: string
   tenantId: string
   role: string
+  jobId?: string
 }
 
 declare module 'fastify' {
@@ -42,11 +43,20 @@ export function createRefreshToken(): string {
 const secretKey = (secret: string) => new TextEncoder().encode(secret)
 
 export async function issueAccessToken(secret: string, ctx: AuthContext): Promise<string> {
-  return new SignJWT({ tid: ctx.tenantId, role: ctx.role })
+  return new SignJWT({ tid: ctx.tenantId, role: ctx.role, ...(ctx.jobId ? { job: ctx.jobId } : {}) })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(ctx.userId)
     .setIssuedAt()
     .setExpirationTime('15m')
+    .sign(secretKey(secret))
+}
+
+export async function issueJobToken(secret: string, ctx: AuthContext): Promise<string> {
+  return new SignJWT({ tid: ctx.tenantId, role: 'gateway', job: ctx.jobId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(ctx.userId)
+    .setIssuedAt()
+    .setExpirationTime('5m')
     .sign(secretKey(secret))
 }
 
@@ -55,7 +65,12 @@ export async function verifyAccessToken(secret: string, token: string): Promise<
   if (!payload.sub || typeof payload.tid !== 'string' || typeof payload.role !== 'string') {
     throw new Error('令牌载荷不完整')
   }
-  return { userId: payload.sub, tenantId: payload.tid, role: payload.role }
+  return {
+    userId: payload.sub,
+    tenantId: payload.tid,
+    role: payload.role,
+    ...(typeof payload.job === 'string' ? { jobId: payload.job } : {}),
+  }
 }
 
 export function authGuard(secret: string, db: Database) {

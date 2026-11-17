@@ -21,6 +21,12 @@ All notable changes to this project are documented here. The format follows
 - Grafana production dashboard template.
 - K8s manifest structural validation in `pnpm check`.
 
+## [Unreleased]
+
+### Added
+
+- Short-lived gateway job tokens (`POST /v1/jobs/:id/gateway-token`, 5 minutes) accepted by `/v1/gateway/chat`.
+
 ## [0.1.16] - 2026-11-17
 
 ### Added

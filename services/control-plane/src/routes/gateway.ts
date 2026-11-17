@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { getQuotaSnapshot, periodOf, withTenant } from '@clouddeck/db'
-import { requireAuth } from '../auth'
+import { getJob, getQuotaSnapshot, periodOf, withTenant } from '@clouddeck/db'
+import { issueJobToken, requireAuth } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { ok, parseBody } from './helpers'
@@ -24,8 +24,25 @@ export function registerGatewayRoutes(
   deps: AppDeps,
   guard: (request: FastifyRequest) => Promise<void>,
 ): void {
+  app.post('/v1/jobs/:id/gateway-token', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const jobId = String((request.params as { id?: string }).id ?? '')
+    const job = await withTenant(deps.db, auth.tenantId, (tx) =>
+      getJob(tx, auth.tenantId, jobId),
+    )
+    if (!job) throw new AppError('NOT_FOUND', '任务不存在')
+    const token = await issueJobToken(deps.config.authSecret, { ...auth, jobId })
+    return ok(request, { token, expiresIn: 300 })
+  })
+
   app.post('/v1/gateway/chat', { preHandler: guard }, async (request) => {
     const auth = requireAuth(request)
+    if (auth.jobId) {
+      const job = await withTenant(deps.db, auth.tenantId, (tx) =>
+        getJob(tx, auth.tenantId, auth.jobId as string),
+      )
+      if (!job) throw new AppError('NOT_FOUND', '任务不存在')
+    }
     const body = parseBody(chatSchema, request.body)
     if (!deps.config.gatewayBaseUrl) {
       throw new AppError('CAPABILITY_UNAVAILABLE', '模型网关未配置')

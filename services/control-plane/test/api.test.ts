@@ -1273,6 +1273,15 @@ describe('控制面模型网关', () => {
       expect(response.statusCode).toBe(200)
       expect(response.json().data.text).toBe('echo:test-model')
       expect(response.json().data.usage.inputTokens).toBe(3)
+
+      const jobToken = await api(`/v1/jobs/${completedJobId}/gateway-token`, { method: 'POST' })
+      expect(jobToken.statusCode).toBe(200)
+      const viaJob = await api('/v1/gateway/chat', {
+        method: 'POST',
+        token: jobToken.json().data.token,
+        payload: { messages: [{ role: 'user', content: 'hello' }], maxTokens: 16 },
+      })
+      expect(viaJob.statusCode).toBe(200)
     } finally {
       ctx.config.gatewayBaseUrl = previous
       await new Promise<void>((resolve) => server.close(() => resolve()))

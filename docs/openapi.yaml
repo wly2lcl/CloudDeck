@@ -592,6 +592,15 @@ paths:
         - { name: projectId, in: query, schema: { type: string, format: uuid } }
       responses:
         '200': { $ref: '#/components/responses/Ok' }
+  /v1/jobs/{id}/gateway-token:
+    post:
+      tags: [jobs]
+      summary: Issue a short-lived model gateway token for a job
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '404': { $ref: '#/components/responses/Error' }
   /v1/jobs/{id}:
     parameters: [{ $ref: '#/components/parameters/JobId' }]
     get:

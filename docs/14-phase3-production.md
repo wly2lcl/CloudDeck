@@ -15,7 +15,7 @@
 | 媒体容量基线 | 待做 | 有声/视频并发任务压测与资源画像 |
 | 可观测性面板 | 已完成（模板） | `infra/observability/dashboard.json` 提供任务、5xx、用量面板 |
 | K8s 校验 | 已完成（基础） | `pnpm k8s:check` 校验 YAML 结构与必填字段，纳入 `pnpm check` |
-| 网关 job token | 待做 | 短期 token、driver 接入、预算硬拦截 |
+| 网关 job token | 已完成（接口） | `POST /v1/jobs/:id/gateway-token` 签发 5 分钟 token；driver 自动接入待做 |
 
 ## 完成标准
 
