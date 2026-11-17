@@ -82,6 +82,7 @@ export interface RunnerDeps {
   env?: NodeJS.ProcessEnv
   workspaceRoot?: string
   credentialsKey?: string
+  gatewayUrl?: string
   webhooks?: WebhookDispatchOptions
   push?: PushOptions
 }
@@ -339,6 +340,10 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
       job.tenant_id,
       capability.manifest.permissions.secrets,
     )
+    if (job.gateway_token) {
+      env.MODEL_GATEWAY_TOKEN = job.gateway_token
+      if (deps.gatewayUrl) env.MODEL_GATEWAY_URL = deps.gatewayUrl
+    }
 
     const commands = deps.commands ?? new LocalSandbox()
 

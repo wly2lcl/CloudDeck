@@ -138,7 +138,63 @@ export class HttpLlmProvider implements LlmProvider {
   }
 }
 
+export class GatewayHttpProvider implements LlmProvider {
+  readonly name = 'gateway-http'
+
+  constructor(
+    private readonly options: {
+      url: string
+      token: string
+      pricePer1kTokensUsd?: number
+      timeoutMs?: number
+    },
+  ) {}
+
+  async complete(request: LlmRequest): Promise<LlmResult> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 120_000)
+    try {
+      const response = await fetch(`${this.options.url.replace(/\/$/, '')}/v1/gateway/chat`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.options.token}`,
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: request.system },
+            { role: 'user', content: request.prompt },
+          ],
+          maxTokens: 2048,
+        }),
+        signal: controller.signal,
+      })
+      if (!response.ok) throw new Error(`模型网关返回 ${response.status}`)
+      const payload = (await response.json()) as {
+        data?: { text?: string; usage?: { inputTokens?: number; outputTokens?: number } }
+      }
+      const inputTokens = payload.data?.usage?.inputTokens ?? 0
+      const outputTokens = payload.data?.usage?.outputTokens ?? 0
+      return {
+        text: payload.data?.text ?? '',
+        inputTokens,
+        outputTokens,
+        costUsd: ((inputTokens + outputTokens) / 1000) * (this.options.pricePer1kTokensUsd ?? 0.002),
+      }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+}
+
 export function createLlmProviderFromEnv(env: NodeJS.ProcessEnv): LlmProvider | undefined {
+  if (env.MODEL_GATEWAY_URL && env.MODEL_GATEWAY_TOKEN) {
+    return new GatewayHttpProvider({
+      url: env.MODEL_GATEWAY_URL,
+      token: env.MODEL_GATEWAY_TOKEN,
+      pricePer1kTokensUsd: Number(env.LLM_PRICE_PER_1K_TOKENS ?? 0.002),
+    })
+  }
   if (!env.LLM_HTTP_URL || !env.LLM_MODEL) return undefined
   const primary = new HttpLlmProvider({
     baseUrl: env.LLM_HTTP_URL,

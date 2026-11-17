@@ -33,6 +33,12 @@ All notable changes to this project are documented here. The format follows
 
 - Audiobook media baseline: 5 fake-TTS jobs, p50 411ms, p95 455ms, 30s wall time on single-node compose.
 
+## [Unreleased]
+
+### Added
+
+- Jobs issue a 30-minute gateway token at creation; runner injects `MODEL_GATEWAY_TOKEN` and the LLM worker calls the control-plane gateway.
+
 ## [0.1.16] - 2026-11-17
 
 ### Added

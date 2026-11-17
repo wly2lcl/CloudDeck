@@ -19,6 +19,7 @@ import {
   listJobs,
   periodOf,
   requestCancel,
+  setJobGatewayToken,
   reserveQuota,
   resumeJob,
   retryJob,
@@ -26,7 +27,7 @@ import {
   type JobRow,
 } from '@clouddeck/db'
 import { audit } from '../audit'
-import { requireAuth, requireRole } from '../auth'
+import { issueJobToken, requireAuth, requireRole } from '../auth'
 import { assertProjectAccess } from '../project-access'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
@@ -141,6 +142,11 @@ export function registerJobRoutes(
         createdBy: auth.userId,
       })
       await incrementQuotaJobs(tx, auth.tenantId, period)
+      const gatewayToken = await issueJobToken(deps.config.authSecret, {
+        ...auth,
+        jobId: created.id,
+      })
+      await setJobGatewayToken(tx, created.id, gatewayToken)
       return created
     })
 

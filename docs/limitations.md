@@ -15,7 +15,7 @@
 | 有声质量 | 默认 2 路并发；峰值归一，未做 EBU R128 响度 | 接入 loudnorm 与按字符自适应并发 |
 | 视频转场 | 镜头首尾淡入淡出，无交叉溶解 | 引入 xfade/转场步骤 |
 | 检索增强 | 章节级 RAG-lite（关键词+就近），非向量检索 | 引入 embedding 与引用溯源 |
-| 统一模型网关 | 控制面 `/gateway/chat` + 5 分钟 job token；driver 尚未自动携带 token | 将 runner 接入网关 token |
+| 统一模型网关 | 控制面 `/gateway/chat`；任务创建签发 token，runner 注入后 LLM worker 走网关 | 增加跨 provider 自动路由与预算硬熔断 |
 | Webhook 投递 | 自动重试 3 次；支持手动 replay | 增加死信队列与定时补偿 |
 
 ## 沙箱与安全

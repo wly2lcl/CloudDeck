@@ -60,6 +60,7 @@ async function main(): Promise<void> {
     capabilitiesDir: process.env.CAPABILITIES_DIR ?? `${REPO_ROOT}capabilities`,
     workspaceRoot,
     credentialsKey: process.env.CREDENTIALS_KEY ?? process.env.AUTH_SECRET,
+    gatewayUrl: process.env.MODEL_GATEWAY_URL ?? process.env.PUBLIC_API_BASE,
     env: process.env,
     push: {
       provider: process.env.PUSH_PROVIDER === 'http' ? 'http' : 'mock',

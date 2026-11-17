@@ -9,6 +9,7 @@ data:
   HOST: 0.0.0.0
   WEB_ORIGIN: https://clouddeck.example.com
   PUBLIC_API_BASE: https://api.clouddeck.example.com
+  MODEL_GATEWAY_URL: http://control-plane:4310
   STORAGE_DIR: /data/storage
   WORKSPACE_ROOT: /data/workspaces
   WORKSPACE_TTL_HOURS: '24'

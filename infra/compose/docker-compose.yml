@@ -59,6 +59,7 @@ services:
       STORAGE_DIR: /data/storage
       CAPABILITIES_DIR: /app/capabilities
       PUBLIC_API_BASE: ${PUBLIC_API_BASE:-http://localhost:4310}
+      MODEL_GATEWAY_URL: http://control-plane:4310
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       CONTROL_PLANE_PORT: 4310
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
@@ -87,6 +88,7 @@ services:
       WORKSPACE_ROOT: /data/workspaces
       CAPABILITIES_DIR: /app/capabilities
       PUBLIC_API_BASE: ${PUBLIC_API_BASE:-http://localhost:4310}
+      MODEL_GATEWAY_URL: http://control-plane:4310
       TTS_PROVIDER: ${TTS_PROVIDER:-fake}
       TTS_MODEL: ${TTS_MODEL:-qwen-audio-3.1-tts-flash}
       TTS_DEFAULT_VOICE: ${TTS_DEFAULT_VOICE:-longanhuan_v3.1}

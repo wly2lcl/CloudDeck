@@ -244,6 +244,7 @@ export const jobs = pgTable(
     status: text('status').notNull().default('queued'),
     driverId: text('driver_id').notNull(),
     params: jsonb('params').notNull().default({}),
+    gatewayToken: text('gateway_token'),
     inputAssets: jsonb('input_assets').notNull().default([]),
     outputAssets: jsonb('output_assets').notNull().default([]),
     estimatedCostUsd: numeric('estimated_cost_usd', { precision: 12, scale: 4 }).notNull().default('0'),

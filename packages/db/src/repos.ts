@@ -430,6 +430,7 @@ export interface JobRow {
   capability_version: string
   status: JobStatus
   driver_id: string
+  gateway_token: string | null
   params: Record<string, unknown>
   input_assets: { assetId: string; version: number }[]
   output_assets: { assetId: string; version: number; name: string; type: string }[]
@@ -564,6 +565,14 @@ export async function setJobStatus(
           finished_at = CASE WHEN ${status} IN ('succeeded','failed','cancelled') THEN now() ELSE finished_at END
         WHERE id = ${jobId}`,
   )
+}
+
+export async function setJobGatewayToken(
+  db: Database,
+  jobId: string,
+  token: string,
+): Promise<void> {
+  await db.execute(sql`UPDATE jobs SET gateway_token = ${token} WHERE id = ${jobId}`)
 }
 
 export async function claimNextJob(db: Database): Promise<JobRow | null> {

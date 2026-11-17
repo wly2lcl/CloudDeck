@@ -56,7 +56,7 @@ export async function issueJobToken(secret: string, ctx: AuthContext): Promise<s
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(ctx.userId)
     .setIssuedAt()
-    .setExpirationTime('5m')
+    .setExpirationTime('30m')
     .sign(secretKey(secret))
 }
 
