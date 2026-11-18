@@ -31,6 +31,13 @@ function defaultStyle(index: number): TrackStyle {
   }
 }
 
+const STYLE_PRESETS: { id: string; name: string; style: TrackStyle }[] = [
+  { id: 'default', name: '默认', style: { fontSize: '20', alignment: '2', marginV: '24', outline: '1' } },
+  { id: 'large', name: '大字幕', style: { fontSize: '28', alignment: '2', marginV: '32', outline: '2' } },
+  { id: 'top', name: '顶部双语', style: { fontSize: '18', alignment: '8', marginV: '20', outline: '1' } },
+  { id: 'minimal', name: '极简', style: { fontSize: '16', alignment: '2', marginV: '16', outline: '0' } },
+]
+
 function styleString(style: TrackStyle): string {
   return `FontName=Noto Sans CJK SC,FontSize=${style.fontSize},PrimaryColour=&HFFFFFF&,Outline=${style.outline},Alignment=${style.alignment},MarginV=${style.marginV}`
 }
@@ -50,6 +57,7 @@ function Waveform({
   url,
   cues,
   selectedIndex,
+  snapEnabled,
   onSeek,
   onBoundary,
   onMove,
@@ -57,6 +65,7 @@ function Waveform({
   url: string
   cues: SubtitleCue[]
   selectedIndex: number
+  snapEnabled: boolean
   onSeek(ms: number, shift: boolean): void
   onBoundary(index: number, edge: 'start' | 'end', ms: number): void
   onMove(index: number, startMs: number): void
@@ -144,6 +153,7 @@ function Waveform({
   }, [peaks, cues, duration, selectedIndex])
 
   const snap = (ms: number, excludeIndex: number): number => {
+    if (!snapEnabled) return Math.max(0, Math.round(ms))
     const candidates: number[] = [0, Math.round(ms / 10) * 10]
     cues.forEach((cue, index) => {
       if (index === excludeIndex) return
@@ -228,7 +238,7 @@ function Waveform({
           dragRef.current = null
         }}
       />
-      <p className="muted">拖拽橙色/蓝色边界调整起止，拖拽字幕中段整体移动；邻近边界自动吸附，点击空白处定位。</p>
+      <p className="muted">拖拽橙色/蓝色边界调整起止，拖拽字幕中段整体移动；吸附开关开启时邻近边界自动吸附。</p>
     </div>
   )
 }
@@ -245,6 +255,8 @@ export default function SubtitleEditorPage() {
   const [mediaUrl, setMediaUrl] = useState('')
   const [audioUrl, setAudioUrl] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+  const [presetId, setPresetId] = useState('default')
+  const [snapEnabled, setSnapEnabled] = useState(true)
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null)
 
   const mediaAssets = [
@@ -424,6 +436,16 @@ export default function SubtitleEditorPage() {
     }
   }
 
+  const applyPreset = (scope: 'active' | 'all') => {
+    const preset = STYLE_PRESETS.find((item) => item.id === presetId)
+    if (!preset) return
+    setTracks((items) =>
+      items.map((track, index) =>
+        scope === 'all' || index === activeTrack ? { ...track, style: { ...preset.style } } : track,
+      ),
+    )
+  }
+
   const activeStyle = tracks[activeTrack]?.style ?? defaultStyle(0)
   const subtitleStyles = tracks.map((track) => styleString(track.style))
   const updateStyle = (patch: Partial<TrackStyle>) => {
@@ -512,6 +534,7 @@ export default function SubtitleEditorPage() {
             url={audioUrl}
             cues={cues}
             selectedIndex={selectedCue}
+            snapEnabled={snapEnabled}
             onSeek={align}
             onBoundary={dragBoundary}
             onMove={moveCue}
@@ -567,6 +590,32 @@ export default function SubtitleEditorPage() {
 
         <section className="panel">
           <h2>样式</h2>
+          <div className="row">
+            <label>
+              预设
+              <select value={presetId} onChange={(event) => setPresetId(event.target.value)}>
+                {STYLE_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="ghost" onClick={() => applyPreset('active')}>
+              应用到当前轨道
+            </button>
+            <button type="button" className="ghost" onClick={() => applyPreset('all')}>
+              应用到全部轨道
+            </button>
+            <label>
+              <input
+                type="checkbox"
+                checked={snapEnabled}
+                onChange={(event) => setSnapEnabled(event.target.checked)}
+              />
+              开启吸附
+            </label>
+          </div>
           <div className="row">
             <label>
               字号
