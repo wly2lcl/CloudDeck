@@ -39,3 +39,6 @@ playwright-report/
 
 # 生成的 SBOM
 sbom.json
+
+# LLM 评测报告
+eval-report.json

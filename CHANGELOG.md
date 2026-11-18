@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Fixed LLM eval set (`evals/`) with automatic checks, heuristic baseline, per-case error handling, and `pnpm eval:llm`.
+- Real-model eval attempted; provider returned 429 after retries, recorded as `model-error`.
+
 ## [0.1.21] - 2026-11-18
 
 ### Added

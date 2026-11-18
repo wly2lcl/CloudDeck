@@ -89,6 +89,7 @@ cd apps/mobile && flutter analyze && flutter test
 - [安全与计费](docs/08-security-billing.md) / [部署](docs/deployment.md) / [限制](docs/limitations.md)
 - [Kubernetes 清单](infra/k8s/README.md) / [可观测性](infra/observability/README.md)
 - [合规](docs/13-compliance.md) / [ADR](docs/adr/)
+- [LLM 评测集](docs/15-llm-eval.md)
 - [在线文档站](https://wly2lcl.github.io/CloudDeck/)
 
 ## 已知限制

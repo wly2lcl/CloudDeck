@@ -144,6 +144,7 @@ docs/               architecture, contracts, API, ADRs, deployment
 | [Kubernetes](infra/k8s/README.md) | production manifests |
 | [Observability](infra/observability/README.md) | metrics, alerts, logs |
 | [Limitations](docs/limitations.md) | known gaps and unblock conditions |
+| [LLM eval](docs/15-llm-eval.md) | fixed cases, scoring, model comparison |
 | [Compliance](docs/13-compliance.md) | legal and content checklist |
 | [ADRs](docs/adr/) | 17 architecture decisions |
 | [Docs site](https://wly2lcl.github.io/CloudDeck/) | Rendered documentation and ADRs |

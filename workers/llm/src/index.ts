@@ -171,7 +171,7 @@ export function buildStoryboardHeuristic(
   return { title, shots }
 }
 
-function scriptPrompt(text: string): string {
+export function scriptPrompt(text: string): string {
   return [
     '把下面的小说文本改编为中文剧本，输出 JSON。',
     'JSON 结构：{"title":string,"acts":[{"title":string,"scenes":[{"title":string,"summary":string,"characters":string[],"dialogues":[{"role":string,"line":string}]}]}]}',
@@ -182,7 +182,7 @@ function scriptPrompt(text: string): string {
   ].join('\n')
 }
 
-function storyboardPrompt(script: string, shotsPerScene: number): string {
+export function storyboardPrompt(script: string, shotsPerScene: number): string {
   return [
     '把下面的剧本拆成分镜，输出 JSON。',
     'JSON 结构：{"title":string,"shots":[{"index":number,"scene":string,"description":string,"shotSize":string,"camera":string,"durationMs":number}]}',

@@ -1,0 +1,49 @@
+{
+  "cases": [
+    {
+      "id": "novel-continue",
+      "kind": "novel",
+      "input": "evals/fixtures/novel.md",
+      "instruction": "续写下一段，保持悬疑氛围与第三人称视角，约 600-1200 字。",
+      "checks": {
+        "minChars": 500,
+        "maxChars": 1600,
+        "mustInclude": [
+          "林晚",
+          "灯塔"
+        ],
+        "forbiddenPhrases": [
+          "仿佛",
+          "不禁",
+          "嘴角微微上扬"
+        ],
+        "maxClicheCount": 1
+      }
+    },
+    {
+      "id": "script-json",
+      "kind": "script",
+      "input": "evals/fixtures/novel.md",
+      "checks": {
+        "json": true,
+        "minScenes": 2,
+        "mustInclude": [
+          "林晚",
+          "灯塔"
+        ]
+      }
+    },
+    {
+      "id": "storyboard-json",
+      "kind": "storyboard",
+      "input": "evals/fixtures/script.md",
+      "checks": {
+        "json": true,
+        "minShots": 4,
+        "mustInclude": [
+          "林晚"
+        ]
+      }
+    }
+  ]
+}

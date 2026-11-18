@@ -67,6 +67,15 @@ jobs:
           name: sbom
           path: sbom.json
 
+      - name: LLM 评测基线
+        run: pnpm eval:llm
+
+      - name: 归档评测报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-eval
+          path: eval-report.json
+
       - name: 构建 Web
         run: pnpm --filter @clouddeck/web build
 
