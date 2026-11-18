@@ -41,3 +41,16 @@ pnpm eval:llm
 ## 引用溯源
 
 `novel.edit` 的 RAG 选中章节会写入任务产物的 `citations.json`（资产名 `citations`），可用于人工核对生成内容引用了哪些章节。
+
+## 检索评测
+
+```sh
+SILICONFLOW_API_KEY=... pnpm eval:retrieval
+```
+
+- 语料：`evals/fixtures/large-novel.md`（8 章）
+- 用例：`evals/retrieval-cases.json`（问题、目标章节、目标短语）
+- 输出：词法 vs 向量检索的章节命中、短语命中与引用行号
+- 实测：4/4 用例词法/向量均命中，向量引用定位到具体行
+
+`citations.json` 现在包含 `chapter`、`startLine`、`endLine`、`score`，可直接定位原文段落。

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Paragraph-level vector retrieval with line-number citations in `citations.json`.
+- Larger 8-chapter retrieval fixture and `pnpm eval:retrieval` lexical-vs-vector report (4/4 queries hit).
+
 ## [0.1.30] - 2026-11-18
 
 ### Added

@@ -1,4 +1,3 @@
-import { selectContext, splitChapters } from './retrieval'
 
 export interface Embedder {
   embed(texts: string[]): Promise<number[][]>
@@ -61,6 +60,101 @@ function cosine(a: number[], b: number[]): number {
 }
 
 /** 向量 RAG：按 embedding 相似度选章节，显式章节优先，带相邻章节。 */
+export interface RetrievedChunk {
+  chapter: string
+  startLine: number
+  endLine: number
+  text: string
+  score: number
+}
+
+export interface RetrievalResult {
+  context: string
+  citations: RetrievedChunk[]
+}
+
+interface ParagraphChunk {
+  chapter: string
+  startLine: number
+  endLine: number
+  text: string
+}
+
+function splitParagraphs(text: string): ParagraphChunk[] {
+  const lines = text.split('\n')
+  const chunks: ParagraphChunk[] = []
+  let chapter = '全文'
+  let buffer: string[] = []
+  let start = 1
+  const flush = (endLine: number) => {
+    const body = buffer.join('\n').trim()
+    if (body) chunks.push({ chapter, startLine: start, endLine, text: body })
+    buffer = []
+  }
+  lines.forEach((line, index) => {
+    if (/^第.+章/.test(line.trim())) {
+      flush(index)
+      chapter = line.trim()
+      buffer = [line]
+      start = index + 1
+      return
+    }
+    if (!line.trim()) {
+      flush(index)
+      start = index + 2
+      return
+    }
+    if (buffer.length === 0) start = index + 1
+    buffer.push(line)
+  })
+  flush(lines.length)
+  return chunks
+}
+
+/** 段落级向量检索：返回上下文与带行号的引用。 */
+export async function selectVectorContextDetailed(
+  text: string,
+  instruction: string,
+  chapter: string | undefined,
+  embedder: Embedder,
+  maxChars = 12_000,
+): Promise<RetrievalResult> {
+  if (!text.trim()) return { context: '', citations: [] }
+  const chunks = splitParagraphs(text)
+  if (chunks.length === 0) return { context: '', citations: [] }
+
+  const query = `${instruction}\n${chapter ?? ''}`.trim() || '继续写作'
+  const vectors = await embedder.embed([query, ...chunks.map((chunk) => chunk.text)])
+  const queryVector = vectors[0] as number[]
+  const scored = chunks.map((chunk, index) => {
+    const boost = chapter && chunk.chapter.includes(chapter) ? 1 : 0
+    return {
+      chunk,
+      score: cosine(queryVector, vectors[index + 1] ?? []) + boost,
+    }
+  })
+
+  const selected: RetrievedChunk[] = []
+  let total = 0
+  for (const entry of scored.sort((a, b) => b.score - a.score)) {
+    if (total + entry.chunk.text.length > maxChars && selected.length > 0) continue
+    selected.push({ ...entry.chunk, score: entry.score })
+    total += entry.chunk.text.length
+    if (total >= maxChars) break
+  }
+  selected.sort((a, b) => a.startLine - b.startLine)
+  return {
+    context: selected
+      .map(
+        (chunk) =>
+          `### ${chunk.chapter}（第${chunk.startLine}-${chunk.endLine}行）\n${chunk.text}`,
+      )
+      .join('\n\n'),
+    citations: selected,
+  }
+}
+
+/** 兼容旧调用：只返回上下文字符串。 */
 export async function selectVectorContext(
   text: string,
   instruction: string,
@@ -68,35 +162,5 @@ export async function selectVectorContext(
   embedder: Embedder,
   maxChars = 12_000,
 ): Promise<string> {
-  const chapters = splitChapters(text)
-  if (chapters.length <= 1) return selectContext(text, instruction, chapter, maxChars)
-
-  const query = `${instruction}\n${chapter ?? ''}`.trim() || '继续写作'
-  const vectors = await embedder.embed([query, ...chapters.map((item) => item.body)])
-  const queryVector = vectors[0] as number[]
-  const scores = chapters.map((item, index) => {
-    const boost = chapter && item.title.includes(chapter) ? 1 : 0
-    return {
-      index,
-      score: cosine(queryVector, vectors[index + 1] ?? []) + boost + index / chapters.length / 100,
-    }
-  })
-
-  const selected = new Set<number>()
-  let total = 0
-  for (const entry of [...scores].sort((a, b) => b.score - a.score)) {
-    const body = chapters[entry.index]?.body ?? ''
-    if (total + body.length > maxChars && selected.size > 0) continue
-    selected.add(entry.index)
-    total += body.length
-    if (total >= maxChars) break
-  }
-  for (const index of [...selected]) {
-    if (index > 0) selected.add(index - 1)
-  }
-
-  return [...selected]
-    .sort((a, b) => a - b)
-    .map((index) => `### ${chapters[index]?.title}\n${chapters[index]?.body}`)
-    .join('\n\n')
+  return (await selectVectorContextDetailed(text, instruction, chapter, embedder, maxChars)).context
 }

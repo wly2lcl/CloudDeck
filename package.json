@@ -30,7 +30,8 @@
     "sbom": "tsx scripts/sbom.ts",
     "k8s:check": "tsx scripts/check-k8s.ts",
     "eval:llm": "tsx scripts/eval-llm.ts",
-    "smoke:embedding": "tsx scripts/embedding-smoke.ts"
+    "smoke:embedding": "tsx scripts/embedding-smoke.ts",
+    "eval:retrieval": "tsx scripts/eval-retrieval.ts"
   },
   "devDependencies": {
     "@clouddeck/db": "workspace:*",

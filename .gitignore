@@ -42,3 +42,6 @@ sbom.json
 
 # LLM 评测报告
 eval-report.json
+
+# 检索评测报告
+retrieval-report.json

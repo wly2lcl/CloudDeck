@@ -1,7 +1,7 @@
 import { access, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
-import { createEmbedderFromEnv, selectVectorContext } from './embeddings'
+import { createEmbedderFromEnv, selectVectorContextDetailed } from './embeddings'
 import { selectContext } from './retrieval'
 
 export const CLAUDE_DRIVER_ID = 'drivers/claude-code'
@@ -116,23 +116,40 @@ async function buildPrompt(ctx: TaskContext): Promise<string> {
       : '请按模式处理输入文件。'
 
   const context: string[] = []
-  const citations: { assetId: string; name: string; chapters: string[] }[] = []
+  const citations: {
+    assetId: string
+    name: string
+    chapters: { chapter: string; startLine: number; endLine: number; score: number }[]
+  }[] = []
   for (const input of ctx.inputs) {
     if (!/^(text\/|application\/json)/.test(input.mime)) continue
     const text = await readFile(input.path, 'utf8').catch(() => '')
     if (!text) continue
     const embedder = createEmbedderFromEnv(ctx.env)
-    const snippet = embedder
-      ? await selectVectorContext(
+    const detailed = embedder
+      ? await selectVectorContextDetailed(
           text,
           instruction,
           params.chapter as string | undefined,
           embedder,
-        ).catch(() => selectContext(text, instruction, params.chapter as string | undefined))
-      : selectContext(text, instruction, params.chapter as string | undefined)
+        ).catch(() => null)
+      : null
+    const snippet = detailed?.context ?? selectContext(text, instruction, params.chapter as string | undefined)
     if (snippet) {
       context.push(`### ${input.path}\n${snippet}`)
-      const chapters = [...snippet.matchAll(/^### (.+)$/gm)].map((match) => match[1] as string)
+      const chapters =
+        detailed?.citations.map((chunk) => ({
+          chapter: chunk.chapter,
+          startLine: chunk.startLine,
+          endLine: chunk.endLine,
+          score: Number(chunk.score.toFixed(4)),
+        })) ??
+        [...snippet.matchAll(/^### (.+)$/gm)].map((match) => ({
+          chapter: match[1] as string,
+          startLine: 0,
+          endLine: 0,
+          score: 0,
+        }))
       citations.push({ assetId: input.assetId, name: input.path.split('/').pop() ?? input.path, chapters })
     }
   }

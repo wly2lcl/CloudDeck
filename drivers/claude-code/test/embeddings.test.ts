@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createEmbedderFromEnv, selectVectorContext, type Embedder } from '../src/embeddings'
+import {
+  createEmbedderFromEnv,
+  selectVectorContext,
+  selectVectorContextDetailed,
+  type Embedder,
+} from '../src/embeddings'
 
 const NOVEL = [
   '第一章 雨夜',
@@ -55,5 +60,12 @@ describe('向量 RAG', () => {
     const context = await selectVectorContext(NOVEL, '检查', '第三章', embedder)
     expect(context).toContain('第三章 旧信')
     expect(context).toContain('第二章 灯塔')
+  })
+
+  it('返回段落级行号引用', async () => {
+    const result = await selectVectorContextDetailed(NOVEL, '灯塔 守塔人', undefined, embedder)
+    expect(result.citations.length).toBeGreaterThan(0)
+    expect(result.citations.every((chunk) => chunk.startLine > 0 && chunk.endLine >= chunk.startLine)).toBe(true)
+    expect(result.context).toMatch(/第\d+-\d+行/)
   })
 })
