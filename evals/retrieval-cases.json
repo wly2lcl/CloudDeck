@@ -1,9 +1,45 @@
 {
   "fixture": "evals/fixtures/large-novel.md",
   "cases": [
-    { "query": "母亲留下的旧信写了什么？", "chapter": "第三章 旧信", "phrase": "不要相信灯塔的光" },
-    { "query": "守塔人为什么隐瞒真相？", "chapter": "第七章 对峙", "phrase": "父亲还活着" },
-    { "query": "航海日志最后一页是谁的名字？", "chapter": "第六章 航海日志", "phrase": "父亲的名字" },
-    { "query": "林晚在哪里找到父亲？", "chapter": "第八章 北岛地下室", "phrase": "地下室" }
+    {
+      "query": "母亲留下的旧信写了什么？",
+      "chapter": "第三章 旧信",
+      "phrase": "不要相信灯塔的光"
+    },
+    {
+      "query": "守塔人为什么隐瞒真相？",
+      "chapter": "第七章 对峙",
+      "phrase": "父亲还活着"
+    },
+    {
+      "query": "航海日志最后一页是谁的名字？",
+      "chapter": "第六章 航海日志",
+      "phrase": "父亲的名字"
+    },
+    {
+      "query": "林晚在哪里找到父亲？",
+      "chapter": "第八章 北岛地下室",
+      "phrase": "地下室"
+    },
+    {
+      "query": "记者为什么停止追查海难？",
+      "chapter": "第十章 记者",
+      "phrase": "匿名威胁"
+    },
+    {
+      "query": "母亲为什么不让林晚去找父亲？",
+      "chapter": "第十一章 母亲",
+      "phrase": "不能让林晚去找他"
+    },
+    {
+      "query": "父亲当年为什么假死？",
+      "chapter": "第十二章 真相",
+      "phrase": "欠下巨债"
+    },
+    {
+      "query": "林晚最后有没有公开真相？",
+      "chapter": "第十三章 选择",
+      "phrase": "公开真相"
+    }
   ]
 }

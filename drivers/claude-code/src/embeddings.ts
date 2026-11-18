@@ -46,6 +46,21 @@ export function createEmbedderFromEnv(env: NodeJS.ProcessEnv): Embedder | undefi
   return undefined
 }
 
+function bigrams(value: string): Set<string> {
+  const clean = value.replace(/[\s，。！？、；：“”‘’（）《》【】,.!?;:()-]/g, '')
+  const result = new Set<string>()
+  for (let i = 0; i < clean.length - 1; i += 1) result.add(clean.slice(i, i + 2))
+  return result
+}
+
+function keywordOverlap(text: string, query: string): number {
+  const queryTokens = bigrams(query)
+  const textTokens = bigrams(text)
+  let hits = 0
+  for (const token of queryTokens) if (textTokens.has(token)) hits += 1
+  return queryTokens.size > 0 ? hits / queryTokens.size : 0
+}
+
 function cosine(a: number[], b: number[]): number {
   let dot = 0
   let normA = 0
@@ -118,6 +133,7 @@ export async function selectVectorContextDetailed(
   chapter: string | undefined,
   embedder: Embedder,
   maxChars = 12_000,
+  maxChunks = 10,
 ): Promise<RetrievalResult> {
   if (!text.trim()) return { context: '', citations: [] }
   const chunks = splitParagraphs(text)
@@ -130,13 +146,17 @@ export async function selectVectorContextDetailed(
     const boost = chapter && chunk.chapter.includes(chapter) ? 1 : 0
     return {
       chunk,
-      score: cosine(queryVector, vectors[index + 1] ?? []) + boost,
+      score:
+        cosine(queryVector, vectors[index + 1] ?? []) +
+        boost +
+        keywordOverlap(chunk.text, query) * 0.15,
     }
   })
 
   const selected: RetrievedChunk[] = []
   let total = 0
   for (const entry of scored.sort((a, b) => b.score - a.score)) {
+    if (selected.length >= maxChunks) break
     if (total + entry.chunk.text.length > maxChars && selected.length > 0) continue
     selected.push({ ...entry.chunk, score: entry.score })
     total += entry.chunk.text.length

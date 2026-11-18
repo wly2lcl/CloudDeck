@@ -48,9 +48,17 @@ pnpm eval:llm
 SILICONFLOW_API_KEY=... pnpm eval:retrieval
 ```
 
-- 语料：`evals/fixtures/large-novel.md`（8 章）
-- 用例：`evals/retrieval-cases.json`（问题、目标章节、目标短语）
-- 输出：词法 vs 向量检索的章节命中、短语命中与引用行号
-- 实测：4/4 用例词法/向量均命中，向量引用定位到具体行
+- 语料：`evals/fixtures/large-novel.md`（14 章）
+- 用例：`evals/retrieval-cases.json`（8 条问题、目标章节、目标短语）
+- 输出：词法 vs 向量的章节召回、短语召回、引用精确率与行号
+
+实测（top-10 段落）：
+
+| 模式 | 章节召回 | 短语召回 | 引用精确率 | 章节引用精确率 | 平均引用数 |
+|---|---:|---:|---:|---:|---:|
+| 词法 | 100% | 100% | — | — | — |
+| 向量 | 87.5% | 75% | 7.5% | 18.8% | 10 |
+
+结论：向量检索能定位到具体行，但 top-10 段落包含较多低相关段落，精确率仍是下一阶段优化重点。
 
 `citations.json` 现在包含 `chapter`、`startLine`、`endLine`、`score`，可直接定位原文段落。

@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Retrieval evaluation expanded to 14 chapters / 8 cases with chapter recall, phrase recall, citation precision, chapter citation precision, and average citation count.
+- Vector scoring adds keyword overlap to embedding similarity; top-10 chunk budget.
+
+### Verified
+
+- Lexical 100%/100%; vector 87.5% chapter recall / 75% phrase recall; citations locate specific lines.
+
 ## [0.1.33] - 2026-11-18
 
 ### Added
