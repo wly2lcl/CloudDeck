@@ -15,7 +15,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Verified
 
-- SiliconFlow `BAAI/bge-m3` real embedding: 1024 dimensions, 2/2 chapters selected on the eval fixture.
+- SiliconFlow `BAAI/bge-m3` real embedding: 1024 dimensions; a 5-chapter fixture query selected the letter chapter plus neighbors.
 
 ## [0.1.22] - 2026-11-18
 
