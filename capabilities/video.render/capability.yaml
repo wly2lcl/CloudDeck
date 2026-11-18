@@ -13,6 +13,10 @@ inputs:
     label: 配音
     assetTypes: [audio_track]
     required: false
+  - name: subtitles
+    label: 字幕
+    assetTypes: [document]
+    required: false
 outputs:
   - name: video
     assetType: video

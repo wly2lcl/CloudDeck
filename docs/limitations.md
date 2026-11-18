@@ -9,7 +9,7 @@
 | 真实 LLM | 支持 OpenAI 兼容端点；无密钥时使用启发式生成 | 配置 `LLM_HTTP_URL` / `LLM_MODEL` / `LLM_HTTP_TOKEN` |
 | 真实 TTS | 支持百炼 `qwen-audio-3.1-tts-flash`；无密钥时使用 fake WAV | 配置 `BAILIAN_API_KEY` |
 | 视频 | 确定性 ffmpeg 合成（Ken Burns + 混音）；无生成式视频 | 选定视频模型并接入新 driver |
-| 字幕 | 输出独立 SRT；runner 镜像带 libass + Noto CJK，支持 `force_style` 字体/字号/位置/描边并已验证 | 增加可视化字幕编辑器 |
+| 字幕 | 支持 Web 可视化编辑时间轴/文本/样式，保存为 SRT 资产并作为视频输入烧录 | 增加波形对齐与实时预览 |
 | 音画同步 | 只在短视频上抽检，未做 3 分钟级基线 | 增加媒体回归样例与测量 |
 | GPU | compose GPU profile 已提供，未做真实调度验证 | 提供 NVIDIA 节点并跑基准 |
 | 有声质量 | 2 路并发、峰值归一、最终 -16 LUFS；角色音色库已接入 `voiceProfileId` | 增加音色试听与自适应并发 |

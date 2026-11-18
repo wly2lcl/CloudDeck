@@ -45,8 +45,11 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
     },
 
     async *events(ctx: TaskContext): AsyncGenerator<JobEvent> {
-      const storyboardInput = ctx.inputs[0]
-      const audioInput = ctx.inputs[1]
+      const storyboardInput = ctx.inputs.find((input) => input.type === 'storyboard')
+      const audioInput = ctx.inputs.find((input) => input.type === 'audio_track')
+      const subtitleInput = ctx.inputs.find(
+        (input) => input.mime === 'application/x-subrip' || input.type === 'document',
+      )
       if (!storyboardInput) {
         yield { type: 'error', code: 'NO_INPUT', message: '缺少分镜输入', retryable: false, at: at() }
         return
@@ -85,7 +88,10 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         }
       }
 
-      await writeFile(join(ctx.outputDir, 'subtitles.srt'), toSrt(timeline))
+      await writeFile(
+        join(ctx.outputDir, 'subtitles.srt'),
+        subtitleInput ? await readFile(subtitleInput.path) : toSrt(timeline),
+      )
 
       const params = ctx.params as { transition?: string; subtitleStyle?: string }
       const allowedTransitions = new Set([

@@ -283,7 +283,7 @@ export function registerProjectRoutes(
     const isText =
       detail.mime.startsWith('text/') ||
       detail.mime === 'application/json' ||
-      detail.mime.includes('markdown')
+      detail.mime.includes('markdown') || detail.mime === 'application/x-subrip'
     if (!isText) throw new AppError('VALIDATION_FAILED', '该资产不支持文本预览')
     if (Number(detail.size_bytes) > 1024 * 1024) {
       throw new AppError('VALIDATION_FAILED', '文件超过 1MB，请直接下载')
