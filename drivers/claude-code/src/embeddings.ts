@@ -133,7 +133,7 @@ export async function selectVectorContextDetailed(
   chapter: string | undefined,
   embedder: Embedder,
   maxChars = 12_000,
-  maxChunks = 10,
+  maxChunks = 4,
 ): Promise<RetrievalResult> {
   if (!text.trim()) return { context: '', citations: [] }
   const chunks = splitParagraphs(text)
@@ -149,7 +149,7 @@ export async function selectVectorContextDetailed(
       score:
         cosine(queryVector, vectors[index + 1] ?? []) +
         boost +
-        keywordOverlap(chunk.text, query) * 0.15,
+        keywordOverlap(chunk.text, query) * 1.0,
     }
   })
 
@@ -161,6 +161,27 @@ export async function selectVectorContextDetailed(
     selected.push({ ...entry.chunk, score: entry.score })
     total += entry.chunk.text.length
     if (total >= maxChars) break
+  }
+  if (selected.length > 0) {
+    const chapters = new Set(selected.map((chunk) => chunk.chapter))
+    for (const chunk of chunks) {
+      if (selected.length >= 8) break
+      if (!chapters.has(chunk.chapter)) continue
+      if (selected.some((item) => item.startLine === chunk.startLine)) continue
+      selected.push({ ...chunk, score: 0 })
+    }
+    const keys = new Set(selected.map((chunk) => `${chunk.startLine}:${chunk.endLine}`))
+    for (const chunk of [...selected]) {
+      const index = chunks.findIndex((item) => item.startLine === chunk.startLine)
+      for (const neighbor of [chunks[index - 1], chunks[index + 1]]) {
+        if (!neighbor || neighbor.chapter !== chunk.chapter) continue
+        if (selected.length >= 8) break
+        const key = `${neighbor.startLine}:${neighbor.endLine}`
+        if (keys.has(key)) continue
+        keys.add(key)
+        selected.push({ ...neighbor, score: chunk.score })
+      }
+    }
   }
   selected.sort((a, b) => a.startLine - b.startLine)
   return {
