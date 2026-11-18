@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Subtitle editor waveform: decode audio, draw peaks, click/Shift-click to set cue start/end.
+- Live preview: video/audio playback with active cue overlay and style approximation.
+
 ## [0.1.25] - 2026-11-18
 
 ### Added

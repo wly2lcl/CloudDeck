@@ -30,7 +30,7 @@ CloudDeck 是可自托管的 AI 内容生产工作台：把「一个想法」推
 - 任务：Postgres 队列、SSE 进度、取消、重试、断点续作
 - 投递：签名 Webhook，自动重试与手动 replay
 - 沙箱：本地进程或 Docker（可选 gVisor），每任务独立工作区
-- 引擎：Claude Code（向量 RAG / 词法回退 + 引用产物）、OpenAI 兼容 LLM（主备降级 + 控制面 `/gateway/chat` 预算代理）、百炼 TTS（角色音色库 + 并发分块 + EBU R128）、ffmpeg 视频（可选转场 + 可视化字幕编辑 + 样式化烧录）
+- 引擎：Claude Code（向量 RAG / 词法回退 + 引用产物）、OpenAI 兼容 LLM（主备降级 + 控制面 `/gateway/chat` 预算代理）、百炼 TTS（角色音色库 + 并发分块 + EBU R128）、ffmpeg 视频（可选转场 + 可视化字幕编辑（波形对齐 + 实时预览） + 样式化烧录）
 - 商业化：套餐配额（预扣）、用量账本、对账、账单快照、能力开关、模板市场、只读分享、成员管理、租户审计
 - 协作：项目评论与 SSE 实时流；可选项目级 ACL；Yjs 实时共享草稿
 - 安全：JWT refresh 轮换与客户端自动续期、API Key、密码重置/邮箱验证、AES-256-GCM 凭据、Helmet、限流、原始 body HMAC 回调、审计日志
