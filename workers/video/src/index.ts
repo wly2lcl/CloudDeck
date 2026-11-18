@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
 import { createShotFrame } from './bmp'
-import { buildTimeline, buildXfadeFilter, fadeFilter, parseStoryboard, toSrt, totalDurationMs } from './timeline'
+import { buildTimeline, buildXfadeFilter, fadeFilter, parseStoryboard, subtitleBurnFilter, toSrt, totalDurationMs } from './timeline'
 
 export const VIDEO_DRIVER_ID = 'workers/video'
 
@@ -13,6 +13,8 @@ export interface VideoDriverOptions {
   fps?: number
   crossfade?: boolean
   burnSubtitles?: boolean
+  transition?: string
+  subtitleStyle?: string
 }
 
 const at = () => new Date().toISOString()
@@ -85,6 +87,27 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
 
       await writeFile(join(ctx.outputDir, 'subtitles.srt'), toSrt(timeline))
 
+      const params = ctx.params as { transition?: string; subtitleStyle?: string }
+      const allowedTransitions = new Set([
+        'fade',
+        'wipeleft',
+        'wiperight',
+        'slideleft',
+        'slideright',
+        'circleopen',
+        'dissolve',
+      ])
+      const transition =
+        params.transition && allowedTransitions.has(params.transition)
+          ? params.transition
+          : options.transition && allowedTransitions.has(options.transition)
+            ? options.transition
+            : 'fade'
+      const subtitleStyle =
+        params.subtitleStyle ??
+        options.subtitleStyle ??
+        'FontName=Noto Sans CJK SC,FontSize=20,PrimaryColour=&HFFFFFF&,Outline=1,Alignment=2,MarginV=24'
+
       const filtersProbe = await ctx.commands.run(ffmpeg, ['-hide_banner', '-filters'], {
         cwd: ctx.outputDir,
         timeoutMs: 30_000,
@@ -154,6 +177,7 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         const plan = buildXfadeFilter(
           timeline.map((item) => item.durationMs),
           500,
+          transition,
         )
         const args = ['-y']
         for (const clip of clips) args.push('-i', clip)
@@ -200,7 +224,7 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
 
       const burn = canBurnSubtitles
       const videoArgs = burn
-        ? ['-vf', 'subtitles=subtitles.srt', '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
+        ? ['-vf', subtitleBurnFilter(subtitleStyle), '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
         : ['-c:v', 'copy']
       if (audioInput) {
         const mux = await ctx.commands.run(

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Video transition selection (`fade`, `wipeleft/right`, `slideleft/right`, `circleopen`, `dissolve`).
+- Subtitle `force_style` configuration (font, size, color, outline, alignment, margin); verified wipe + Chinese subtitle style in the runner image.
+
 ## [0.1.20] - 2026-11-17
 
 ### Added

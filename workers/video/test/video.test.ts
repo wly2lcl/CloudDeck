@@ -138,5 +138,13 @@ describe('交叉溶解', () => {
     expect(plan.filter).toContain('offset=1.500')
     expect(plan.outputLabel).toBe('[v2]')
     expect(plan.durationMs).toBe(2500)
+
+    const wipe = buildXfadeFilter([1000, 1000], 500, 'wipeleft')
+    expect(wipe.filter).toContain('transition=wipeleft')
+
+    const { subtitleBurnFilter } = await import('../src/timeline')
+    const filter = subtitleBurnFilter("FontName=Noto Sans CJK SC,FontSize=20,Alignment=2")
+    expect(filter).toContain("force_style='FontName=Noto Sans CJK SC")
+    expect(filter).toContain('Alignment=2')
   })
 })

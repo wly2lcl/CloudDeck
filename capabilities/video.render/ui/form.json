@@ -4,8 +4,30 @@
     "quality": {
       "type": "string",
       "title": "清晰度",
-      "enum": ["360p", "720p"],
+      "enum": [
+        "360p",
+        "720p"
+      ],
       "default": "360p"
+    },
+    "transition": {
+      "type": "string",
+      "title": "转场",
+      "enum": [
+        "fade",
+        "wipeleft",
+        "wiperight",
+        "slideleft",
+        "slideright",
+        "circleopen",
+        "dissolve"
+      ],
+      "default": "fade"
+    },
+    "subtitleStyle": {
+      "type": "string",
+      "title": "字幕样式（ASS force_style）",
+      "default": "FontName=Noto Sans CJK SC,FontSize=20,PrimaryColour=&HFFFFFF&,Outline=1,Alignment=2,MarginV=24"
     }
   }
 }

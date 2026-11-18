@@ -71,6 +71,8 @@ const DRIVERS: Record<string, DriverFactory> = {
       fps: Number(process.env.VIDEO_FPS ?? 25),
       crossfade: process.env.VIDEO_CROSSFADE !== 'false',
       burnSubtitles: process.env.VIDEO_BURN_SUBTITLES !== 'false',
+      transition: process.env.VIDEO_TRANSITION,
+      subtitleStyle: process.env.VIDEO_SUBTITLE_STYLE,
     }),
 }
 
