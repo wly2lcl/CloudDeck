@@ -104,9 +104,24 @@ export const subtitleStylePresets = pgTable(
     tenantId: uuid('tenant_id').notNull(),
     name: text('name').notNull(),
     style: jsonb('style').notNull(),
+    version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(now),
   },
   (table) => [uniqueIndex('subtitle_style_presets_tenant_name_idx').on(table.tenantId, table.name)],
+)
+
+export const subtitleStylePresetVersions = pgTable(
+  'subtitle_style_preset_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    presetId: uuid('preset_id').notNull(),
+    version: integer('version').notNull(),
+    style: jsonb('style').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [uniqueIndex('subtitle_style_preset_versions_preset_version_idx').on(table.presetId, table.version)],
 )
 
 export const voiceProfiles = pgTable(
@@ -550,6 +565,7 @@ export const schema = {
   collabDocs,
   voiceProfiles,
   subtitleStylePresets,
+  subtitleStylePresetVersions,
   projectMembers,
   projects,
   assets,

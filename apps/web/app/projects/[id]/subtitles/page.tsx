@@ -12,10 +12,13 @@ import {
   exportSubtitleStylePresets,
   getAssetContent,
   getAssetUrl,
+  getSubtitleStylePresetVersions,
   getSubtitleStylePresets,
   importSubtitleStylePresets,
+  restoreSubtitleStylePreset,
   type Asset,
   type SubtitleStylePreset,
+  type SubtitleStylePresetVersion,
 } from '../../../../lib/api'
 
 interface TrackStyle {
@@ -270,6 +273,8 @@ export default function SubtitleEditorPage() {
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [customPresets, setCustomPresets] = useState<SubtitleStylePreset[]>([])
   const [presetName, setPresetName] = useState('')
+  const [presetVersions, setPresetVersions] = useState<SubtitleStylePresetVersion[]>([])
+  const [showVersions, setShowVersions] = useState(false)
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null)
 
   const mediaAssets = [
@@ -447,6 +452,47 @@ export default function SubtitleEditorPage() {
       setMessage('可见轨道已合并为 merged.srt')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '合并失败')
+    }
+  }
+
+  useEffect(() => {
+    if (!presetId.startsWith('custom:')) {
+      setPresetVersions([])
+      return
+    }
+    void getSubtitleStylePresetVersions(presetId.slice('custom:'.length))
+      .then(setPresetVersions)
+      .catch(() => setPresetVersions([]))
+  }, [presetId])
+
+  const restorePresetVersion = async (version: number) => {
+    try {
+      const restored = await restoreSubtitleStylePreset(
+        presetId.slice('custom:'.length),
+        version,
+      )
+      setCustomPresets(await getSubtitleStylePresets())
+      setPresetVersions(
+        await getSubtitleStylePresetVersions(presetId.slice('custom:'.length)),
+      )
+      setTracks((items) =>
+        items.map((track, index) =>
+          index === activeTrack
+            ? {
+                ...track,
+                style: {
+                  fontSize: restored.style.fontSize ?? '20',
+                  alignment: restored.style.alignment ?? '2',
+                  marginV: restored.style.marginV ?? '24',
+                  outline: restored.style.outline ?? '1',
+                },
+              }
+            : track,
+        ),
+      )
+      setMessage(`已恢复版本 v${version}`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '恢复版本失败')
     }
   }
 
@@ -707,9 +753,18 @@ export default function SubtitleEditorPage() {
               保存当前样式
             </button>
             {presetId.startsWith('custom:') && (
-              <button type="button" className="ghost" onClick={() => void removePreset()}>
-                删除预设
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setShowVersions((value) => !value)}
+                >
+                  版本历史（{presetVersions.length}）
+                </button>
+                <button type="button" className="ghost" onClick={() => void removePreset()}>
+                  删除预设
+                </button>
+              </>
             )}
             <button type="button" className="ghost" onClick={() => void exportPresets()}>
               导出预设
@@ -737,6 +792,28 @@ export default function SubtitleEditorPage() {
             </label>
           </div>
           <p className="muted">自定义预设为租户共享，团队成员均可使用；导入按名称覆盖同名预设。</p>
+          {showVersions && presetId.startsWith('custom:') && (
+            <ul className="list">
+              {presetVersions.map((version) => (
+                <li key={version.id} className="list-item">
+                  <div>
+                    <strong>v{version.version}</strong>
+                    <p className="muted">
+                      {new Date(version.createdAt).toLocaleString()} · 字号{' '}
+                      {version.style.fontSize ?? '-'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void restorePresetVersion(version.version)}
+                  >
+                    恢复
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="row">
             <label>
               字号

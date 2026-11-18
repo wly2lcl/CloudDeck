@@ -816,6 +816,14 @@ export interface SubtitleStylePreset {
   id: string
   name: string
   style: Record<string, string>
+  version: number
+  createdAt: string
+}
+
+export interface SubtitleStylePresetVersion {
+  id: string
+  version: number
+  style: Record<string, string>
   createdAt: string
 }
 
@@ -848,4 +856,20 @@ export async function importSubtitleStylePresets(
   presets: { name: string; style: Record<string, string> }[],
 ): Promise<{ imported: number }> {
   return api('/v1/subtitle-style-presets/import', { method: 'POST', body: { presets } })
+}
+
+export async function getSubtitleStylePresetVersions(
+  id: string,
+): Promise<SubtitleStylePresetVersion[]> {
+  return api<SubtitleStylePresetVersion[]>(`/v1/subtitle-style-presets/${id}/versions`)
+}
+
+export async function restoreSubtitleStylePreset(
+  id: string,
+  version: number,
+): Promise<SubtitleStylePreset> {
+  return api<SubtitleStylePreset>(
+    `/v1/subtitle-style-presets/${id}/versions/${version}/restore`,
+    { method: 'POST' },
+  )
 }

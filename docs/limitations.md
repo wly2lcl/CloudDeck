@@ -9,7 +9,7 @@
 | 真实 LLM | 支持 OpenAI 兼容端点；无密钥时使用启发式生成 | 配置 `LLM_HTTP_URL` / `LLM_MODEL` / `LLM_HTTP_TOKEN` |
 | 真实 TTS | 支持百炼 `qwen-audio-3.1-tts-flash`；无密钥时使用 fake WAV | 配置 `BAILIAN_API_KEY` |
 | 视频 | 确定性 ffmpeg 合成（Ken Burns + 混音）；无生成式视频 | 选定视频模型并接入新 driver |
-| 字幕 | 轨道级样式、内置+自定义预设、JSON 导入导出、租户共享、多轨预览与同时烧录 | 增加预设版本历史与跨租户市场 |
+| 字幕 | 轨道级样式、自定义预设、导入导出、租户共享、版本历史/恢复、多轨同时烧录 | 增加跨租户市场与版本对比 |
 | 音画同步 | 只在短视频上抽检，未做 3 分钟级基线 | 增加媒体回归样例与测量 |
 | GPU | compose GPU profile 已提供，未做真实调度验证 | 提供 NVIDIA 节点并跑基准 |
 | 有声质量 | 2 路并发、峰值归一、最终 -16 LUFS；角色音色库已接入 `voiceProfileId` | 增加音色试听与自适应并发 |

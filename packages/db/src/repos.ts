@@ -2265,6 +2265,17 @@ export interface SubtitleStylePresetRow {
   tenant_id: string
   name: string
   style: Record<string, string>
+  version: number
+  created_at: Date
+  updated_at: Date
+}
+
+export interface SubtitleStylePresetVersionRow {
+  id: string
+  tenant_id: string
+  preset_id: string
+  version: number
+  style: Record<string, string>
   created_at: Date
 }
 
@@ -2282,15 +2293,79 @@ export async function createSubtitleStylePreset(
   db: Database,
   input: { tenantId: string; name: string; style: Record<string, string> },
 ): Promise<SubtitleStylePresetRow> {
-  const row = await one<SubtitleStylePresetRow>(
+  return db.transaction(async (tx) => {
+    const database = tx as unknown as Database
+    const existing = await one<{ id: string; version: number }>(
+      database,
+      sql`SELECT id, version FROM subtitle_style_presets
+          WHERE tenant_id = ${input.tenantId} AND name = ${input.name}`,
+    )
+    const row = existing
+      ? await one<SubtitleStylePresetRow>(
+          database,
+          sql`UPDATE subtitle_style_presets
+              SET style = ${json(input.style)}, version = version + 1, updated_at = now()
+              WHERE id = ${existing.id} AND tenant_id = ${input.tenantId}
+              RETURNING *`,
+        )
+      : await one<SubtitleStylePresetRow>(
+          database,
+          sql`INSERT INTO subtitle_style_presets (tenant_id, name, style)
+              VALUES (${input.tenantId}, ${input.name}, ${json(input.style)})
+              RETURNING *`,
+        )
+    if (!row) throw new Error('保存样式预设失败')
+    await database.execute(
+      sql`INSERT INTO subtitle_style_preset_versions (tenant_id, preset_id, version, style)
+          VALUES (${input.tenantId}, ${row.id}, ${row.version}, ${json(input.style)})
+          ON CONFLICT (preset_id, version) DO NOTHING`,
+    )
+    return row
+  })
+}
+
+export async function listSubtitleStylePresetVersions(
+  db: Database,
+  tenantId: string,
+  presetId: string,
+): Promise<SubtitleStylePresetVersionRow[]> {
+  return rows<SubtitleStylePresetVersionRow>(
     db,
-    sql`INSERT INTO subtitle_style_presets (tenant_id, name, style)
-        VALUES (${input.tenantId}, ${input.name}, ${json(input.style)})
-        ON CONFLICT (tenant_id, name) DO UPDATE SET style = EXCLUDED.style
-        RETURNING *`,
+    sql`SELECT * FROM subtitle_style_preset_versions
+        WHERE tenant_id = ${tenantId} AND preset_id = ${presetId}
+        ORDER BY version DESC`,
   )
-  if (!row) throw new Error('保存样式预设失败')
-  return row
+}
+
+export async function restoreSubtitleStylePreset(
+  db: Database,
+  tenantId: string,
+  presetId: string,
+  version: number,
+): Promise<SubtitleStylePresetRow | null> {
+  return db.transaction(async (tx) => {
+    const database = tx as unknown as Database
+    const target = await one<SubtitleStylePresetVersionRow>(
+      database,
+      sql`SELECT * FROM subtitle_style_preset_versions
+          WHERE tenant_id = ${tenantId} AND preset_id = ${presetId} AND version = ${version}`,
+    )
+    if (!target) return null
+    const row = await one<SubtitleStylePresetRow>(
+      database,
+      sql`UPDATE subtitle_style_presets
+          SET style = ${json(target.style)}, version = version + 1, updated_at = now()
+          WHERE id = ${presetId} AND tenant_id = ${tenantId}
+          RETURNING *`,
+    )
+    if (!row) return null
+    await database.execute(
+      sql`INSERT INTO subtitle_style_preset_versions (tenant_id, preset_id, version, style)
+          VALUES (${tenantId}, ${presetId}, ${row.version}, ${json(target.style)})
+          ON CONFLICT (preset_id, version) DO NOTHING`,
+    )
+    return row
+  })
 }
 
 export async function deleteSubtitleStylePreset(

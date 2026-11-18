@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Subtitle style preset version history: every save creates a version; list versions and restore an earlier style.
+
 ## [0.1.36] - 2026-11-18
 
 ### Added

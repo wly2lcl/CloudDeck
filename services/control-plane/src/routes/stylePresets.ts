@@ -3,7 +3,9 @@ import { z } from 'zod'
 import {
   createSubtitleStylePreset,
   deleteSubtitleStylePreset,
+  listSubtitleStylePresetVersions,
   listSubtitleStylePresets,
+  restoreSubtitleStylePreset,
   withTenant,
 } from '@clouddeck/db'
 import { audit } from '../audit'
@@ -41,6 +43,7 @@ export function registerStylePresetRoutes(
         id: preset.id,
         name: preset.name,
         style: preset.style,
+        version: preset.version,
         createdAt: toIso(preset.created_at),
       })),
     )
@@ -106,9 +109,61 @@ export function registerStylePresetRoutes(
       id: preset.id,
       name: preset.name,
       style: preset.style,
+      version: preset.version,
       createdAt: toIso(preset.created_at),
     })
   })
+
+  app.get(
+    '/v1/subtitle-style-presets/:id/versions',
+    { preHandler: guard },
+    async (request) => {
+      const auth = requireAuth(request)
+      const versions = await withTenant(deps.db, auth.tenantId, (tx) =>
+        listSubtitleStylePresetVersions(tx, auth.tenantId, param(request, 'id')),
+      )
+      return ok(
+        request,
+        versions.map((version) => ({
+          id: version.id,
+          version: version.version,
+          style: version.style,
+          createdAt: toIso(version.created_at),
+        })),
+      )
+    },
+  )
+
+  app.post(
+    '/v1/subtitle-style-presets/:id/versions/:version/restore',
+    { preHandler: guard },
+    async (request) => {
+      const auth = requireAuth(request)
+      const presetId = param(request, 'id')
+      const version = Number(param(request, 'version'))
+      const restored = await withTenant(deps.db, auth.tenantId, (tx) =>
+        restoreSubtitleStylePreset(tx, auth.tenantId, presetId, version),
+      )
+      if (!restored) throw new AppError('NOT_FOUND', '预设版本不存在')
+      await audit(deps.db, {
+        tenantId: auth.tenantId,
+        actorType: 'user',
+        actorId: auth.userId,
+        action: 'subtitle_style.restore',
+        targetType: 'subtitle_style_preset',
+        targetId: presetId,
+        ip: request.ip,
+        detail: { version },
+      })
+      return ok(request, {
+        id: restored.id,
+        name: restored.name,
+        style: restored.style,
+        version: restored.version,
+        updatedAt: toIso(restored.updated_at),
+      })
+    },
+  )
 
   app.delete('/v1/subtitle-style-presets/:id', { preHandler: guard }, async (request) => {
     const auth = requireRole(request, ['owner', 'admin'])

@@ -571,6 +571,23 @@ paths:
                       style: { type: object, additionalProperties: { type: string } }
       responses:
         '200': { $ref: '#/components/responses/Ok' }
+  /v1/subtitle-style-presets/{id}/versions:
+    get:
+      tags: [capabilities]
+      summary: List versions of a subtitle style preset
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/subtitle-style-presets/{id}/versions/{version}/restore:
+    post:
+      tags: [capabilities]
+      summary: Restore a subtitle style preset version
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
   /v1/subtitle-style-presets/{id}:
     delete:
       tags: [capabilities]

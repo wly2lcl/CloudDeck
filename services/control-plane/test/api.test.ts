@@ -1421,3 +1421,27 @@ describe('字幕预设导入导出', () => {
     expect(exported.json().data.presets.some((item: { name: string }) => item.name === '导入预设')).toBe(true)
   })
 })
+
+describe('字幕预设版本历史', () => {
+  it('保存生成版本并可恢复', async () => {
+    const first = await api('/v1/subtitle-style-presets', {
+      method: 'POST',
+      payload: { name: '版本预设', style: { fontSize: '20', alignment: '2', marginV: '24', outline: '1' } },
+    })
+    const id = first.json().data.id as string
+    await api('/v1/subtitle-style-presets', {
+      method: 'POST',
+      payload: { name: '版本预设', style: { fontSize: '30', alignment: '8', marginV: '40', outline: '3' } },
+    })
+
+    const versions = await api(`/v1/subtitle-style-presets/${id}/versions`)
+    expect(versions.statusCode).toBe(200)
+    expect(versions.json().data).toHaveLength(2)
+
+    const restored = await api(`/v1/subtitle-style-presets/${id}/versions/1/restore`, {
+      method: 'POST',
+    })
+    expect(restored.statusCode).toBe(200)
+    expect(restored.json().data.style.fontSize).toBe('20')
+  })
+})
