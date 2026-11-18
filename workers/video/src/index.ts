@@ -116,7 +116,11 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         subtitleFiles.push('subtitles.srt')
       }
 
-      const params = ctx.params as { transition?: string; subtitleStyle?: string }
+      const params = ctx.params as {
+        transition?: string
+        subtitleStyle?: string
+        subtitleStyles?: string[] | string
+      }
       const allowedTransitions = new Set([
         'fade',
         'wipeleft',
@@ -251,7 +255,18 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         }
       }
 
-      const subtitleStyles = (ctx.params as { subtitleStyles?: string[] }).subtitleStyles
+      let subtitleStyles: string[] | undefined
+      if (Array.isArray(params.subtitleStyles)) subtitleStyles = params.subtitleStyles
+      else if (typeof params.subtitleStyles === 'string' && params.subtitleStyles.trim()) {
+        try {
+          const parsed = JSON.parse(params.subtitleStyles) as unknown
+          if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
+            subtitleStyles = parsed as string[]
+          }
+        } catch {
+          subtitleStyles = undefined
+        }
+      }
       const burnFilters = subtitleFiles.map((file, index) => {
         const base =
           subtitleStyles?.[index] ??

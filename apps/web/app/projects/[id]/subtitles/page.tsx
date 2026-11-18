@@ -7,11 +7,32 @@ import { formatSrtTime, parseSrt, serializeSrt, type SubtitleCue } from '@cloudd
 import { Nav } from '../../../../components/nav'
 import { api, getAssetContent, getAssetUrl, type Asset } from '../../../../lib/api'
 
+interface TrackStyle {
+  fontSize: string
+  alignment: string
+  marginV: string
+  outline: string
+}
+
 interface Track {
   assetId: string
   name: string
   cues: SubtitleCue[]
   visible: boolean
+  style: TrackStyle
+}
+
+function defaultStyle(index: number): TrackStyle {
+  return {
+    fontSize: '20',
+    alignment: index % 2 === 0 ? '2' : '8',
+    marginV: String(24 + index * 32),
+    outline: '1',
+  }
+}
+
+function styleString(style: TrackStyle): string {
+  return `FontName=Noto Sans CJK SC,FontSize=${style.fontSize},PrimaryColour=&HFFFFFF&,Outline=${style.outline},Alignment=${style.alignment},MarginV=${style.marginV}`
 }
 
 function parseClock(value: string, fallback: number): number {
@@ -224,10 +245,6 @@ export default function SubtitleEditorPage() {
   const [mediaUrl, setMediaUrl] = useState('')
   const [audioUrl, setAudioUrl] = useState('')
   const [message, setMessage] = useState<string | null>(null)
-  const [fontSize, setFontSize] = useState('20')
-  const [alignment, setAlignment] = useState('2')
-  const [marginV, setMarginV] = useState('24')
-  const [outline, setOutline] = useState('1')
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null)
 
   const mediaAssets = [
@@ -260,14 +277,19 @@ export default function SubtitleEditorPage() {
           (asset) => asset.mime === 'application/x-subrip' || asset.name.endsWith('.srt'),
         )
         const loaded = await Promise.all(
-          srtAssets.slice(0, 5).map(async (asset) => ({
+          srtAssets.slice(0, 5).map(async (asset, index) => ({
             assetId: asset.assetId,
             name: asset.name,
             visible: true,
+            style: defaultStyle(index),
             cues: parseSrt((await getAssetContent(asset.assetId, asset.latestVersion)).text),
           })),
         )
-        setTracks(loaded.length > 0 ? loaded : [{ assetId: '', name: '字幕轨道 1', cues: [], visible: true }])
+        setTracks(
+          loaded.length > 0
+            ? loaded
+            : [{ assetId: '', name: '字幕轨道 1', cues: [], visible: true, style: defaultStyle(0) }],
+        )
         const firstMedia =
           list.find((asset) => asset.mime.startsWith('video/')) ??
           list.find((asset) => asset.mime.startsWith('audio/'))
@@ -345,7 +367,13 @@ export default function SubtitleEditorPage() {
   const addTrack = () => {
     setTracks((items) => [
       ...items,
-      { assetId: '', name: `字幕轨道 ${items.length + 1}`, cues: [], visible: true },
+      {
+        assetId: '',
+        name: `字幕轨道 ${items.length + 1}`,
+        cues: [],
+        visible: true,
+        style: defaultStyle(items.length),
+      },
     ])
     setActiveTrack(tracks.length)
   }
@@ -396,7 +424,15 @@ export default function SubtitleEditorPage() {
     }
   }
 
-  const style = `FontName=Noto Sans CJK SC,FontSize=${fontSize},PrimaryColour=&HFFFFFF&,Outline=${outline},Alignment=${alignment},MarginV=${marginV}`
+  const activeStyle = tracks[activeTrack]?.style ?? defaultStyle(0)
+  const subtitleStyles = tracks.map((track) => styleString(track.style))
+  const updateStyle = (patch: Partial<TrackStyle>) => {
+    setTracks((items) =>
+      items.map((track, index) =>
+        index === activeTrack ? { ...track, style: { ...track.style, ...patch } } : track,
+      ),
+    )
+  }
 
   return (
     <>
@@ -512,11 +548,11 @@ export default function SubtitleEditorPage() {
                       position: 'absolute',
                       left: 0,
                       right: 0,
-                      [alignment === '8' ? 'top' : 'bottom']: `${Number(marginV) + index * 32}px`,
+                      [track.style.alignment === '8' ? 'top' : 'bottom']: `${track.style.marginV}px`,
                       textAlign: 'center',
-                      fontSize: `${fontSize}px`,
+                      fontSize: `${track.style.fontSize}px`,
                       color: '#fff',
-                      textShadow: `0 0 ${outline}px #000, 0 0 ${outline}px #000`,
+                      textShadow: `0 0 ${track.style.outline}px #000, 0 0 ${track.style.outline}px #000`,
                       pointerEvents: 'none',
                       whiteSpace: 'pre-wrap',
                     }}
@@ -534,11 +570,17 @@ export default function SubtitleEditorPage() {
           <div className="row">
             <label>
               字号
-              <input value={fontSize} onChange={(event) => setFontSize(event.target.value)} />
+              <input
+                value={activeStyle.fontSize}
+                onChange={(event) => updateStyle({ fontSize: event.target.value })}
+              />
             </label>
             <label>
               对齐
-              <select value={alignment} onChange={(event) => setAlignment(event.target.value)}>
+              <select
+                value={activeStyle.alignment}
+                onChange={(event) => updateStyle({ alignment: event.target.value })}
+              >
                 <option value="2">底部居中</option>
                 <option value="8">顶部居中</option>
                 <option value="5">中间居中</option>
@@ -546,16 +588,35 @@ export default function SubtitleEditorPage() {
             </label>
             <label>
               边距
-              <input value={marginV} onChange={(event) => setMarginV(event.target.value)} />
+              <input
+                value={activeStyle.marginV}
+                onChange={(event) => updateStyle({ marginV: event.target.value })}
+              />
             </label>
             <label>
               描边
-              <input value={outline} onChange={(event) => setOutline(event.target.value)} />
+              <input
+                value={activeStyle.outline}
+                onChange={(event) => updateStyle({ outline: event.target.value })}
+              />
             </label>
           </div>
           <p className="muted">
-            视频渲染样式：<code>{style}</code>
+            当前轨道样式：<code>{styleString(activeStyle)}</code>
           </p>
+          <p className="muted">
+            多轨样式 JSON（填入视频任务 `subtitleStyles`）：
+            <code>{JSON.stringify(subtitleStyles)}</code>
+          </p>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              void navigator.clipboard?.writeText(JSON.stringify(subtitleStyles))
+            }}
+          >
+            复制多轨样式 JSON
+          </button>
         </section>
 
         <section className="panel">

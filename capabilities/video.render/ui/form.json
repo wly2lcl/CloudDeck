@@ -28,6 +28,11 @@
       "type": "string",
       "title": "字幕样式（ASS force_style）",
       "default": "FontName=Noto Sans CJK SC,FontSize=20,PrimaryColour=&HFFFFFF&,Outline=1,Alignment=2,MarginV=24"
+    },
+    "subtitleStyles": {
+      "type": "string",
+      "title": "多轨样式 JSON（可选）",
+      "default": ""
     }
   }
 }

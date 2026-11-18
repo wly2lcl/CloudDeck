@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Per-track subtitle style UI (font size, alignment, margin, outline) with per-track preview.
+- Multi-track style JSON export for `video.render` `subtitleStyles`; driver parses JSON strings from the run form.
+
 ## [0.1.31] - 2026-11-18
 
 ### Added
