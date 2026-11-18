@@ -130,6 +130,6 @@ export function buildXfadeFilter(
 
 
 /** 生成字幕烧录滤镜，force_style 控制字体、字号、位置与描边。 */
-export function subtitleBurnFilter(style: string): string {
-  return `subtitles=subtitles.srt:force_style='${style.replace(/'/g, "")}'`
+export function subtitleBurnFilter(style: string, file = 'subtitles.srt'): string {
+  return `subtitles=${file}:force_style='${style.replace(/'/g, "")}'`
 }

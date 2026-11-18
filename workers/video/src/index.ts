@@ -30,6 +30,22 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+async function subtitleExtraSpecs(ctx: TaskContext): Promise<ArtifactSpec[]> {
+  const specs: ArtifactSpec[] = []
+  for (let index = 2; index <= 5; index += 1) {
+    const path = join(ctx.outputDir, `subtitles-${index}.srt`)
+    if (await exists(path)) {
+      specs.push({
+        name: `subtitles-${index}`,
+        type: 'document',
+        path,
+        mime: 'application/x-subrip',
+      })
+    }
+  }
+  return specs
+}
+
 export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
   const ffmpeg = options.ffmpeg ?? process.env.FFMPEG_BIN ?? 'ffmpeg'
   const width = options.width ?? 640
@@ -47,7 +63,7 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
     async *events(ctx: TaskContext): AsyncGenerator<JobEvent> {
       const storyboardInput = ctx.inputs.find((input) => input.type === 'storyboard')
       const audioInput = ctx.inputs.find((input) => input.type === 'audio_track')
-      const subtitleInput = ctx.inputs.find(
+      const subtitleInputs = ctx.inputs.filter(
         (input) => input.mime === 'application/x-subrip' || input.type === 'document',
       )
       if (!storyboardInput) {
@@ -88,10 +104,17 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         }
       }
 
-      await writeFile(
-        join(ctx.outputDir, 'subtitles.srt'),
-        subtitleInput ? await readFile(subtitleInput.path) : toSrt(timeline),
-      )
+      const subtitleFiles: string[] = []
+      if (subtitleInputs.length > 0) {
+        for (const [index, input] of subtitleInputs.entries()) {
+          const filename = index === 0 ? 'subtitles.srt' : `subtitles-${index + 1}.srt`
+          await writeFile(join(ctx.outputDir, filename), await readFile(input.path))
+          subtitleFiles.push(filename)
+        }
+      } else {
+        await writeFile(join(ctx.outputDir, 'subtitles.srt'), toSrt(timeline))
+        subtitleFiles.push('subtitles.srt')
+      }
 
       const params = ctx.params as { transition?: string; subtitleStyle?: string }
       const allowedTransitions = new Set([
@@ -228,9 +251,18 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
         }
       }
 
+      const subtitleStyles = (ctx.params as { subtitleStyles?: string[] }).subtitleStyles
+      const burnFilters = subtitleFiles.map((file, index) => {
+        const base =
+          subtitleStyles?.[index] ??
+          subtitleStyle
+            .replace(/Alignment=\d+/, `Alignment=${index % 2 === 0 ? 2 : 8}`)
+            .replace(/MarginV=\d+/, `MarginV=${24 + index * 32}`)
+        return subtitleBurnFilter(base, file)
+      })
       const burn = canBurnSubtitles
       const videoArgs = burn
-        ? ['-vf', subtitleBurnFilter(subtitleStyle), '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
+        ? ['-vf', burnFilters.join(','), '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
         : ['-c:v', 'copy']
       if (audioInput) {
         const mux = await ctx.commands.run(
@@ -326,13 +358,14 @@ export function createVideoDriver(options: VideoDriverOptions = {}): Driver {
           path: join(ctx.outputDir, 'subtitles.srt'),
           mime: 'application/x-subrip',
         },
-        {
-          name: 'frame-001',
-          type: 'image',
-          path: join(ctx.outputDir, 'frames', 'frame-001.bmp'),
-          mime: 'image/bmp',
-        },
       ]
+      specs.push(...(await subtitleExtraSpecs(ctx)))
+      specs.push({
+        name: 'frame-001',
+        type: 'image',
+        path: join(ctx.outputDir, 'frames', 'frame-001.bmp'),
+        mime: 'image/bmp',
+      })
       const result: ArtifactSpec[] = []
       for (const spec of specs) {
         if (await exists(spec.path)) result.push(spec)

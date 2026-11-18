@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Simultaneous multi-track subtitle burn-in: each SRT input gets its own `subtitles` filter, defaulting to alternating bottom/top alignment; extra tracks are emitted as `subtitles-2..5` assets.
+
 ## [0.1.27] - 2026-11-18
 
 ### Added

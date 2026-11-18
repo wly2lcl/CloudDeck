@@ -146,5 +146,7 @@ describe('交叉溶解', () => {
     const filter = subtitleBurnFilter("FontName=Noto Sans CJK SC,FontSize=20,Alignment=2")
     expect(filter).toContain("force_style='FontName=Noto Sans CJK SC")
     expect(filter).toContain('Alignment=2')
+    const second = subtitleBurnFilter('Alignment=8', 'subtitles-2.srt')
+    expect(second).toContain('subtitles=subtitles-2.srt')
   })
 })
