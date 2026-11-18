@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- SiliconFlow embedding integration with fixed model `BAAI/bge-m3` via `SILICONFLOW_API_KEY`; runner forwards embedding env to the Claude Code driver.
+- `pnpm smoke:embedding` for real embedding/RAG selection checks.
+
 ## [0.1.22] - 2026-11-18
 
 ### Added

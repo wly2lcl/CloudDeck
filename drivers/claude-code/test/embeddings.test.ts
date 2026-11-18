@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { selectVectorContext, type Embedder } from '../src/embeddings'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createEmbedderFromEnv, selectVectorContext, type Embedder } from '../src/embeddings'
 
 const NOVEL = [
   '第一章 雨夜',
@@ -21,6 +21,29 @@ const embedder: Embedder = {
     ])
   },
 }
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('硅基流动 embedding', () => {
+  it('使用 SILICONFLOW_API_KEY 与 BAAI/bge-m3', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2], index: 0 }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const embedder = createEmbedderFromEnv({ SILICONFLOW_API_KEY: 'test-key' })
+    expect(embedder).toBeDefined()
+    await embedder?.embed(['hello'])
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.siliconflow.cn/v1/embeddings',
+      expect.objectContaining({
+        body: JSON.stringify({ model: 'BAAI/bge-m3', input: ['hello'] }),
+      }),
+    )
+  })
+})
 
 describe('向量 RAG', () => {
   it('按 embedding 相似度选择章节', async () => {

@@ -350,6 +350,15 @@ export async function runOnce(deps: RunnerDeps): Promise<RunResult | null> {
       env.MODEL_GATEWAY_TOKEN = job.gateway_token
       if (deps.gatewayUrl) env.MODEL_GATEWAY_URL = deps.gatewayUrl
     }
+    for (const name of [
+      'SILICONFLOW_API_KEY',
+      'EMBEDDING_HTTP_URL',
+      'EMBEDDING_MODEL',
+      'EMBEDDING_HTTP_TOKEN',
+    ]) {
+      const value = (deps.env ?? process.env)[name]
+      if (value) env[name] = value
+    }
 
     const commands = deps.commands ?? new LocalSandbox()
 

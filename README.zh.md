@@ -75,6 +75,7 @@ cd apps/mobile && flutter analyze && flutter test
 |---|---|
 | OpenAI 兼容 LLM | `LLM_HTTP_URL`、`LLM_MODEL`、`LLM_HTTP_TOKEN` |
 | 阿里云百炼 TTS | `TTS_PROVIDER=dashscope`、`TTS_MODEL=qwen-audio-3.1-tts-flash`、`BAILIAN_API_KEY` |
+| 向量 RAG | `SILICONFLOW_API_KEY`（默认 `BAAI/bge-m3`）或 `EMBEDDING_HTTP_URL/MODEL` |
 | Claude Code | `ANTHROPIC_API_KEY`；可选 `CLAUDE_BIN`、`SANDBOX_DRIVER=docker` |
 | 视频 | 宿主或 runner 镜像内有 `ffmpeg` |
 

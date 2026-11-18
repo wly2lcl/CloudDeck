@@ -30,12 +30,21 @@ export class HttpEmbedder implements Embedder {
 }
 
 export function createEmbedderFromEnv(env: NodeJS.ProcessEnv): Embedder | undefined {
-  if (!env.EMBEDDING_HTTP_URL || !env.EMBEDDING_MODEL) return undefined
-  return new HttpEmbedder({
-    url: env.EMBEDDING_HTTP_URL,
-    model: env.EMBEDDING_MODEL,
-    token: env.EMBEDDING_HTTP_TOKEN,
-  })
+  if (env.EMBEDDING_HTTP_URL && env.EMBEDDING_MODEL) {
+    return new HttpEmbedder({
+      url: env.EMBEDDING_HTTP_URL,
+      model: env.EMBEDDING_MODEL,
+      token: env.EMBEDDING_HTTP_TOKEN,
+    })
+  }
+  if (env.SILICONFLOW_API_KEY) {
+    return new HttpEmbedder({
+      url: env.SILICONFLOW_EMBEDDING_URL ?? 'https://api.siliconflow.cn/v1',
+      model: env.EMBEDDING_MODEL ?? 'BAAI/bge-m3',
+      token: env.SILICONFLOW_API_KEY,
+    })
+  }
+  return undefined
 }
 
 function cosine(a: number[], b: number[]): number {

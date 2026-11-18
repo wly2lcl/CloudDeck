@@ -29,7 +29,8 @@
     "load:jobs": "tsx scripts/load-jobs.ts",
     "sbom": "tsx scripts/sbom.ts",
     "k8s:check": "tsx scripts/check-k8s.ts",
-    "eval:llm": "tsx scripts/eval-llm.ts"
+    "eval:llm": "tsx scripts/eval-llm.ts",
+    "smoke:embedding": "tsx scripts/embedding-smoke.ts"
   },
   "devDependencies": {
     "@clouddeck/db": "workspace:*",

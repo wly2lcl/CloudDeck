@@ -14,7 +14,7 @@
 | GPU | compose GPU profile 已提供，未做真实调度验证 | 提供 NVIDIA 节点并跑基准 |
 | 有声质量 | 2 路并发、峰值归一、最终 -16 LUFS；角色音色库已接入 `voiceProfileId` | 增加音色试听与自适应并发 |
 | 视频转场 | runner 镜像支持 xfade，已验证 fade/wipeleft；支持 fade/wipe/slide/circleopen/dissolve | 增加 3D/自定义转场 |
-| 检索增强 | 配置 embedding 时走向量 RAG，否则词法 RAG-lite；暂无引用溯源 | 增加引用标注与缓存 |
+| 检索增强 | 已接入硅基流动 `BAAI/bge-m3`；当前环境缺少 key，未完成真实语料对比 | 配置 key 后跑 `pnpm smoke:embedding` 与引用评估 |
 | 统一模型网关 | 控制面 `/gateway/chat`；任务创建签发 token，runner 注入后 LLM worker 走网关 | 增加跨 provider 自动路由与预算硬熔断 |
 | LLM 质量 | 固定评测集 + 启发式基线；真实模型对比遇 429 限流 | 稳定配额后跑模型基线 |
 | Webhook 投递 | 自动重试 3 次；支持手动 replay | 增加死信队列与定时补偿 |
