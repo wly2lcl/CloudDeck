@@ -11,6 +11,12 @@ All notable changes to this project are documented here. The format follows
 - SiliconFlow embedding integration with fixed model `BAAI/bge-m3` via `SILICONFLOW_API_KEY`; runner forwards embedding env to the Claude Code driver.
 - `pnpm smoke:embedding` for real embedding/RAG selection checks.
 
+## [Unreleased]
+
+### Verified
+
+- SiliconFlow `BAAI/bge-m3` real embedding: 1024 dimensions, 2/2 chapters selected on the eval fixture.
+
 ## [0.1.22] - 2026-11-18
 
 ### Added
