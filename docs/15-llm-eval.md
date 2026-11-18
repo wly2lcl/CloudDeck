@@ -37,3 +37,7 @@ pnpm eval:llm
 
 - 评测会真实消耗 token；429 时限流由 provider 重试，仍失败则记录错误。
 - 样例与阈值应随产品目标演进，变更时在 CHANGELOG 说明。
+
+## 引用溯源
+
+`novel.edit` 的 RAG 选中章节会写入任务产物的 `citations.json`（资产名 `citations`），可用于人工核对生成内容引用了哪些章节。

@@ -1,4 +1,4 @@
-import { access, readFile } from 'node:fs/promises'
+import { access, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ArtifactSpec, Driver, JobEvent, TaskContext } from '@clouddeck/contracts'
 import { createEmbedderFromEnv, selectVectorContext } from './embeddings'
@@ -6,6 +6,7 @@ import { selectContext } from './retrieval'
 
 export const CLAUDE_DRIVER_ID = 'drivers/claude-code'
 export const RESULT_FILENAME = 'result.md'
+export const CITATIONS_FILENAME = 'citations.json'
 
 const DEFAULT_SYSTEM_PROMPT = [
   '你是 CloudDeck 的内容生产助手，在受控工作区内工作。',
@@ -115,6 +116,7 @@ async function buildPrompt(ctx: TaskContext): Promise<string> {
       : '请按模式处理输入文件。'
 
   const context: string[] = []
+  const citations: { assetId: string; name: string; chapters: string[] }[] = []
   for (const input of ctx.inputs) {
     if (!/^(text\/|application\/json)/.test(input.mime)) continue
     const text = await readFile(input.path, 'utf8').catch(() => '')
@@ -128,7 +130,14 @@ async function buildPrompt(ctx: TaskContext): Promise<string> {
           embedder,
         ).catch(() => selectContext(text, instruction, params.chapter as string | undefined))
       : selectContext(text, instruction, params.chapter as string | undefined)
-    if (snippet) context.push(`### ${input.path}\n${snippet}`)
+    if (snippet) {
+      context.push(`### ${input.path}\n${snippet}`)
+      const chapters = [...snippet.matchAll(/^### (.+)$/gm)].map((match) => match[1] as string)
+      citations.push({ assetId: input.assetId, name: input.path.split('/').pop() ?? input.path, chapters })
+    }
+  }
+  if (citations.length > 0) {
+    await writeFile(join(ctx.outputDir, CITATIONS_FILENAME), JSON.stringify({ citations }, null, 2))
   }
 
   return [
@@ -143,7 +152,13 @@ async function buildPrompt(ctx: TaskContext): Promise<string> {
     '## 输入文件',
     ...ctx.inputs.map((input) => `- ${input.path} (${input.mime})`),
     ...(context.length > 0
-      ? ['', '## 检索到的上下文（RAG-lite，优先使用）', ...context]
+      ? [
+          '',
+          '## 检索到的上下文（向量/词法 RAG，优先使用）',
+          ...context,
+          '',
+          '参考来源只用于写作，不要写入最终结果；系统会单独保存 citations.json。',
+        ]
       : []),
     '',
     '## 输出要求',
@@ -325,7 +340,19 @@ export function createClaudeCodeDriver(options: ClaudeDriverOptions = {}): Drive
     },
 
     async collect(ctx: TaskContext): Promise<ArtifactSpec[]> {
-      return [artifactSpec(ctx)]
+      const specs = [artifactSpec(ctx)]
+      try {
+        await access(join(ctx.outputDir, CITATIONS_FILENAME))
+        specs.push({
+          name: 'citations',
+          type: 'document',
+          path: join(ctx.outputDir, CITATIONS_FILENAME),
+          mime: 'application/json',
+        })
+      } catch {
+        // 无检索上下文时不产生引用产物
+      }
+      return specs
     },
   }
 }

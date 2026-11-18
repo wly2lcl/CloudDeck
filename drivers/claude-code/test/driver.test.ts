@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,6 +24,8 @@ async function makeContext(mode: string): Promise<{
   const outputDir = join(workspace, 'output')
   await mkdir(outputDir, { recursive: true })
   const controller = new AbortController()
+  const manuscript = join(workspace, 'manuscript.md')
+  await writeFile(manuscript, '第一章 起点\n林晚走进灯塔。\n第二章 旧信\n她找到母亲的信。')
 
   return {
     controller,
@@ -36,7 +38,15 @@ async function makeContext(mode: string): Promise<{
         outputs: [{ name: 'manuscript', assetType: 'novel_manuscript', multiple: false }],
       },
       params: { instruction: '继续写下一段', mode: 'continue' },
-      inputs: [],
+      inputs: [
+        {
+          assetId: 'asset-1',
+          version: 1,
+          type: 'novel_manuscript',
+          path: manuscript,
+          mime: 'text/markdown',
+        },
+      ],
       workspace,
       outputDir,
       env: { FAKE_MODE: mode, FAKE_OUTPUT_DIR: outputDir },
@@ -72,9 +82,9 @@ describe('Claude Code driver', () => {
     expect(usage?.type === 'usage' && usage.costUsd).toBe(0.012)
 
     const artifacts = await driver.collect(ctx)
-    expect(artifacts).toHaveLength(1)
-    expect(artifacts[0]?.type).toBe('novel_manuscript')
-    expect(artifacts[0]?.name).toBe('manuscript')
+    const manuscript = artifacts.find((artifact) => artifact.name === 'manuscript')
+    expect(manuscript?.type).toBe('novel_manuscript')
+    expect(artifacts.some((artifact) => artifact.name === 'citations')).toBe(true)
   })
 
   it('进程非零退出映射为 DRIVER_ERROR', async () => {

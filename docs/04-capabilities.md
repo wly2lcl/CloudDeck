@@ -1,7 +1,7 @@
 # 04 能力设计
 
 > **实现状态（v0.1.4 开发中）**：
-> `novel.edit` 支持向量 RAG（配置 `EMBEDDING_HTTP_URL/MODEL` 时）与词法 RAG-lite 回退；
+> `novel.edit` 支持向量 RAG（硅基流动 `BAAI/bge-m3`）与词法回退，检索章节会写入 `citations.json`；
 > 有声合成默认 2 路并发，每块做峰值归一，最终音轨优先用 ffmpeg loudnorm 归一到 -16 LUFS；
 > 视频在 ffmpeg 支持 xfade 时可按参数选择 fade/wipe/slide/dissolve 转场，字幕可用 `force_style` 控制样式并烧录；`voice_profile` 资产类型已定义但
 > 尚未接入 manifest，音色通过 `params.voiceMap` 或角色音色库 `voiceProfileId` 传入。
