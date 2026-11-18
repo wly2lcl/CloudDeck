@@ -1402,3 +1402,22 @@ describe('字幕样式预设', () => {
     expect(deleted.statusCode).toBe(200)
   })
 })
+
+describe('字幕预设导入导出', () => {
+  it('导入预设并导出为共享 JSON', async () => {
+    const imported = await api('/v1/subtitle-style-presets/import', {
+      method: 'POST',
+      payload: {
+        presets: [
+          { name: '导入预设', style: { fontSize: '26', alignment: '8', marginV: '28', outline: '2' } },
+        ],
+      },
+    })
+    expect(imported.statusCode).toBe(200)
+    expect(imported.json().data.imported).toBe(1)
+
+    const exported = await api('/v1/subtitle-style-presets/export')
+    expect(exported.statusCode).toBe(200)
+    expect(exported.json().data.presets.some((item: { name: string }) => item.name === '导入预设')).toBe(true)
+  })
+})

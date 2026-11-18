@@ -542,6 +542,35 @@ paths:
                 style: { type: object, additionalProperties: { type: string } }
       responses:
         '201': { $ref: '#/components/responses/Ok' }
+  /v1/subtitle-style-presets/export:
+    get:
+      tags: [capabilities]
+      summary: Export custom subtitle style presets
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/subtitle-style-presets/import:
+    post:
+      tags: [capabilities]
+      summary: Import custom subtitle style presets (upsert by name)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [presets]
+              properties:
+                presets:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [name, style]
+                    properties:
+                      name: { type: string }
+                      style: { type: object, additionalProperties: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
   /v1/subtitle-style-presets/{id}:
     delete:
       tags: [capabilities]

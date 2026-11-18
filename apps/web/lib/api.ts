@@ -836,3 +836,16 @@ export async function createSubtitleStylePreset(
 export async function deleteSubtitleStylePreset(id: string): Promise<void> {
   await api(`/v1/subtitle-style-presets/${id}`, { method: 'DELETE' })
 }
+
+export async function exportSubtitleStylePresets(): Promise<{
+  version: number
+  presets: { name: string; style: Record<string, string> }[]
+}> {
+  return api('/v1/subtitle-style-presets/export')
+}
+
+export async function importSubtitleStylePresets(
+  presets: { name: string; style: Record<string, string> }[],
+): Promise<{ imported: number }> {
+  return api('/v1/subtitle-style-presets/import', { method: 'POST', body: { presets } })
+}

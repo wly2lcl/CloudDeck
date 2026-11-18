@@ -9,9 +9,11 @@ import {
   api,
   createSubtitleStylePreset,
   deleteSubtitleStylePreset,
+  exportSubtitleStylePresets,
   getAssetContent,
   getAssetUrl,
   getSubtitleStylePresets,
+  importSubtitleStylePresets,
   type Asset,
   type SubtitleStylePreset,
 } from '../../../../lib/api'
@@ -486,6 +488,39 @@ export default function SubtitleEditorPage() {
     }
   }
 
+  const exportPresets = async () => {
+    try {
+      const data = await exportSubtitleStylePresets()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'subtitle-presets.json'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '导出失败')
+    }
+  }
+
+  const importPresets = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text()) as {
+        presets?: { name?: string; style?: Record<string, string> }[]
+      }
+      const presets = (parsed.presets ?? []).filter(
+        (item): item is { name: string; style: Record<string, string> } =>
+          typeof item.name === 'string' && item.style !== undefined,
+      )
+      if (presets.length === 0) throw new Error('文件中没有有效预设')
+      const result = await importSubtitleStylePresets(presets)
+      setCustomPresets(await getSubtitleStylePresets())
+      setMessage(`已导入 ${result.imported} 个预设（租户内共享）`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '导入失败')
+    }
+  }
+
   const removePreset = async () => {
     if (!presetId.startsWith('custom:')) return
     try {
@@ -676,6 +711,22 @@ export default function SubtitleEditorPage() {
                 删除预设
               </button>
             )}
+            <button type="button" className="ghost" onClick={() => void exportPresets()}>
+              导出预设
+            </button>
+            <label className="ghost">
+              导入预设
+              <input
+                type="file"
+                accept="application/json"
+                style={{ display: 'none' }}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) void importPresets(file)
+                  event.target.value = ''
+                }}
+              />
+            </label>
             <label>
               <input
                 type="checkbox"
@@ -685,6 +736,7 @@ export default function SubtitleEditorPage() {
               开启吸附
             </label>
           </div>
+          <p className="muted">自定义预设为租户共享，团队成员均可使用；导入按名称覆盖同名预设。</p>
           <div className="row">
             <label>
               字号
