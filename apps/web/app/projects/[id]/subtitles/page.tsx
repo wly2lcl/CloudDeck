@@ -7,6 +7,13 @@ import { formatSrtTime, parseSrt, serializeSrt, type SubtitleCue } from '@cloudd
 import { Nav } from '../../../../components/nav'
 import { api, getAssetContent, getAssetUrl, type Asset } from '../../../../lib/api'
 
+interface Track {
+  assetId: string
+  name: string
+  cues: SubtitleCue[]
+  visible: boolean
+}
+
 function parseClock(value: string, fallback: number): number {
   const match = /^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})$/.exec(value.trim())
   if (!match) return fallback
@@ -22,15 +29,18 @@ function Waveform({
   url,
   cues,
   onSeek,
+  onBoundary,
 }: {
   url: string
   cues: SubtitleCue[]
   onSeek(ms: number, shift: boolean): void
+  onBoundary(index: number, edge: 'start' | 'end', ms: number): void
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [peaks, setPeaks] = useState<number[]>([])
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const dragRef = useRef<{ index: number; edge: 'start' | 'end' } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -87,30 +97,66 @@ function Waveform({
       })
     }
     if (duration > 0) {
-      ctx.fillStyle = '#f59e0b'
-      for (const cue of cues) {
-        for (const ms of [cue.startMs, cue.endMs]) {
-          const x = (ms / duration) * width
-          ctx.fillRect(x, 0, 1, height)
-        }
-      }
+      cues.forEach((cue) => {
+        ctx.fillStyle = '#f59e0b'
+        ctx.fillRect((cue.startMs / duration) * width, 0, 1.5, height)
+        ctx.fillStyle = '#38bdf8'
+        ctx.fillRect((cue.endMs / duration) * width, 0, 1.5, height)
+      })
     }
   }, [peaks, cues, duration])
+
+  const nearestBoundary = (ms: number): { index: number; edge: 'start' | 'end' } | null => {
+    if (duration <= 0) return null
+    const canvas = canvasRef.current
+    if (!canvas) return null
+    const width = canvas.clientWidth
+    const threshold = 10
+    let best: { index: number; edge: 'start' | 'end'; distance: number } | null = null
+    cues.forEach((cue, index) => {
+      for (const edge of ['start', 'end'] as const) {
+        const value = edge === 'start' ? cue.startMs : cue.endMs
+        const distance = Math.abs((value / duration) * width - (ms / duration) * width)
+        if (distance <= threshold && (!best || distance < best.distance)) {
+          best = { index, edge, distance }
+        }
+      }
+    })
+    return best ? { index: (best as { index: number }).index, edge: (best as { edge: 'start' | 'end' }).edge } : null
+  }
 
   if (error) return <p className="muted">波形不可用：{error}</p>
   return (
     <div>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: 96, display: 'block', cursor: 'crosshair' }}
-        onClick={(event) => {
+        style={{ width: '100%', height: 96, display: 'block', cursor: 'ew-resize', touchAction: 'none' }}
+        onPointerDown={(event) => {
           if (duration <= 0) return
           const rect = event.currentTarget.getBoundingClientRect()
-          const ratio = (event.clientX - rect.left) / rect.width
-          onSeek(Math.round(ratio * duration), event.shiftKey)
+          const ms = Math.round(((event.clientX - rect.left) / rect.width) * duration)
+          const boundary = nearestBoundary(ms)
+          if (boundary) {
+            dragRef.current = boundary
+            event.currentTarget.setPointerCapture(event.pointerId)
+          } else {
+            onSeek(ms, event.shiftKey)
+          }
+        }}
+        onPointerMove={(event) => {
+          if (!dragRef.current || duration <= 0) return
+          const rect = event.currentTarget.getBoundingClientRect()
+          const ms = Math.round(((event.clientX - rect.left) / rect.width) * duration)
+          onBoundary(dragRef.current.index, dragRef.current.edge, ms)
+        }}
+        onPointerUp={() => {
+          dragRef.current = null
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null
         }}
       />
-      <p className="muted">点击波形设置选中字幕起点，Shift+点击设置终点；时间条可拖动播放。</p>
+      <p className="muted">拖拽橙色/蓝色边界调整起止；点击空白处定位，Shift+点击设置选中字幕终点。</p>
     </div>
   )
 }
@@ -119,10 +165,10 @@ export default function SubtitleEditorPage() {
   const params = useParams<{ id: string }>()
   const projectId = params.id
   const [assets, setAssets] = useState<Asset[]>([])
-  const [subtitleId, setSubtitleId] = useState('')
-  const [mediaId, setMediaId] = useState('')
-  const [cues, setCues] = useState<SubtitleCue[]>([])
+  const [tracks, setTracks] = useState<Track[]>([])
+  const [activeTrack, setActiveTrack] = useState(0)
   const [selectedCue, setSelectedCue] = useState(0)
+  const [mediaId, setMediaId] = useState('')
   const [currentMs, setCurrentMs] = useState(0)
   const [mediaUrl, setMediaUrl] = useState('')
   const [audioUrl, setAudioUrl] = useState('')
@@ -133,14 +179,21 @@ export default function SubtitleEditorPage() {
   const [outline, setOutline] = useState('1')
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null)
 
-  const subtitles = assets.filter(
-    (asset) => asset.mime === 'application/x-subrip' || asset.name.endsWith('.srt'),
-  )
-  const audioAssets = assets.filter((asset) => asset.mime.startsWith('audio/'))
-  const videoAssets = assets.filter((asset) => asset.mime.startsWith('video/'))
-  const mediaAssets = [...videoAssets, ...audioAssets]
+  const mediaAssets = [
+    ...assets.filter((asset) => asset.mime.startsWith('video/')),
+    ...assets.filter((asset) => asset.mime.startsWith('audio/')),
+  ]
   const selectedMedia = assets.find((asset) => asset.assetId === mediaId)
   const isVideo = selectedMedia?.mime.startsWith('video/') ?? false
+  const cues = tracks[activeTrack]?.cues ?? []
+
+  const updateCues = (updater: (items: SubtitleCue[]) => SubtitleCue[]) => {
+    setTracks((items) =>
+      items.map((track, index) =>
+        index === activeTrack ? { ...track, cues: updater(track.cues) } : track,
+      ),
+    )
+  }
 
   const loadAssets = async () => {
     const list = await api<Asset[]>(`/v1/projects/${projectId}/assets`)
@@ -149,27 +202,30 @@ export default function SubtitleEditorPage() {
   }
 
   useEffect(() => {
-    void loadAssets()
-      .then((list) => {
-        const firstSubtitle = list.find(
+    void (async () => {
+      try {
+        const list = await loadAssets()
+        const srtAssets = list.filter(
           (asset) => asset.mime === 'application/x-subrip' || asset.name.endsWith('.srt'),
         )
-        if (firstSubtitle) setSubtitleId(firstSubtitle.assetId)
+        const loaded = await Promise.all(
+          srtAssets.slice(0, 5).map(async (asset) => ({
+            assetId: asset.assetId,
+            name: asset.name,
+            visible: true,
+            cues: parseSrt((await getAssetContent(asset.assetId, asset.latestVersion)).text),
+          })),
+        )
+        setTracks(loaded.length > 0 ? loaded : [{ assetId: '', name: '字幕轨道 1', cues: [], visible: true }])
         const firstMedia =
           list.find((asset) => asset.mime.startsWith('video/')) ??
           list.find((asset) => asset.mime.startsWith('audio/'))
         if (firstMedia) setMediaId(firstMedia.assetId)
-      })
-      .catch((error) => setMessage(error instanceof Error ? error.message : '加载失败'))
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : '加载失败')
+      }
+    })()
   }, [projectId])
-
-  useEffect(() => {
-    const asset = assets.find((item) => item.assetId === subtitleId)
-    if (!asset) return
-    void getAssetContent(asset.assetId, asset.latestVersion)
-      .then((content) => setCues(parseSrt(content.text)))
-      .catch((error) => setMessage(error instanceof Error ? error.message : '字幕解析失败'))
-  }, [subtitleId, assets])
 
   useEffect(() => {
     const asset = assets.find((item) => item.assetId === mediaId)
@@ -177,11 +233,9 @@ export default function SubtitleEditorPage() {
     void getAssetUrl(asset.assetId, asset.latestVersion)
       .then(({ url }) => {
         setMediaUrl(url)
-        const audio = audioAssets.find((item) => item.mime.startsWith('audio/'))
+        const audio = assets.find((item) => item.mime.startsWith('audio/'))
         if (audio && audio.assetId !== asset.assetId) {
-          void getAssetUrl(audio.assetId, audio.latestVersion).then((result) =>
-            setAudioUrl(result.url),
-          )
+          void getAssetUrl(audio.assetId, audio.latestVersion).then((result) => setAudioUrl(result.url))
         } else {
           setAudioUrl(asset.mime.startsWith('audio/') ? url : '')
         }
@@ -195,57 +249,95 @@ export default function SubtitleEditorPage() {
   }
 
   const updateCue = (index: number, patch: Partial<SubtitleCue>) => {
-    setCues((items) => items.map((cue, i) => (i === index ? { ...cue, ...patch } : cue)))
+    updateCues((items) => items.map((cue, i) => (i === index ? { ...cue, ...patch } : cue)))
   }
 
   const align = (ms: number, shift: boolean) => {
     const index = Math.min(selectedCue, cues.length - 1)
-    if (index < 0 || cues.length === 0) return
     const cue = cues[index]
     if (!cue) return
-    if (shift) {
-      updateCue(index, { endMs: Math.max(cue.startMs + 100, ms) })
-    } else {
-      updateCue(index, { startMs: Math.min(cue.endMs - 100, ms) })
-    }
+    if (shift) updateCue(index, { endMs: Math.max(cue.startMs + 100, ms) })
+    else updateCue(index, { startMs: Math.min(cue.endMs - 100, ms) })
     seek(ms)
+  }
+
+  const dragBoundary = (index: number, edge: 'start' | 'end', ms: number) => {
+    const cue = cues[index]
+    if (!cue) return
+    if (edge === 'start') updateCue(index, { startMs: Math.min(cue.endMs - 100, Math.max(0, ms)) })
+    else updateCue(index, { endMs: Math.max(cue.startMs + 100, ms) })
   }
 
   const addCue = () => {
     const last = cues[cues.length - 1]
     const start = last?.endMs ?? currentMs
-    setCues([...cues, { index: cues.length + 1, startMs: start, endMs: start + 2000, text: '新字幕' }])
+    updateCues((items) => [
+      ...items,
+      { index: items.length + 1, startMs: start, endMs: start + 2000, text: '新字幕' },
+    ])
     setSelectedCue(cues.length)
   }
 
   const removeCue = (index: number) => {
-    setCues(cues.filter((_, i) => i !== index).map((cue, i) => ({ ...cue, index: i + 1 })))
+    updateCues((items) => items.filter((_, i) => i !== index).map((cue, i) => ({ ...cue, index: i + 1 })))
     setSelectedCue(0)
   }
 
-  const style = `FontName=Noto Sans CJK SC,FontSize=${fontSize},PrimaryColour=&HFFFFFF&,Outline=${outline},Alignment=${alignment},MarginV=${marginV}`
-  const active = cues.find((cue) => currentMs >= cue.startMs && currentMs <= cue.endMs)
+  const addTrack = () => {
+    setTracks((items) => [
+      ...items,
+      { assetId: '', name: `字幕轨道 ${items.length + 1}`, cues: [], visible: true },
+    ])
+    setActiveTrack(tracks.length)
+  }
+
+  const saveTrack = async (track: Track, index: number, name?: string) => {
+    const formData = new FormData()
+    const filename = name ?? (track.assetId ? `${track.name}-edited.srt` : `track-${index + 1}.srt`)
+    formData.append('file', new Blob([serializeSrt(track.cues)], { type: 'application/x-subrip' }), filename)
+    await api(`/v1/projects/${projectId}/assets?type=document&name=${encodeURIComponent(filename)}`, {
+      method: 'POST',
+      formData,
+    })
+    return filename
+  }
 
   const save = async () => {
     try {
-      const formData = new FormData()
-      formData.append(
-        'file',
-        new Blob([serializeSrt(cues)], { type: 'application/x-subrip' }),
-        'edited.srt',
+      const track = tracks[activeTrack]
+      if (!track) return
+      const filename = await saveTrack(track, activeTrack)
+      setTracks((items) =>
+        items.map((item, index) => (index === activeTrack ? { ...item, name: filename } : item)),
       )
-      await api(`/v1/projects/${projectId}/assets?type=document&name=edited.srt`, {
-        method: 'POST',
-        formData,
-      })
-      const list = await loadAssets()
-      const created = list.find((asset) => asset.name === 'edited.srt')
-      if (created) setSubtitleId(created.assetId)
-      setMessage('字幕已保存为新资产')
+      await loadAssets()
+      setMessage('字幕轨道已保存为新资产')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '保存失败')
     }
   }
+
+  const mergeTracks = async () => {
+    try {
+      const merged = tracks
+        .filter((track) => track.visible)
+        .flatMap((track) => track.cues)
+        .sort((a, b) => a.startMs - b.startMs)
+        .map((cue, index) => ({ ...cue, index: index + 1 }))
+      const formData = new FormData()
+      formData.append('file', new Blob([serializeSrt(merged)], { type: 'application/x-subrip' }), 'merged.srt')
+      await api(`/v1/projects/${projectId}/assets?type=document&name=merged.srt`, {
+        method: 'POST',
+        formData,
+      })
+      await loadAssets()
+      setMessage('可见轨道已合并为 merged.srt')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '合并失败')
+    }
+  }
+
+  const style = `FontName=Noto Sans CJK SC,FontSize=${fontSize},PrimaryColour=&HFFFFFF&,Outline=${outline},Alignment=${alignment},MarginV=${marginV}`
 
   return (
     <>
@@ -254,15 +346,21 @@ export default function SubtitleEditorPage() {
         <header className="page-head">
           <div>
             <p className="eyebrow">字幕</p>
-            <h1>可视化字幕编辑</h1>
-            <p className="muted">波形对齐、时间轴与实时预览；保存为 SRT 资产供视频渲染使用。</p>
+            <h1>多轨字幕编辑</h1>
+            <p className="muted">拖拽波形边界、叠加预览多条轨道，保存或合并为 SRT 资产。</p>
           </div>
           <div className="row">
             <Link href={`/projects/${projectId}`} className="ghost">
               返回项目
             </Link>
+            <button type="button" className="ghost" onClick={addTrack}>
+              添加轨道
+            </button>
+            <button type="button" className="ghost" onClick={() => void mergeTracks()}>
+              合并可见轨道
+            </button>
             <button type="button" onClick={() => void save()}>
-              保存字幕
+              保存当前轨道
             </button>
           </div>
         </header>
@@ -270,18 +368,38 @@ export default function SubtitleEditorPage() {
         {message && <p className="muted">{message}</p>}
 
         <section className="panel">
+          <h2>轨道</h2>
           <div className="row">
-            <label>
-              字幕资产
-              <select value={subtitleId} onChange={(event) => setSubtitleId(event.target.value)}>
-                <option value="">选择 SRT</option>
-                {subtitles.map((asset) => (
-                  <option key={asset.assetId} value={asset.assetId}>
-                    {asset.name} · v{asset.latestVersion}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {tracks.map((track, index) => (
+              <button
+                key={index}
+                type="button"
+                className={index === activeTrack ? '' : 'ghost'}
+                onClick={() => {
+                  setActiveTrack(index)
+                  setSelectedCue(0)
+                }}
+              >
+                {track.name}
+                {track.assetId ? '' : ' *'}
+              </button>
+            ))}
+          </div>
+          <div className="row" style={{ marginTop: 8 }}>
+            {tracks.map((track, index) => (
+              <label key={index}>
+                <input
+                  type="checkbox"
+                  checked={track.visible}
+                  onChange={(event) =>
+                    setTracks((items) =>
+                      items.map((item, i) => (i === index ? { ...item, visible: event.target.checked } : item)),
+                    )
+                  }
+                />
+                显示 {track.name}
+              </label>
+            ))}
             <label>
               预览媒体
               <select value={mediaId} onChange={(event) => setMediaId(event.target.value)}>
@@ -295,7 +413,7 @@ export default function SubtitleEditorPage() {
             </label>
           </div>
 
-          {audioUrl && <Waveform url={audioUrl} cues={cues} onSeek={align} />}
+          {audioUrl && <Waveform url={audioUrl} cues={cues} onSeek={align} onBoundary={dragBoundary} />}
 
           {mediaUrl && (
             <div style={{ position: 'relative', marginTop: 12, background: '#000' }}>
@@ -316,25 +434,31 @@ export default function SubtitleEditorPage() {
                   onTimeUpdate={(event) => setCurrentMs(event.currentTarget.currentTime * 1000)}
                 />
               )}
-              {active && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    [alignment === '8' ? 'top' : alignment === '5' ? 'top' : 'bottom']:
-                      alignment === '5' ? '40%' : `${marginV}px`,
-                    textAlign: 'center',
-                    fontSize: `${fontSize}px`,
-                    color: '#fff',
-                    textShadow: `0 0 ${outline}px #000, 0 0 ${outline}px #000`,
-                    pointerEvents: 'none',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  {active.text}
-                </div>
-              )}
+              {tracks.map((track, index) => {
+                const cue = track.visible
+                  ? track.cues.find((item) => currentMs >= item.startMs && currentMs <= item.endMs)
+                  : undefined
+                if (!cue) return null
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      [alignment === '8' ? 'top' : 'bottom']: `${Number(marginV) + index * 32}px`,
+                      textAlign: 'center',
+                      fontSize: `${fontSize}px`,
+                      color: '#fff',
+                      textShadow: `0 0 ${outline}px #000, 0 0 ${outline}px #000`,
+                      pointerEvents: 'none',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {cue.text}
+                  </div>
+                )
+              })}
             </div>
           )}
         </section>
@@ -369,7 +493,7 @@ export default function SubtitleEditorPage() {
         </section>
 
         <section className="panel">
-          <h2>字幕条目</h2>
+          <h2>字幕条目 · {tracks[activeTrack]?.name}</h2>
           <ul className="list">
             {cues.map((cue, index) => (
               <li
