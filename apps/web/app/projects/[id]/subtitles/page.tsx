@@ -28,19 +28,25 @@ function parseClock(value: string, fallback: number): number {
 function Waveform({
   url,
   cues,
+  selectedIndex,
   onSeek,
   onBoundary,
+  onMove,
 }: {
   url: string
   cues: SubtitleCue[]
+  selectedIndex: number
   onSeek(ms: number, shift: boolean): void
   onBoundary(index: number, edge: 'start' | 'end', ms: number): void
+  onMove(index: number, startMs: number): void
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [peaks, setPeaks] = useState<number[]>([])
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const dragRef = useRef<{ index: number; edge: 'start' | 'end' } | null>(null)
+  const dragRef = useRef<
+    { mode: 'start' | 'end' | 'move'; index: number; offset: number } | null
+  >(null)
 
   useEffect(() => {
     let cancelled = false
@@ -97,6 +103,16 @@ function Waveform({
       })
     }
     if (duration > 0) {
+      const selected = cues[selectedIndex]
+      if (selected) {
+        ctx.fillStyle = 'rgba(94, 234, 212, 0.16)'
+        ctx.fillRect(
+          (selected.startMs / duration) * width,
+          0,
+          Math.max(1, ((selected.endMs - selected.startMs) / duration) * width),
+          height,
+        )
+      }
       cues.forEach((cue) => {
         ctx.fillStyle = '#f59e0b'
         ctx.fillRect((cue.startMs / duration) * width, 0, 1.5, height)
@@ -104,7 +120,31 @@ function Waveform({
         ctx.fillRect((cue.endMs / duration) * width, 0, 1.5, height)
       })
     }
-  }, [peaks, cues, duration])
+  }, [peaks, cues, duration, selectedIndex])
+
+  const snap = (ms: number, excludeIndex: number): number => {
+    const candidates: number[] = [0, Math.round(ms / 10) * 10]
+    cues.forEach((cue, index) => {
+      if (index === excludeIndex) return
+      candidates.push(cue.startMs, cue.endMs)
+    })
+    let best = Math.round(ms / 10) * 10
+    let bestDistance = Number.POSITIVE_INFINITY
+    for (const candidate of candidates) {
+      const distance = Math.abs(candidate - ms)
+      if (distance <= 120 && distance < bestDistance) {
+        best = candidate
+        bestDistance = distance
+      }
+    }
+    return Math.max(0, Math.round(best))
+  }
+
+  const cueAt = (ms: number): { index: number; offset: number } | null => {
+    const index = cues.findIndex((cue) => ms >= cue.startMs && ms <= cue.endMs)
+    if (index < 0) return null
+    return { index, offset: ms - (cues[index]?.startMs ?? 0) }
+  }
 
   const nearestBoundary = (ms: number): { index: number; edge: 'start' | 'end' } | null => {
     if (duration <= 0) return null
@@ -137,17 +177,28 @@ function Waveform({
           const ms = Math.round(((event.clientX - rect.left) / rect.width) * duration)
           const boundary = nearestBoundary(ms)
           if (boundary) {
-            dragRef.current = boundary
+            dragRef.current = { mode: boundary.edge, index: boundary.index, offset: 0 }
             event.currentTarget.setPointerCapture(event.pointerId)
-          } else {
-            onSeek(ms, event.shiftKey)
+            return
           }
+          const inside = cueAt(ms)
+          if (inside) {
+            dragRef.current = { mode: 'move', index: inside.index, offset: inside.offset }
+            event.currentTarget.setPointerCapture(event.pointerId)
+            return
+          }
+          onSeek(ms, event.shiftKey)
         }}
         onPointerMove={(event) => {
           if (!dragRef.current || duration <= 0) return
           const rect = event.currentTarget.getBoundingClientRect()
           const ms = Math.round(((event.clientX - rect.left) / rect.width) * duration)
-          onBoundary(dragRef.current.index, dragRef.current.edge, ms)
+          const drag = dragRef.current
+          if (drag.mode === 'move') {
+            onMove(drag.index, snap(ms - drag.offset, drag.index))
+          } else {
+            onBoundary(drag.index, drag.mode, snap(ms, drag.index))
+          }
         }}
         onPointerUp={() => {
           dragRef.current = null
@@ -156,7 +207,7 @@ function Waveform({
           dragRef.current = null
         }}
       />
-      <p className="muted">拖拽橙色/蓝色边界调整起止；点击空白处定位，Shift+点击设置选中字幕终点。</p>
+      <p className="muted">拖拽橙色/蓝色边界调整起止，拖拽字幕中段整体移动；邻近边界自动吸附，点击空白处定位。</p>
     </div>
   )
 }
@@ -266,6 +317,14 @@ export default function SubtitleEditorPage() {
     if (!cue) return
     if (edge === 'start') updateCue(index, { startMs: Math.min(cue.endMs - 100, Math.max(0, ms)) })
     else updateCue(index, { endMs: Math.max(cue.startMs + 100, ms) })
+  }
+
+  const moveCue = (index: number, startMs: number) => {
+    const cue = cues[index]
+    if (!cue) return
+    const duration = cue.endMs - cue.startMs
+    const start = Math.max(0, Math.min(startMs, Number.MAX_SAFE_INTEGER))
+    updateCue(index, { startMs: start, endMs: start + duration })
   }
 
   const addCue = () => {
@@ -413,7 +472,14 @@ export default function SubtitleEditorPage() {
             </label>
           </div>
 
-          {audioUrl && <Waveform url={audioUrl} cues={cues} onSeek={align} onBoundary={dragBoundary} />}
+          {audioUrl && <Waveform
+            url={audioUrl}
+            cues={cues}
+            selectedIndex={selectedCue}
+            onSeek={align}
+            onBoundary={dragBoundary}
+            onMove={moveCue}
+          />}
 
           {mediaUrl && (
             <div style={{ position: 'relative', marginTop: 12, background: '#000' }}>

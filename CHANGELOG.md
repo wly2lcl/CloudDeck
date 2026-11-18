@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Subtitle editor: drag an entire cue to move it while preserving duration; boundaries snap to nearby cue edges (120ms) or a 10ms grid.
+
 ## [0.1.29] - 2026-11-18
 
 ### Added
