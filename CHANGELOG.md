@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Capability run form selects assets per input and allows multiple subtitle tracks for `video.render`.
+
 ## [0.1.28] - 2026-11-18
 
 ### Added

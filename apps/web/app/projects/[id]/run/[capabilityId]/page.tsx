@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Nav } from '../../../../../components/nav'
 import {
@@ -40,7 +40,7 @@ export default function RunCapabilityPage() {
 
   const [capability, setCapability] = useState<CapabilityDetail | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
-  const [selectedAssetId, setSelectedAssetId] = useState('')
+  const [selections, setSelections] = useState<Record<string, string[]>>({})
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -54,9 +54,20 @@ export default function RunCapabilityPage() {
       setCapability(capabilityData)
       setAssets(assetData)
 
-      const accepted = new Set(capabilityData.manifest.inputs.flatMap((input) => input.assetTypes))
-      const first = assetData.find((asset) => accepted.has(asset.type))
-      if (first) setSelectedAssetId(first.assetId)
+      const initialSelections: Record<string, string[]> = {}
+      for (const input of capabilityData.manifest.inputs) {
+        const candidates = assetData.filter((asset) =>
+          input.assetTypes.includes(asset.type),
+        )
+        const filtered =
+          input.name === 'subtitles'
+            ? candidates.filter(
+                (asset) => asset.mime === 'application/x-subrip' || asset.name.endsWith('.srt'),
+              )
+            : candidates
+        initialSelections[input.name] = filtered[0] ? [filtered[0].assetId] : []
+      }
+      setSelections(initialSelections)
 
       const initial: Record<string, string> = {}
       for (const [key, field] of Object.entries(capabilityData.form?.properties ?? {})) {
@@ -81,17 +92,32 @@ export default function RunCapabilityPage() {
     void load()
   }, [load, router])
 
-  const acceptedTypes = useMemo(
-    () => new Set(capability?.manifest.inputs.flatMap((input) => input.assetTypes) ?? []),
-    [capability],
-  )
-  const selectableAssets = assets.filter((asset) => acceptedTypes.has(asset.type))
+  const assetsFor = (input: { name: string; assetTypes: string[] }) => {
+    const candidates = assets.filter((asset) => input.assetTypes.includes(asset.type))
+    return input.name === 'subtitles'
+      ? candidates.filter(
+          (asset) => asset.mime === 'application/x-subrip' || asset.name.endsWith('.srt'),
+        )
+      : candidates
+  }
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!capability) return
-    const asset = assets.find((item) => item.assetId === selectedAssetId)
-    if (!asset) {
+    const inputs: { assetId: string; version: number }[] = []
+    for (const input of capability.manifest.inputs) {
+      const ids = selections[input.name] ?? []
+      if (input.required && ids.length === 0) {
+        setError(`请选择${input.label ?? input.name}`)
+        return
+      }
+      for (const id of ids) {
+        const asset = assets.find((item) => item.assetId === id)
+        if (!asset) continue
+        inputs.push({ assetId: asset.assetId, version: asset.latestVersion })
+      }
+    }
+    if (inputs.length === 0) {
       setError('请选择输入资产')
       return
     }
@@ -109,7 +135,7 @@ export default function RunCapabilityPage() {
         method: 'POST',
         body: {
           capabilityId,
-          inputs: [{ assetId: asset.assetId, version: asset.latestVersion }],
+          inputs,
           params: parsed,
         },
       })
@@ -137,20 +163,60 @@ export default function RunCapabilityPage() {
 
         {capability && (
           <form className="panel stack" onSubmit={submit}>
-            <label>
-              输入资产
-              <select
-                value={selectedAssetId}
-                onChange={(event) => setSelectedAssetId(event.target.value)}
-              >
-                {selectableAssets.length === 0 && <option value="">没有可用资产</option>}
-                {selectableAssets.map((asset) => (
-                  <option key={asset.assetId} value={asset.assetId}>
-                    {asset.name}（{asset.type} · v{asset.latestVersion}）
-                  </option>
-                ))}
-              </select>
-            </label>
+            {capability.manifest.inputs.map((input) => {
+              const options = assetsFor(input)
+              const selected = selections[input.name] ?? []
+              if (input.name === 'subtitles') {
+                return (
+                  <fieldset key={input.name} className="stack">
+                    <legend>
+                      {input.label ?? input.name}
+                      {input.required ? '（必填）' : '（可选，可多选）'}
+                    </legend>
+                    {options.length === 0 && <p className="muted">没有可用字幕资产</p>}
+                    {options.map((asset) => (
+                      <label key={asset.assetId}>
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(asset.assetId)}
+                          onChange={(event) =>
+                            setSelections({
+                              ...selections,
+                              [input.name]: event.target.checked
+                                ? [...selected, asset.assetId]
+                                : selected.filter((id) => id !== asset.assetId),
+                            })
+                          }
+                        />
+                        {asset.name} · v{asset.latestVersion}
+                      </label>
+                    ))}
+                  </fieldset>
+                )
+              }
+              return (
+                <label key={input.name}>
+                  {input.label ?? input.name}
+                  {input.required ? '（必填）' : '（可选）'}
+                  <select
+                    value={selected[0] ?? ''}
+                    onChange={(event) =>
+                      setSelections({
+                        ...selections,
+                        [input.name]: event.target.value ? [event.target.value] : [],
+                      })
+                    }
+                  >
+                    <option value="">不选择</option>
+                    {options.map((asset) => (
+                      <option key={asset.assetId} value={asset.assetId}>
+                        {asset.name}（{asset.type} · v{asset.latestVersion}）
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )
+            })}
 
             {Object.entries(capability.form?.properties ?? {}).map(([key, field]) => (
               <label key={key}>
