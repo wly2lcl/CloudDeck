@@ -97,6 +97,18 @@ export const projectMembers = pgTable(
   (table) => [uniqueIndex('project_members_project_user_idx').on(table.projectId, table.userId)],
 )
 
+export const subtitleStylePresets = pgTable(
+  'subtitle_style_presets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    name: text('name').notNull(),
+    style: jsonb('style').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (table) => [uniqueIndex('subtitle_style_presets_tenant_name_idx').on(table.tenantId, table.name)],
+)
+
 export const voiceProfiles = pgTable(
   'voice_profiles',
   {
@@ -537,6 +549,7 @@ export const schema = {
   invitations,
   collabDocs,
   voiceProfiles,
+  subtitleStylePresets,
   projectMembers,
   projects,
   assets,

@@ -521,6 +521,35 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Ok' }
         '429': { $ref: '#/components/responses/Error' }
+  /v1/subtitle-style-presets:
+    get:
+      tags: [capabilities]
+      summary: List custom subtitle style presets
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+    post:
+      tags: [capabilities]
+      summary: Save a custom subtitle style preset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, style]
+              properties:
+                name: { type: string }
+                style: { type: object, additionalProperties: { type: string } }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
+  /v1/subtitle-style-presets/{id}:
+    delete:
+      tags: [capabilities]
+      summary: Delete a custom subtitle style preset
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
   /v1/voice-profiles:
     get:
       tags: [capabilities]

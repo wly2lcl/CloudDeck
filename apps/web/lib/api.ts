@@ -811,3 +811,28 @@ export async function createVoiceProfile(input: {
 export async function deleteVoiceProfile(id: string): Promise<void> {
   await api(`/v1/voice-profiles/${id}`, { method: 'DELETE' })
 }
+
+export interface SubtitleStylePreset {
+  id: string
+  name: string
+  style: Record<string, string>
+  createdAt: string
+}
+
+export async function getSubtitleStylePresets(): Promise<SubtitleStylePreset[]> {
+  return api<SubtitleStylePreset[]>('/v1/subtitle-style-presets')
+}
+
+export async function createSubtitleStylePreset(
+  name: string,
+  style: Record<string, string>,
+): Promise<SubtitleStylePreset> {
+  return api<SubtitleStylePreset>('/v1/subtitle-style-presets', {
+    method: 'POST',
+    body: { name, style },
+  })
+}
+
+export async function deleteSubtitleStylePreset(id: string): Promise<void> {
+  await api(`/v1/subtitle-style-presets/${id}`, { method: 'DELETE' })
+}

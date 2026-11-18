@@ -2259,3 +2259,48 @@ export async function deleteVoiceProfile(
   )
   return row !== null
 }
+
+export interface SubtitleStylePresetRow {
+  id: string
+  tenant_id: string
+  name: string
+  style: Record<string, string>
+  created_at: Date
+}
+
+export async function listSubtitleStylePresets(
+  db: Database,
+  tenantId: string,
+): Promise<SubtitleStylePresetRow[]> {
+  return rows<SubtitleStylePresetRow>(
+    db,
+    sql`SELECT * FROM subtitle_style_presets WHERE tenant_id = ${tenantId} ORDER BY created_at DESC`,
+  )
+}
+
+export async function createSubtitleStylePreset(
+  db: Database,
+  input: { tenantId: string; name: string; style: Record<string, string> },
+): Promise<SubtitleStylePresetRow> {
+  const row = await one<SubtitleStylePresetRow>(
+    db,
+    sql`INSERT INTO subtitle_style_presets (tenant_id, name, style)
+        VALUES (${input.tenantId}, ${input.name}, ${json(input.style)})
+        ON CONFLICT (tenant_id, name) DO UPDATE SET style = EXCLUDED.style
+        RETURNING *`,
+  )
+  if (!row) throw new Error('保存样式预设失败')
+  return row
+}
+
+export async function deleteSubtitleStylePreset(
+  db: Database,
+  tenantId: string,
+  id: string,
+): Promise<boolean> {
+  const row = await one<{ id: string }>(
+    db,
+    sql`DELETE FROM subtitle_style_presets WHERE tenant_id = ${tenantId} AND id = ${id} RETURNING id`,
+  )
+  return row !== null
+}

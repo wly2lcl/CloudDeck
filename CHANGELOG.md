@@ -10,6 +10,12 @@ All notable changes to this project are documented here. The format follows
 
 - Retrieval reranking: top-4 semantic chunks + keyword overlap boost, expand same-chapter neighbors and selected chapters up to 8 citations. Eval: 100% chapter/phrase recall, 12.5% citation precision, 31.3% chapter citation precision.
 
+## [Unreleased]
+
+### Added
+
+- Tenant-scoped custom subtitle style presets: save current track style, apply/delete from the editor.
+
 ## [0.1.34] - 2026-11-18
 
 ### Added

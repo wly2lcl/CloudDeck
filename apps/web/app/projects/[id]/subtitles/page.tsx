@@ -5,7 +5,16 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { formatSrtTime, parseSrt, serializeSrt, type SubtitleCue } from '@clouddeck/contracts'
 import { Nav } from '../../../../components/nav'
-import { api, getAssetContent, getAssetUrl, type Asset } from '../../../../lib/api'
+import {
+  api,
+  createSubtitleStylePreset,
+  deleteSubtitleStylePreset,
+  getAssetContent,
+  getAssetUrl,
+  getSubtitleStylePresets,
+  type Asset,
+  type SubtitleStylePreset,
+} from '../../../../lib/api'
 
 interface TrackStyle {
   fontSize: string
@@ -257,6 +266,8 @@ export default function SubtitleEditorPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [presetId, setPresetId] = useState('default')
   const [snapEnabled, setSnapEnabled] = useState(true)
+  const [customPresets, setCustomPresets] = useState<SubtitleStylePreset[]>([])
+  const [presetName, setPresetName] = useState('')
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null)
 
   const mediaAssets = [
@@ -302,6 +313,7 @@ export default function SubtitleEditorPage() {
             ? loaded
             : [{ assetId: '', name: '字幕轨道 1', cues: [], visible: true, style: defaultStyle(0) }],
         )
+        setCustomPresets(await getSubtitleStylePresets())
         const firstMedia =
           list.find((asset) => asset.mime.startsWith('video/')) ??
           list.find((asset) => asset.mime.startsWith('audio/'))
@@ -437,13 +449,52 @@ export default function SubtitleEditorPage() {
   }
 
   const applyPreset = (scope: 'active' | 'all') => {
-    const preset = STYLE_PRESETS.find((item) => item.id === presetId)
-    if (!preset) return
+    const custom = presetId.startsWith('custom:')
+      ? customPresets.find((item) => `custom:${item.id}` === presetId)
+      : undefined
+    const style = custom
+      ? {
+          fontSize: custom.style.fontSize ?? '20',
+          alignment: custom.style.alignment ?? '2',
+          marginV: custom.style.marginV ?? '24',
+          outline: custom.style.outline ?? '1',
+        }
+      : STYLE_PRESETS.find((item) => item.id === presetId)?.style
+    if (!style) return
     setTracks((items) =>
       items.map((track, index) =>
-        scope === 'all' || index === activeTrack ? { ...track, style: { ...preset.style } } : track,
+        scope === 'all' || index === activeTrack ? { ...track, style: { ...style } } : track,
       ),
     )
+  }
+
+  const savePreset = async () => {
+    if (!presetName.trim()) return
+    try {
+      const preset = await createSubtitleStylePreset(presetName.trim(), {
+        fontSize: activeStyle.fontSize,
+        alignment: activeStyle.alignment,
+        marginV: activeStyle.marginV,
+        outline: activeStyle.outline,
+      })
+      setCustomPresets(await getSubtitleStylePresets())
+      setPresetId(`custom:${preset.id}`)
+      setPresetName('')
+      setMessage('样式预设已保存')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '保存预设失败')
+    }
+  }
+
+  const removePreset = async () => {
+    if (!presetId.startsWith('custom:')) return
+    try {
+      await deleteSubtitleStylePreset(presetId.slice('custom:'.length))
+      setCustomPresets(await getSubtitleStylePresets())
+      setPresetId('default')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '删除预设失败')
+    }
   }
 
   const activeStyle = tracks[activeTrack]?.style ?? defaultStyle(0)
@@ -599,6 +650,11 @@ export default function SubtitleEditorPage() {
                     {preset.name}
                   </option>
                 ))}
+                {customPresets.map((preset) => (
+                  <option key={preset.id} value={`custom:${preset.id}`}>
+                    {preset.name}
+                  </option>
+                ))}
               </select>
             </label>
             <button type="button" className="ghost" onClick={() => applyPreset('active')}>
@@ -607,6 +663,19 @@ export default function SubtitleEditorPage() {
             <button type="button" className="ghost" onClick={() => applyPreset('all')}>
               应用到全部轨道
             </button>
+            <input
+              placeholder="预设名称"
+              value={presetName}
+              onChange={(event) => setPresetName(event.target.value)}
+            />
+            <button type="button" className="ghost" onClick={() => void savePreset()}>
+              保存当前样式
+            </button>
+            {presetId.startsWith('custom:') && (
+              <button type="button" className="ghost" onClick={() => void removePreset()}>
+                删除预设
+              </button>
+            )}
             <label>
               <input
                 type="checkbox"

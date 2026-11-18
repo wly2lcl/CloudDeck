@@ -1385,3 +1385,20 @@ describe('角色音色库', () => {
     expect(deleted.statusCode).toBe(200)
   })
 })
+
+describe('字幕样式预设', () => {
+  it('保存、列出并删除自定义样式预设', async () => {
+    const created = await api('/v1/subtitle-style-presets', {
+      method: 'POST',
+      payload: { name: '夜间字幕', style: { fontSize: '24', alignment: '2', marginV: '32', outline: '2' } },
+    })
+    expect(created.statusCode).toBe(201)
+    const id = created.json().data.id as string
+
+    const list = await api('/v1/subtitle-style-presets')
+    expect(list.json().data.some((item: { id: string }) => item.id === id)).toBe(true)
+
+    const deleted = await api(`/v1/subtitle-style-presets/${id}`, { method: 'DELETE' })
+    expect(deleted.statusCode).toBe(200)
+  })
+})
