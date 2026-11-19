@@ -1365,6 +1365,8 @@ export interface ModelCredentialRow {
   label: string
   encrypted_secret: string
   key_hint: string
+  base_url: string | null
+  model: string | null
   status: string
   created_at: Date
   last_used_at: Date | null
@@ -1378,12 +1380,15 @@ export async function createModelCredential(
     label: string
     encryptedSecret: string
     keyHint: string
+    baseUrl?: string
+    model?: string
   },
 ): Promise<ModelCredentialRow> {
   const row = await one<ModelCredentialRow>(
     db,
-    sql`INSERT INTO model_credentials (tenant_id, provider, label, encrypted_secret, key_hint)
-        VALUES (${input.tenantId}, ${input.provider}, ${input.label}, ${input.encryptedSecret}, ${input.keyHint})
+    sql`INSERT INTO model_credentials (tenant_id, provider, label, encrypted_secret, key_hint, base_url, model)
+        VALUES (${input.tenantId}, ${input.provider}, ${input.label}, ${input.encryptedSecret}, ${input.keyHint},
+                ${input.baseUrl ?? null}, ${input.model ?? null})
         RETURNING *`,
   )
   if (!row) throw new Error('创建凭据失败')

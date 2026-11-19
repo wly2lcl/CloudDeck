@@ -474,6 +474,8 @@ export const modelCredentials = pgTable(
     label: text('label').notNull(),
     encryptedSecret: text('encrypted_secret').notNull(),
     keyHint: text('key_hint').notNull(),
+    baseUrl: text('base_url'),
+    model: text('model'),
     status: text('status').notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),

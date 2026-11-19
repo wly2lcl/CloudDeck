@@ -17,9 +17,20 @@ import { toIso } from '../time'
 import { ok, param, parseBody } from './helpers'
 
 const createSchema = z.object({
-  provider: z.enum(['anthropic', 'dashscope', 'bailian', 'openai', 'openrouter', 'custom']),
+  provider: z.enum([
+    'anthropic',
+    'dashscope',
+    'bailian',
+    'openai',
+    'openrouter',
+    'deepseek',
+    'siliconflow',
+    'custom',
+  ]),
   label: z.string().min(1).max(80),
   secret: z.string().min(8).max(4096),
+  baseUrl: z.string().url().optional(),
+  model: z.string().min(1).max(128).optional(),
 })
 
 function serializeCredential(row: ModelCredentialRow) {
@@ -27,6 +38,8 @@ function serializeCredential(row: ModelCredentialRow) {
     id: row.id,
     provider: row.provider,
     label: row.label,
+    baseUrl: row.base_url,
+    model: row.model,
     keyHint: row.key_hint,
     status: row.status,
     createdAt: toIso(row.created_at),
@@ -57,6 +70,8 @@ export function registerCredentialRoutes(
         label: body.label,
         encryptedSecret: encryptSecret(body.secret, masterKey),
         keyHint: keyHint(body.secret),
+        baseUrl: body.baseUrl,
+        model: body.model,
       }),
     )
     await audit(deps.db, {

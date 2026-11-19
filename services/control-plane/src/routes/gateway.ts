@@ -1,10 +1,29 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { getJob, getQuotaSnapshot, periodOf, withTenant } from '@clouddeck/db'
+import { getJob, getQuotaSnapshot, listModelCredentials, periodOf, withTenant } from '@clouddeck/db'
+import { decryptSecret, deriveMasterKey } from '@clouddeck/secrets'
 import { issueJobToken, requireAuth } from '../auth'
 import type { AppDeps } from '../deps'
 import { AppError } from '../errors'
 import { ok, parseBody } from './helpers'
+
+function defaultBaseUrl(provider: string): string | undefined {
+  switch (provider) {
+    case 'openai':
+      return 'https://api.openai.com/v1'
+    case 'openrouter':
+      return 'https://openrouter.ai/api/v1'
+    case 'deepseek':
+      return 'https://api.deepseek.com/v1'
+    case 'siliconflow':
+      return 'https://api.siliconflow.cn/v1'
+    case 'dashscope':
+    case 'bailian':
+      return 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    default:
+      return undefined
+  }
+}
 
 const chatSchema = z.object({
   messages: z
@@ -44,7 +63,29 @@ export function registerGatewayRoutes(
       if (!job) throw new AppError('NOT_FOUND', '任务不存在')
     }
     const body = parseBody(chatSchema, request.body)
-    if (!deps.config.gatewayBaseUrl) {
+    let baseUrl = deps.config.gatewayBaseUrl
+    let token = deps.config.gatewayToken
+    let model = body.model ?? deps.config.gatewayModel
+
+    const credentials = deps.config.gatewayBaseUrl
+      ? []
+      : await withTenant(deps.db, auth.tenantId, (tx) =>
+          listModelCredentials(tx, auth.tenantId),
+        )
+    const credential =
+      credentials.find((item) => item.base_url) ??
+      credentials.find((item) => defaultBaseUrl(item.provider))
+    if (credential) {
+      try {
+        const masterKey = deriveMasterKey(deps.config.credentialsKey)
+        baseUrl = credential.base_url ?? defaultBaseUrl(credential.provider)
+        token = decryptSecret(credential.encrypted_secret, masterKey)
+        model = body.model ?? credential.model ?? model
+      } catch (error) {
+        console.error('租户模型凭据解密失败，回退网关配置', error)
+      }
+    }
+    if (!baseUrl || !model) {
       throw new AppError('CAPABILITY_UNAVAILABLE', '模型网关未配置')
     }
 
@@ -67,17 +108,15 @@ export function registerGatewayRoutes(
     const timer = setTimeout(() => controller.abort(), 120_000)
     try {
       const response = await fetch(
-        `${deps.config.gatewayBaseUrl.replace(/\/$/, '')}/chat/completions`,
+        `${baseUrl.replace(/\/$/, '')}/chat/completions`,
         {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            ...(deps.config.gatewayToken
-              ? { authorization: `Bearer ${deps.config.gatewayToken}` }
-              : {}),
+            ...(token ? { authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
-            model: body.model ?? deps.config.gatewayModel,
+            model,
             messages: body.messages,
             max_tokens: body.maxTokens,
           }),

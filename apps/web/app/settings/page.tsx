@@ -82,6 +82,8 @@ export default function SettingsPage() {
   const [credentialProvider, setCredentialProvider] = useState('dashscope')
   const [credentialLabel, setCredentialLabel] = useState('')
   const [credentialSecret, setCredentialSecret] = useState('')
+  const [credentialBaseUrl, setCredentialBaseUrl] = useState('')
+  const [credentialModel, setCredentialModel] = useState('')
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -300,9 +302,13 @@ export default function SettingsPage() {
         provider: credentialProvider,
         label: credentialLabel.trim(),
         secret: credentialSecret.trim(),
+        ...(credentialBaseUrl.trim() ? { baseUrl: credentialBaseUrl.trim() } : {}),
+        ...(credentialModel.trim() ? { model: credentialModel.trim() } : {}),
       })
       setCredentialLabel('')
       setCredentialSecret('')
+      setCredentialBaseUrl('')
+      setCredentialModel('')
       setCredentials(await getModelCredentials())
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '保存凭据失败')
@@ -505,6 +511,9 @@ export default function SettingsPage() {
               <option value="dashscope">dashscope / 百炼</option>
               <option value="anthropic">anthropic</option>
               <option value="openai">openai</option>
+              <option value="deepseek">deepseek</option>
+              <option value="siliconflow">siliconflow</option>
+              <option value="custom">custom</option>
               <option value="openrouter">openrouter</option>
               <option value="custom">custom</option>
             </select>

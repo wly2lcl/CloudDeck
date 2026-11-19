@@ -25,8 +25,8 @@
 
 ## 模型网关
 
-> **实现状态（v0.1.13 开发中）**：worker 级网关支持主/备 provider 降级；控制面新增
-> `/v1/gateway/chat` 预算校验与 OpenAI 兼容代理。短期 token、跨 driver 自动路由仍未落地。
+> **实现状态**：worker 级主/备降级；控制面 `/v1/gateway/chat` 做预算校验。若配置 `GATEWAY_BASE_URL`
+> （或 `LLM_HTTP_URL`）使用平台模型；否则读取租户模型凭据的 `baseUrl/model` 做 BYOK 代理。
 
 目标设计是所有模型调用经过 `control-plane` 的模型网关，不直连 provider：
 

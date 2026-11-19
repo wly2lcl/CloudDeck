@@ -79,7 +79,14 @@ cd apps/mobile && flutter analyze && flutter test
 | Claude Code | `ANTHROPIC_API_KEY`；可选 `CLAUDE_BIN`、`SANDBOX_DRIVER=docker` |
 | 视频 | 宿主或 runner 镜像内有 `ffmpeg` |
 
-租户也可以在「设置 → 模型凭据」保存自己的密钥，AES-256-GCM 加密，任务运行时注入。
+租户也可以在「设置 → 模型凭据」保存密钥、Base URL 与模型名；AES-256-GCM 加密，网关在未配置平台模型时回退到租户凭据。
+
+长链路压测：
+
+```sh
+pnpm stress:longform   # 10 万字有声压测
+pnpm smoke:chain       # 小说→剧本→分镜→有声→视频
+```
 
 ## 文档
 

@@ -81,6 +81,13 @@ pnpm check              # lint, typecheck, tests, coverage, boundaries, OpenAPI
 cd apps/mobile && flutter analyze && flutter test
 ```
 
+Long-form / chain smoke:
+
+```sh
+pnpm stress:longform   # 10 万字有声压测
+pnpm smoke:chain       # 小说→剧本→分镜→有声→视频
+```
+
 Browser E2E:
 
 ```sh

@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Gateway resolves tenant BYOK credentials (`baseUrl` / `model`) when platform model env is absent; credential UI accepts both fields.
+- `pnpm stress:longform` 100k-character audiobook stress script.
+
+## [Unreleased]
+
+### Added
+
+- Gateway BYOK fallback using tenant `baseUrl/model`; credential UI supports both fields.
+- Long-form stress script and full-chain smoke script; LLM failures fall back to heuristic script/storyboard.
+
+### Verified
+
+- 100k-char audiobook: 30s; resume skipped 29 completed chunks after failure.
+- Full chain novel→script→storyboard→audiobook→video succeeded with heuristic fallback.
+
 ## [0.1.37] - 2026-11-18
 
 ### Added

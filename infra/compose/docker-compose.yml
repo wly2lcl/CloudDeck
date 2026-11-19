@@ -63,6 +63,10 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       CONTROL_PLANE_PORT: 4310
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+      LLM_HTTP_URL: ${LLM_HTTP_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_HTTP_TOKEN: ${LLM_HTTP_TOKEN:-}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
     ports:
       - '${CONTROL_PLANE_PORT:-4310}:4310'
     volumes:
@@ -91,6 +95,7 @@ services:
       MODEL_GATEWAY_URL: http://control-plane:4310
       SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
       TTS_PROVIDER: ${TTS_PROVIDER:-fake}
+      TTS_FAIL_AT: ${TTS_FAIL_AT:-}
       TTS_MODEL: ${TTS_MODEL:-qwen-audio-3.1-tts-flash}
       TTS_DEFAULT_VOICE: ${TTS_DEFAULT_VOICE:-longanhuan_v3.1}
       BAILIAN_API_KEY: ${BAILIAN_API_KEY:-}

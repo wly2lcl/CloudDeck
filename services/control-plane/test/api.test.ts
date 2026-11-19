@@ -1445,3 +1445,47 @@ describe('字幕预设版本历史', () => {
     expect(restored.json().data.style.fontSize).toBe('20')
   })
 })
+
+describe('网关 BYOK', () => {
+  it('使用租户模型凭据的 baseUrl 与 model', async () => {
+    const server = createServer((request, response) => {
+      let body = ''
+      request.on('data', (chunk) => {
+        body += chunk
+      })
+      request.on('end', () => {
+        const payload = JSON.parse(body) as { model?: string }
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ choices: [{ message: { content: `byok:${payload.model}` } }] }))
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+    const previousBase = ctx.config.gatewayBaseUrl
+    ctx.config.gatewayBaseUrl = undefined
+    try {
+      const credential = await api('/v1/model-credentials', {
+        method: 'POST',
+        payload: {
+          provider: 'openai',
+          label: 'BYOK',
+          secret: 'sk-test-byok',
+          baseUrl: `http://127.0.0.1:${port}`,
+          model: 'byok-model',
+        },
+      })
+      expect(credential.statusCode).toBe(201)
+
+      const response = await api('/v1/gateway/chat', {
+        method: 'POST',
+        payload: { messages: [{ role: 'user', content: 'hello' }], maxTokens: 16 },
+      })
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.text).toBe('byok:byok-model')
+    } finally {
+      ctx.config.gatewayBaseUrl = previousBase
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+})

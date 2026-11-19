@@ -359,6 +359,8 @@ export async function createModelCredential(input: {
   provider: string
   label: string
   secret: string
+  baseUrl?: string
+  model?: string
 }): Promise<ModelCredential> {
   return api<ModelCredential>('/v1/model-credentials', { method: 'POST', body: input })
 }

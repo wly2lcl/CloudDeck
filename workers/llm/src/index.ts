@@ -231,21 +231,31 @@ export function createLlmDriver(options: LlmDriverOptions = {}): Driver {
         if (ctx.capability.id === 'script.generate') {
           let script: ScriptStructure
           if (provider) {
-            const result = await provider.complete({
-              system: '你是专业中文编剧，只输出 JSON。',
-              prompt: scriptPrompt(text),
-              json: true,
-            })
-            if (result.costUsd > 0) {
+            try {
+              const result = await provider.complete({
+                system: '你是专业中文编剧，只输出 JSON。',
+                prompt: scriptPrompt(text),
+                json: true,
+              })
+              if (result.costUsd > 0) {
+                yield {
+                  type: 'usage',
+                  inputTokens: result.inputTokens,
+                  outputTokens: result.outputTokens,
+                  costUsd: result.costUsd,
+                  at: at(),
+                }
+              }
+              script = parseJson<ScriptStructure>(result.text)
+            } catch (error) {
               yield {
-                type: 'usage',
-                inputTokens: result.inputTokens,
-                outputTokens: result.outputTokens,
-                costUsd: result.costUsd,
+                type: 'log',
+                level: 'warn',
+                message: `模型生成失败，回退启发式剧本：${error instanceof Error ? error.message : String(error)}`,
                 at: at(),
               }
+              script = buildScriptHeuristic(text, params.title ?? '未命名剧本')
             }
-            script = parseJson<ScriptStructure>(result.text)
           } else {
             script = buildScriptHeuristic(text, params.title ?? '未命名剧本')
           }
@@ -256,21 +266,31 @@ export function createLlmDriver(options: LlmDriverOptions = {}): Driver {
         } else if (ctx.capability.id === 'storyboard.plan') {
           let storyboard: StoryboardStructure
           if (provider) {
-            const result = await provider.complete({
-              system: '你是专业分镜师，只输出 JSON。',
-              prompt: storyboardPrompt(text, params.shotsPerScene ?? 2),
-              json: true,
-            })
-            if (result.costUsd > 0) {
+            try {
+              const result = await provider.complete({
+                system: '你是专业分镜师，只输出 JSON。',
+                prompt: storyboardPrompt(text, params.shotsPerScene ?? 2),
+                json: true,
+              })
+              if (result.costUsd > 0) {
+                yield {
+                  type: 'usage',
+                  inputTokens: result.inputTokens,
+                  outputTokens: result.outputTokens,
+                  costUsd: result.costUsd,
+                  at: at(),
+                }
+              }
+              storyboard = parseJson<StoryboardStructure>(result.text)
+            } catch (error) {
               yield {
-                type: 'usage',
-                inputTokens: result.inputTokens,
-                outputTokens: result.outputTokens,
-                costUsd: result.costUsd,
+                type: 'log',
+                level: 'warn',
+                message: `模型生成失败，回退启发式分镜：${error instanceof Error ? error.message : String(error)}`,
                 at: at(),
               }
+              storyboard = buildStoryboardHeuristic(text, { shotsPerScene: params.shotsPerScene })
             }
-            storyboard = parseJson<StoryboardStructure>(result.text)
           } else {
             storyboard = buildStoryboardHeuristic(text, { shotsPerScene: params.shotsPerScene })
           }

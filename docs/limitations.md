@@ -6,7 +6,7 @@
 
 | 项 | 现状 | 解除条件 |
 |---|---|---|
-| 真实 LLM | 支持 OpenAI 兼容端点；无密钥时使用启发式生成 | 配置 `LLM_HTTP_URL` / `LLM_MODEL` / `LLM_HTTP_TOKEN` |
+| 真实 LLM | 支持 OpenAI 兼容端点；当前测试 key 持续 429，失败时自动回退启发式 | 配置稳定配额或租户 BYOK |
 | 真实 TTS | 支持百炼 `qwen-audio-3.1-tts-flash`；无密钥时使用 fake WAV | 配置 `BAILIAN_API_KEY` |
 | 视频 | 确定性 ffmpeg 合成（Ken Burns + 混音）；无生成式视频 | 选定视频模型并接入新 driver |
 | 字幕 | 轨道级样式、自定义预设、导入导出、租户共享、版本历史/恢复、多轨同时烧录 | 增加跨租户市场与版本对比 |
@@ -15,8 +15,8 @@
 | 有声质量 | 2 路并发、峰值归一、最终 -16 LUFS；角色音色库已接入 `voiceProfileId` | 增加音色试听与自适应并发 |
 | 视频转场 | runner 镜像支持 xfade，已验证 fade/wipeleft；支持 fade/wipe/slide/circleopen/dissolve | 增加 3D/自定义转场 |
 | 检索增强 | 14 章语料 8 用例：向量 100% 章节/短语召回，引用精确率 12.5%（top-4 + 同章扩展，最多 8 条） | 继续提高精确率与更大规模评测 |
-| 统一模型网关 | 控制面 `/gateway/chat`；任务创建签发 token，runner 注入后 LLM worker 走网关 | 增加跨 provider 自动路由与预算硬熔断 |
-| LLM 质量 | 固定评测集 + 启发式基线；真实模型对比遇 429 限流 | 稳定配额后跑模型基线 |
+| 统一模型网关 | 控制面 `/gateway/chat`，平台配置优先、缺失时用租户凭据 baseUrl/model；任务 token 自动注入 | 增加跨 provider 自动路由与预算硬熔断 |
+| LLM 质量 | 固定评测集 + 启发式基线；真实模型仍 429，全链路已验证启发式回退 | 稳定配额后跑模型基线 |
 | Webhook 投递 | 自动重试 3 次；支持手动 replay | 增加死信队列与定时补偿 |
 
 ## 沙箱与安全
