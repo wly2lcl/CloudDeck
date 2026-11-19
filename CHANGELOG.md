@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Control-plane gateway retries 429/5xx up to 4 times, honoring `Retry-After`; configurable via `GATEWAY_MAX_ATTEMPTS` / `GATEWAY_RETRY_BASE_MS`.
+
+### Verified
+
+- Real key retried 5 times over 60s: still 429 `EndpointRPMExceeded` / `EndpointTPMExceeded`; endpoint quota, not transient.
+
 ## [0.1.38] - 2026-11-19
 
 ### Added

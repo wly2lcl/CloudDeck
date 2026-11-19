@@ -25,6 +25,19 @@ function defaultBaseUrl(provider: string): string | undefined {
   }
 }
 
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504])
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function retryDelay(attempt: number, baseMs: number, retryAfter: string | null): number {
+  if (retryAfter) {
+    const seconds = Number(retryAfter)
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 30_000)
+    const date = Date.parse(retryAfter)
+    if (!Number.isNaN(date)) return Math.min(Math.max(date - Date.now(), 0), 30_000)
+  }
+  return Math.min(baseMs * 2 ** (attempt - 1), 30_000)
+}
+
 const chatSchema = z.object({
   messages: z
     .array(
@@ -104,12 +117,18 @@ export function registerGatewayRoutes(
       throw new AppError('QUOTA_EXCEEDED', '本月额度不足')
     }
 
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 120_000)
-    try {
-      const response = await fetch(
-        `${baseUrl.replace(/\/$/, '')}/chat/completions`,
-        {
+    const maxAttempts = Number(
+      process.env.GATEWAY_MAX_ATTEMPTS ?? process.env.LLM_MAX_ATTEMPTS ?? 4,
+    )
+    const baseDelay = Number(
+      process.env.GATEWAY_RETRY_BASE_MS ?? process.env.LLM_RETRY_BASE_MS ?? 1000,
+    )
+    let lastStatus = 0
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 120_000)
+      try {
+        const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
@@ -121,30 +140,43 @@ export function registerGatewayRoutes(
             max_tokens: body.maxTokens,
           }),
           signal: controller.signal,
-        },
-      )
-      if (!response.ok) {
+        })
+        if (response.ok) {
+          const payload = (await response.json()) as {
+            choices?: { message?: { content?: string } }[]
+            usage?: { prompt_tokens?: number; completion_tokens?: number }
+          }
+          return ok(request, {
+            text: payload.choices?.[0]?.message?.content ?? '',
+            usage: {
+              inputTokens: payload.usage?.prompt_tokens ?? 0,
+              outputTokens: payload.usage?.completion_tokens ?? 0,
+            },
+          })
+        }
+        lastStatus = response.status
+        if (RETRYABLE_STATUS.has(response.status) && attempt < maxAttempts) {
+          await sleep(retryDelay(attempt, baseDelay, response.headers.get('retry-after')))
+          continue
+        }
+        if (response.status === 429) {
+          throw new AppError('RATE_LIMITED', `模型网关限流（已重试 ${attempt} 次）`)
+        }
         throw new AppError('DRIVER_ERROR', `模型网关返回 ${response.status}`)
+      } catch (error) {
+        if (error instanceof AppError) throw error
+        if (attempt < maxAttempts) {
+          await sleep(retryDelay(attempt, baseDelay, null))
+          continue
+        }
+        throw new AppError(
+          'DRIVER_ERROR',
+          error instanceof Error ? error.message : '模型网关调用失败',
+        )
+      } finally {
+        clearTimeout(timer)
       }
-      const payload = (await response.json()) as {
-        choices?: { message?: { content?: string } }[]
-        usage?: { prompt_tokens?: number; completion_tokens?: number }
-      }
-      return ok(request, {
-        text: payload.choices?.[0]?.message?.content ?? '',
-        usage: {
-          inputTokens: payload.usage?.prompt_tokens ?? 0,
-          outputTokens: payload.usage?.completion_tokens ?? 0,
-        },
-      })
-    } catch (error) {
-      if (error instanceof AppError) throw error
-      throw new AppError(
-        'DRIVER_ERROR',
-        error instanceof Error ? error.message : '模型网关调用失败',
-      )
-    } finally {
-      clearTimeout(timer)
     }
+    throw new AppError('DRIVER_ERROR', `模型网关调用失败（最后状态 ${lastStatus}）`)
   })
 }

@@ -1489,3 +1489,39 @@ describe('网关 BYOK', () => {
     }
   })
 })
+
+describe('网关重试', () => {
+  it('429 按 Retry-After 重试后成功', async () => {
+    let calls = 0
+    const server = createServer((request, response) => {
+      request.on('data', () => undefined)
+      request.on('end', () => {
+        calls += 1
+        if (calls === 1) {
+          response.writeHead(429, { 'retry-after': '0', 'content-type': 'application/json' })
+          response.end(JSON.stringify({ error: { message: 'rate limited' } }))
+          return
+        }
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ choices: [{ message: { content: 'retried' } }] }))
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+    const previous = ctx.config.gatewayBaseUrl
+    ctx.config.gatewayBaseUrl = `http://127.0.0.1:${port}`
+    try {
+      const response = await api('/v1/gateway/chat', {
+        method: 'POST',
+        payload: { messages: [{ role: 'user', content: 'hello' }], maxTokens: 8 },
+      })
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.text).toBe('retried')
+      expect(calls).toBe(2)
+    } finally {
+      ctx.config.gatewayBaseUrl = previous
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+})
