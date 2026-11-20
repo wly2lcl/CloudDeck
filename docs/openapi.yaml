@@ -486,6 +486,25 @@ paths:
       summary: Signed download URL as JSON
       responses:
         '200': { $ref: '#/components/responses/Ok' }
+  /v1/assets/{id}/versions/{version}/diff:
+    get:
+      tags: [assets]
+      summary: Compare two text asset versions
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: path, required: true, schema: { type: integer } }
+        - { name: against, in: query, required: true, schema: { type: integer } }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+  /v1/assets/{id}/versions/{version}/rollback:
+    post:
+      tags: [assets]
+      summary: Roll back to a version by creating a new version
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: path, required: true, schema: { type: integer } }
+      responses:
+        '201': { $ref: '#/components/responses/Ok' }
   /v1/assets/{id}/versions/{version}/content:
     parameters:
       - { $ref: '#/components/parameters/AssetId' }

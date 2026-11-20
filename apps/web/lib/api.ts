@@ -875,3 +875,33 @@ export async function restoreSubtitleStylePreset(
     { method: 'POST' },
   )
 }
+
+export interface AssetVersionInfo {
+  version: number
+  size: number
+  checksum: string
+  createdAt: string
+}
+
+export interface AssetDetail extends Asset {
+  versions: AssetVersionInfo[]
+}
+
+export async function getAssetDetail(assetId: string): Promise<AssetDetail> {
+  return api<AssetDetail>(`/v1/assets/${assetId}`)
+}
+
+export async function getAssetDiff(
+  assetId: string,
+  fromVersion: number,
+  toVersion: number,
+): Promise<{ fromText: string; toText: string; mime: string }> {
+  return api(`/v1/assets/${assetId}/versions/${fromVersion}/diff?against=${toVersion}`)
+}
+
+export async function rollbackAssetVersion(
+  assetId: string,
+  version: number,
+): Promise<{ version: number }> {
+  return api(`/v1/assets/${assetId}/versions/${version}/rollback`, { method: 'POST' })
+}

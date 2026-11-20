@@ -293,6 +293,67 @@ export function registerProjectRoutes(
     return ok(request, { mime: detail.mime, text: data.toString('utf8') })
   })
 
+  app.get('/v1/assets/:id/versions/:version/diff', { preHandler: guard }, async (request) => {
+    const auth = requireAuth(request)
+    const assetId = param(request, 'id')
+    const fromVersion = Number.parseInt(param(request, 'version'), 10)
+    const toVersion = Number.parseInt(queryString(request, 'against') ?? '', 10)
+    if (!Number.isInteger(fromVersion) || !Number.isInteger(toVersion) || fromVersion <= 0 || toVersion <= 0) {
+      throw new AppError('VALIDATION_FAILED', '版本号非法')
+    }
+    const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      await assertAssetAccess(tx, auth, assetId)
+      const from = await getAssetVersionDetail(tx, auth.tenantId, assetId, fromVersion)
+      const to = await getAssetVersionDetail(tx, auth.tenantId, assetId, toVersion)
+      return { from, to }
+    })
+    if (!result.from || !result.to) throw new AppError('NOT_FOUND', '资产版本不存在')
+    const isText = (mime: string) =>
+      mime.startsWith('text/') || mime.includes('json') || mime.includes('markdown') || mime === 'application/x-subrip'
+    if (!isText(result.from.mime) || !isText(result.to.mime)) {
+      throw new AppError('VALIDATION_FAILED', '该资产不支持文本对比')
+    }
+    return ok(request, {
+      fromVersion,
+      toVersion,
+      mime: result.from.mime,
+      fromText: (await deps.storage.get(result.from.storage_key)).toString('utf8'),
+      toText: (await deps.storage.get(result.to.storage_key)).toString('utf8'),
+    })
+  })
+
+  app.post('/v1/assets/:id/versions/:version/rollback', { preHandler: guard }, async (request, reply) => {
+    const auth = requireAuth(request)
+    const assetId = param(request, 'id')
+    const version = Number.parseInt(param(request, 'version'), 10)
+    if (!Number.isInteger(version) || version <= 0) throw new AppError('VALIDATION_FAILED', '版本号非法')
+    const result = await withTenant(deps.db, auth.tenantId, async (tx) => {
+      const asset = await assertAssetAccess(tx, auth, assetId)
+      const source = await getAssetVersionDetail(tx, auth.tenantId, assetId, version)
+      if (!source) return null
+      const data = await deps.storage.get(source.storage_key)
+      const nextVersion = asset.latest_version + 1
+      const key = storageKeyFor(auth.tenantId, asset.project_id, asset.id, nextVersion, asset.name)
+      await deps.storage.put(key, data, source.mime)
+      const created = await addAssetVersion(tx, {
+        tenantId: auth.tenantId,
+        assetId,
+        storageKey: key,
+        sizeBytes: data.byteLength,
+        checksumSha256: createHash('sha256').update(data).digest('hex'),
+        meta: { rolledBackFrom: version },
+      })
+      return created
+    })
+    if (!result) throw new AppError('NOT_FOUND', '资产版本不存在')
+    reply.status(201)
+    return ok(request, {
+      assetId: result.asset.id,
+      version: result.version,
+      rolledBackFrom: version,
+    })
+  })
+
   app.post('/v1/assets/:id/links', { preHandler: guard }, async (request, reply) => {
     const auth = requireAuth(request)
     const body = parseBody(

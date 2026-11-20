@@ -282,6 +282,9 @@ export default function ProjectPage() {
                     </small>
                   </span>
                   <span className="row">
+                    <Link href={`/projects/${projectId}/assets/${asset.assetId}`} className="ghost">
+                      版本
+                    </Link>
                     <button
                       type="button"
                       className="ghost"

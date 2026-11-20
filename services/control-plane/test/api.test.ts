@@ -1525,3 +1525,27 @@ describe('网关重试', () => {
     }
   })
 })
+
+describe('资产版本对比与回滚', () => {
+  it('对比两个文本版本并回滚为新版本', async () => {
+    const versionFile = multipartFile('第二章 回滚\n', 'chapter-2.txt')
+    const added = await api(`/v1/assets/${assetId}/versions`, {
+      method: 'POST',
+      payload: versionFile.body,
+      headers: { 'content-type': versionFile.contentType },
+    })
+    expect(added.statusCode).toBe(201)
+
+    const diff = await api(`/v1/assets/${assetId}/versions/1/diff?against=2`)
+    expect(diff.statusCode).toBe(200)
+    expect(diff.json().data.fromText).toContain('第一章')
+    expect(diff.json().data.toText).toContain('第二章')
+
+    const rollback = await api(`/v1/assets/${assetId}/versions/1/rollback`, { method: 'POST' })
+    expect(rollback.statusCode).toBe(201)
+    expect(rollback.json().data.version).toBe(3)
+
+    const content = await api(`/v1/assets/${assetId}/versions/3/content`)
+    expect(content.json().data.text).toContain('第一章')
+  })
+})
