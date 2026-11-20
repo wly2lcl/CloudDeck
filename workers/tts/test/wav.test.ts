@@ -38,3 +38,23 @@ describe('响度归一', () => {
     expect(peak).toBeLessThanOrEqual(0.91 * 32767)
   })
 })
+
+describe('流式 WAV 拼接', () => {
+  it('按文件顺序拼接且时长相加', async () => {
+    const { mkdtemp, writeFile, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const { createToneWav, concatWavFiles, parseWav, wavDurationMs } = await import('../src/wav')
+    const dir = await mkdtemp(join(tmpdir(), 'clouddeck-wav-'))
+    const first = join(dir, 'a.wav')
+    const second = join(dir, 'b.wav')
+    await writeFile(first, createToneWav(300))
+    await writeFile(second, createToneWav(500))
+    const output = join(dir, 'out.wav')
+    await concatWavFiles([first, second], output)
+    const duration = wavDurationMs(await readFile(output))
+    expect(duration).toBeGreaterThan(780)
+    expect(parseWav(await readFile(output)).channels).toBe(1)
+    await rm(dir, { recursive: true, force: true })
+  })
+})

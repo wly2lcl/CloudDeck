@@ -17,6 +17,12 @@ All notable changes to this project are documented here. The format follows
 
 - TTS merges adjacent same-role sentences up to `maxCharsPerChunk`, reducing a 100k manuscript from 4240 chunks to a bounded request count.
 
+## [Unreleased]
+
+### Fixed
+
+- TTS concatenates WAV files by streaming to disk, avoiding OOM on long audiobooks.
+
 ## [0.1.39] - 2026-11-20
 
 ### Added

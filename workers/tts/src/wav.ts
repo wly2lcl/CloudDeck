@@ -147,3 +147,49 @@ export function normalizeWav(buffer: Buffer, targetPeak = 0.9): Buffer {
   }
   return copy
 }
+
+import { open, readFile } from 'node:fs/promises'
+
+/** 流式拼接 WAV 文件，避免长音频占用大量内存。 */
+export async function concatWavFiles(files: string[], output: string): Promise<void> {
+  if (files.length === 0) throw new Error('没有可拼接的 WAV')
+  const first = parseWav(await readFile(files[0] as string))
+  let total = 0
+  for (const file of files) {
+    const info = parseWav(await readFile(file))
+    if (
+      info.sampleRate !== first.sampleRate ||
+      info.channels !== first.channels ||
+      info.bitsPerSample !== first.bitsPerSample
+    ) {
+      throw new Error('WAV 格式不一致，无法直接拼接')
+    }
+    total += info.data.length
+  }
+
+  const header = Buffer.alloc(44)
+  header.write('RIFF', 0, 'ascii')
+  header.writeUInt32LE(36 + total, 4)
+  header.write('WAVE', 8, 'ascii')
+  header.write('fmt ', 12, 'ascii')
+  header.writeUInt32LE(16, 16)
+  header.writeUInt16LE(1, 20)
+  header.writeUInt16LE(first.channels, 22)
+  header.writeUInt32LE(first.sampleRate, 24)
+  header.writeUInt32LE((first.sampleRate * first.channels * first.bitsPerSample) / 8, 28)
+  header.writeUInt16LE((first.channels * first.bitsPerSample) / 8, 32)
+  header.writeUInt16LE(first.bitsPerSample, 34)
+  header.write('data', 36, 'ascii')
+  header.writeUInt32LE(total, 40)
+
+  const handle = await open(output, 'w')
+  try {
+    await handle.write(header)
+    for (const file of files) {
+      const info = parseWav(await readFile(file))
+      await handle.write(info.data)
+    }
+  } finally {
+    await handle.close()
+  }
+}

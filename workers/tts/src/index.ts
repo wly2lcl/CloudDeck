@@ -12,7 +12,7 @@ export {
 export { buildChunks, chunkText, splitChapters, splitSegments } from './split'
 export { concatWav, createToneWav, parseWav, wavDurationMs } from './wav'
 import { buildChunks, splitChapters, type TtsChunk } from './split'
-import { concatWav, normalizeWav } from './wav'
+import { concatWav, concatWavFiles, normalizeWav } from './wav'
 
 export const TTS_DRIVER_ID = 'workers/tts'
 export const CHECKPOINT_FILE = 'checkpoint.json'
@@ -259,20 +259,18 @@ export function createTtsDriver(options: TtsDriverOptions = {}): Driver {
         chaptersWithChunks.set(chunk.chapter, list)
       }
 
-      const chapterBuffers: Buffer[] = []
+      const chapterFiles: string[] = []
       for (const [chapterIndex, files] of [...chaptersWithChunks.entries()].sort(
         (a, b) => a[0] - b[0],
       )) {
-        const buffers = await Promise.all(files.map((file) => readFile(file)))
-        const merged = concatWav(buffers)
-        await writeFile(join(ctx.outputDir, `chapter-${chapterIndex + 1}.wav`), merged)
-        chapterBuffers.push(merged)
+        const chapterPath = join(ctx.outputDir, `chapter-${chapterIndex + 1}.wav`)
+        await concatWavFiles(files, chapterPath)
+        chapterFiles.push(chapterPath)
       }
 
-      if (chapterBuffers.length > 0) {
-        const audiobook = concatWav(chapterBuffers)
+      if (chapterFiles.length > 0) {
         const audiobookPath = join(ctx.outputDir, 'audiobook.wav')
-        await writeFile(audiobookPath, audiobook)
+        await concatWavFiles(chapterFiles, audiobookPath)
         if (options.loudnorm !== false) {
           const normalized = await normalizeLoudness(
             ctx,
