@@ -245,6 +245,7 @@ export function createProviderFromEnv(env: NodeJS.ProcessEnv): TtsProvider {
       defaultVoice: env.TTS_DEFAULT_VOICE ?? DASHSCOPE_DEFAULT_VOICE,
       maxAttempts: Number(env.TTS_MAX_ATTEMPTS ?? 4),
       retryBaseDelayMs: Number(env.TTS_RETRY_BASE_MS ?? 500),
+      maxRetryDelayMs: Number(env.TTS_RETRY_MAX_MS ?? 8000),
     })
   }
   if (env.TTS_PROVIDER === 'http' && env.TTS_HTTP_URL) {
@@ -254,6 +255,7 @@ export function createProviderFromEnv(env: NodeJS.ProcessEnv): TtsProvider {
       timeoutMs: Number(env.TTS_HTTP_TIMEOUT_MS ?? 60_000),
       maxAttempts: Number(env.TTS_MAX_ATTEMPTS ?? 4),
       retryBaseDelayMs: Number(env.TTS_RETRY_BASE_MS ?? 500),
+      maxRetryDelayMs: Number(env.TTS_RETRY_MAX_MS ?? 8000),
     })
   }
   return createFakeProvider()

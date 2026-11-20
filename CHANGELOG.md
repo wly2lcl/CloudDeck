@@ -23,6 +23,17 @@ All notable changes to this project are documented here. The format follows
 
 - TTS concatenates WAV files by streaming to disk, avoiding OOM on long audiobooks.
 
+## [Unreleased]
+
+### Verified
+
+- Real TTS 20k characters: 176s success with streaming concat.
+- Real TTS 100k: blocked by DashScope `Throttling.RateQuota` at concurrency 16; fake TTS 100k succeeds in 30s.
+
+### Added
+
+- `TTS_RETRY_BASE_MS` / `TTS_RETRY_MAX_MS` configurable retry delays.
+
 ## [0.1.39] - 2026-11-20
 
 ### Added
