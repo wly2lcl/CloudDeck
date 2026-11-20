@@ -67,6 +67,8 @@ services:
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_HTTP_TOKEN: ${LLM_HTTP_TOKEN:-}
       SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
       - '${CONTROL_PLANE_PORT:-4310}:4310'
     volumes:
@@ -104,6 +106,8 @@ services:
       LLM_HTTP_TOKEN: ${LLM_HTTP_TOKEN:-}
       PUSH_PROVIDER: ${PUSH_PROVIDER:-mock}
       PUSH_HTTP_URL: ${PUSH_HTTP_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     volumes:
       - storage:/data/storage
       - workspaces:/data/workspaces
