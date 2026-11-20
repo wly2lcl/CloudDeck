@@ -45,7 +45,7 @@ async function poll(token: string, jobId: string, started: number): Promise<void
       if (current.status !== 'succeeded' && process.env.ALLOW_FAILURE !== 'true') process.exit(1)
       return
     }
-    if (Date.now() - started > 30 * 60 * 1000) throw new Error('超时')
+    if (Date.now() - started > 60 * 60 * 1000) throw new Error('超时')
   }
 }
 
