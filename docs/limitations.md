@@ -66,4 +66,4 @@
 
 如果某项阻塞了你的使用场景，请开 issue 说明工作负载与外部条件，我们优先按实际需求解冻。
 
-- 真实 10 万字 TTS 在并发 16 下触发百炼 `Throttling.RateQuota`；2 万字真实 TTS 已通过。
+- 真实 10 万字 TTS 免费额度耗尽（`AllocationQuota.FreeTierOnly`）；2 万字真实 TTS 已通过，需付费额度重跑长篇。

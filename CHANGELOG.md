@@ -28,7 +28,7 @@ All notable changes to this project are documented here. The format follows
 ### Verified
 
 - Real TTS 20k characters: 176s success with streaming concat.
-- Real TTS 100k: blocked by DashScope `Throttling.RateQuota` at concurrency 16; fake TTS 100k succeeds in 30s.
+- Real TTS 100k: stopped on DashScope free-tier quota exhaustion (`AllocationQuota.FreeTierOnly`) after retries; fake TTS 100k succeeds in 30s.
 
 ### Added
 
