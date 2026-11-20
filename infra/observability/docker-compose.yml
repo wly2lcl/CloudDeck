@@ -1,0 +1,51 @@
+name: clouddeck-observability
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus.compose.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - promdata:/prometheus
+    ports:
+      - '9090:9090'
+    networks: [clouddeck]
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    command: ['--config.file=/etc/alertmanager/alertmanager.yml']
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertdata:/alertmanager
+    ports:
+      - '9093:9093'
+    networks: [clouddeck]
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-clouddeck}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboard.json:/var/lib/grafana/dashboards/clouddeck.json:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - '3001:3000'
+    depends_on: [prometheus]
+    networks: [clouddeck]
+
+volumes:
+  promdata:
+  alertdata:
+  grafanadata:
+
+networks:
+  clouddeck:
+    external: true
+    name: clouddeck_default

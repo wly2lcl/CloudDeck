@@ -55,7 +55,7 @@
 
 ## 运维
 
-- Kubernetes 清单（`infra/k8s`）与 Prometheus 告警规则（`infra/observability`）已提供；备份/恢复脚本完成一次真实演练，生产周期性演练与异地备份仍缺失。
+- Kubernetes 清单与 Prometheus 告警规则已提供；compose `backup` profile 定时备份已实测，生产异地备份与告警接收端仍需配置。
 - 控制面输出结构化 JSON 日志；job-runner 仍为文本日志。
 - `/metrics` 为全局聚合，未按租户拆分。
 - 读接口基线约 4k rps；demo.echo 20 任务 p50 349ms、p95 569ms；audiobook 5 任务（伪 TTS）p50 411ms、p95 455ms，均单机 compose、runner 默认并发 1。

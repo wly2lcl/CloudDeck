@@ -1,0 +1,11 @@
+route:
+  receiver: default
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: default
+    # 自用先在 Alertmanager UI 查看；接飞书/Slack/邮件时取消注释并填入地址。
+    # webhook_configs:
+    #   - url: 'https://example.com/clouddeck-alerts'

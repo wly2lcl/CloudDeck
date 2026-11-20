@@ -134,9 +134,30 @@ services:
       control-plane:
         condition: service_healthy
 
+  backup:
+    image: postgres:16-alpine
+    profiles: ['backup']
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-clouddeck}:${POSTGRES_PASSWORD:-clouddeck}@postgres:5432/${POSTGRES_DB:-clouddeck}
+      STORAGE_DIR: /data/storage
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_CRON: ${BACKUP_CRON:-0 3 * * *}
+    volumes:
+      - storage:/data/storage:ro
+      - backups:/backups
+      - ../backup/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ['/bin/sh', '-c']
+    command: ['echo "$$BACKUP_CRON sh /usr/local/bin/backup.sh" > /etc/crontabs/root && crond -f -l 2']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
 volumes:
   pgdata:
-  redisdata:
-  miniodata:
   storage:
   workspaces:
+  backups:
+  miniodata:
