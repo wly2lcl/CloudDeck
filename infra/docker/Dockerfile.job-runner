@@ -1,6 +1,7 @@
 FROM node:22-alpine
 
-RUN apk add --no-cache ffmpeg font-noto-cjk
+RUN apk add --no-cache ffmpeg font-noto-cjk git
+RUN npm install -g @anthropic-ai/claude-code@2.1.325
 RUN corepack enable
 
 WORKDIR /app

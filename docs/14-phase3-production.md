@@ -45,3 +45,9 @@
 - 1 万字、1000 字分块、并发 2：**28 块 / 1192s / 85MB WAV**，响度归一 -16 LUFS，状态 succeeded。
 - 估算 token：约 160k（按 200 字 3190 token 推算），1M 免费额度约支撑 6–7 万字。
 - 10 万字真实 TTS 仍需付费额度；代码路径已验证。
+
+## coding.assist 真实验证（2026-11-20）
+
+- runner 镜像内置 Claude Code CLI 2.1.325，驱动补 `--verbose` 适配 stream-json。
+- 通过平台任务提交 `coding.assist`：36s succeeded，输出修复补丁（`return a - b` → `return a + b`）。
+- 容器内 API key 不可用，验证使用宿主机 runner + 宿主机 Claude 登录态；生产需有效 `ANTHROPIC_API_KEY`。

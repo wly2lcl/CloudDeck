@@ -105,6 +105,7 @@ services:
       TTS_MODEL: ${TTS_MODEL:-qwen-audio-3.1-tts-flash}
       TTS_DEFAULT_VOICE: ${TTS_DEFAULT_VOICE:-longanhuan_v3.1}
       BAILIAN_API_KEY: ${BAILIAN_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LLM_HTTP_URL: ${LLM_HTTP_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_HTTP_TOKEN: ${LLM_HTTP_TOKEN:-}

@@ -33,7 +33,8 @@
     "smoke:embedding": "tsx scripts/embedding-smoke.ts",
     "eval:retrieval": "tsx scripts/eval-retrieval.ts",
     "stress:longform": "tsx scripts/stress-longform.ts",
-    "smoke:chain": "tsx scripts/full-chain.ts"
+    "smoke:chain": "tsx scripts/full-chain.ts",
+    "smoke:coding": "tsx scripts/coding-smoke.ts"
   },
   "devDependencies": {
     "@clouddeck/db": "workspace:*",

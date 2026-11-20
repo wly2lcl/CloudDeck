@@ -190,6 +190,7 @@ function buildArgs(ctx: TaskContext, options: ClaudeDriverOptions): string[] {
     '-p',
     '--output-format',
     'stream-json',
+    '--verbose',
     '--include-partial-messages',
     '--add-dir',
     ctx.workspace,

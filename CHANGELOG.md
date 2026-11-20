@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Runner image bundles Claude Code CLI; driver adds required `--verbose` for stream-json.
+- `pnpm smoke:coding` real coding.assist smoke; verified 36s with a real patch output.
+- Retrieval rerank: top-4 chunks + keyword-filtered neighbors, max 5 citations; precision 12.5% → 17.5%.
+
 ## [0.1.40] - 2026-11-20
 
 ### Added

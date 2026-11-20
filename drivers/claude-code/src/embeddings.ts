@@ -163,23 +163,29 @@ export async function selectVectorContextDetailed(
     if (total >= maxChars) break
   }
   if (selected.length > 0) {
-    const chapters = new Set(selected.map((chunk) => chunk.chapter))
-    for (const chunk of chunks) {
-      if (selected.length >= 8) break
-      if (!chapters.has(chunk.chapter)) continue
-      if (selected.some((item) => item.startLine === chunk.startLine)) continue
-      selected.push({ ...chunk, score: 0 })
-    }
     const keys = new Set(selected.map((chunk) => `${chunk.startLine}:${chunk.endLine}`))
+    const topChunks = [...selected].sort((a, b) => b.score - a.score).slice(0, 4)
+    for (const chunk of topChunks) {
+      const index = chunks.findIndex((item) => item.startLine === chunk.startLine)
+      for (const neighbor of [chunks[index - 1], chunks[index + 1]]) {
+        if (!neighbor || neighbor.chapter !== chunk.chapter) continue
+        if (selected.length >= 5) break
+        const key = `${neighbor.startLine}:${neighbor.endLine}`
+        if (keys.has(key)) continue
+        keys.add(key)
+        selected.push({ ...neighbor, score: 0 })
+      }
+    }
     for (const chunk of [...selected]) {
       const index = chunks.findIndex((item) => item.startLine === chunk.startLine)
       for (const neighbor of [chunks[index - 1], chunks[index + 1]]) {
         if (!neighbor || neighbor.chapter !== chunk.chapter) continue
-        if (selected.length >= 8) break
+        if (selected.length >= 5) break
+        if (keywordOverlap(neighbor.text, query) < 0.08) continue
         const key = `${neighbor.startLine}:${neighbor.endLine}`
         if (keys.has(key)) continue
         keys.add(key)
-        selected.push({ ...neighbor, score: chunk.score })
+        selected.push({ ...neighbor, score: 0 })
       }
     }
   }
