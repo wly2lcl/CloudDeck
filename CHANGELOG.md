@@ -11,6 +11,12 @@ All notable changes to this project are documented here. The format follows
 - Asset version diff API/UI and rollback-to-new-version endpoint.
 - Real local LLM max token budget 8192.
 
+## [Unreleased]
+
+### Fixed
+
+- TTS merges adjacent same-role sentences up to `maxCharsPerChunk`, reducing a 100k manuscript from 4240 chunks to a bounded request count.
+
 ## [0.1.39] - 2026-11-20
 
 ### Added

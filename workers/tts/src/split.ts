@@ -149,6 +149,16 @@ export function buildChunks(
     for (const segment of splitSegments(chapter, defaultRole)) {
       const parts = chunkText(segment.text, maxChars)
       parts.forEach((text, index) => {
+        const last = chunks[chunks.length - 1]
+        if (
+          last &&
+          last.chapter === chapter.index &&
+          last.role === segment.role &&
+          last.text.length + text.length <= maxChars
+        ) {
+          last.text += text
+          return
+        }
         chunks.push({
           id: `${segment.id}-${index}`,
           chapter: chapter.index,
