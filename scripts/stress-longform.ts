@@ -89,7 +89,7 @@ async function main(): Promise<void> {
     body: JSON.stringify({
       capabilityId: 'audiobook.render',
       inputs: [{ assetId: uploaded.assetId, version: 1 }],
-      params: { maxCharsPerChunk: 200 },
+      params: { maxCharsPerChunk: Number(process.env.CHUNK_CHARS ?? 200) },
     }),
   }, token)
   console.log(`job=${job.jobId} chars=${manuscript.length} email=${EMAIL}`)

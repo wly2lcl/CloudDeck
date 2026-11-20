@@ -44,6 +44,12 @@ All notable changes to this project are documented here. The format follows
 
 - `qwen-audio-3.1-tts-next` 200 chars → 14.4s audio, 3190 tokens (~14.4 tokens/char), so 1M free tokens covers roughly 60–70k characters.
 
+## [Unreleased]
+
+### Verified
+
+- `qwen-audio-3.1-tts-next` real 10k-char audiobook: 28 chunks, 1192s, 85MB WAV, -16 LUFS, succeeded.
+
 ## [0.1.39] - 2026-11-20
 
 ### Added
