@@ -97,6 +97,7 @@ services:
       MODEL_GATEWAY_URL: http://control-plane:4310
       SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
       TTS_PROVIDER: ${TTS_PROVIDER:-fake}
+      TTS_CONCURRENCY: ${TTS_CONCURRENCY:-2}
       TTS_FAIL_AT: ${TTS_FAIL_AT:-}
       TTS_MODEL: ${TTS_MODEL:-qwen-audio-3.1-tts-flash}
       TTS_DEFAULT_VOICE: ${TTS_DEFAULT_VOICE:-longanhuan_v3.1}
