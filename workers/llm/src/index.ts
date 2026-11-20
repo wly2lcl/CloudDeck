@@ -236,6 +236,7 @@ export function createLlmDriver(options: LlmDriverOptions = {}): Driver {
                 system: '你是专业中文编剧，只输出 JSON。',
                 prompt: scriptPrompt(text),
                 json: true,
+                maxTokens: 8192,
               })
               if (result.costUsd > 0) {
                 yield {
@@ -271,6 +272,7 @@ export function createLlmDriver(options: LlmDriverOptions = {}): Driver {
                 system: '你是专业分镜师，只输出 JSON。',
                 prompt: storyboardPrompt(text, params.shotsPerScene ?? 2),
                 json: true,
+                maxTokens: 8192,
               })
               if (result.costUsd > 0) {
                 yield {

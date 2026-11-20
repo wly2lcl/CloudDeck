@@ -3,6 +3,7 @@ export interface LlmRequest {
   system: string
   prompt: string
   json?: boolean
+  maxTokens?: number
 }
 
 export interface LlmResult {
@@ -90,6 +91,7 @@ export class HttpLlmProvider implements LlmProvider {
                 { role: 'system', content: request.system },
                 { role: 'user', content: request.prompt },
               ],
+              max_tokens: request.maxTokens ?? 8192,
               ...(request.json ? { response_format: { type: 'json_object' } } : {}),
             }),
             signal: controller.signal,
@@ -165,7 +167,7 @@ export class GatewayHttpProvider implements LlmProvider {
             { role: 'system', content: request.system },
             { role: 'user', content: request.prompt },
           ],
-          maxTokens: 2048,
+          maxTokens: request.maxTokens ?? 8192,
         }),
         signal: controller.signal,
       })

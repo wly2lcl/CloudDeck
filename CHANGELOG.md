@@ -14,6 +14,16 @@ All notable changes to this project are documented here. The format follows
 
 - Real key retried 5 times over 60s: still 429 `EndpointRPMExceeded` / `EndpointTPMExceeded`; endpoint quota, not transient.
 
+## [Unreleased]
+
+### Changed
+
+- LLM JSON generation max_tokens raised to 8192 to avoid truncated script/storyboard JSON.
+
+### Verified
+
+- Real local free LLM (`hy4-flash-free`) chain: script/storyboard without fallback, real TTS + video; output video 195KB.
+
 ## [0.1.38] - 2026-11-19
 
 ### Added
