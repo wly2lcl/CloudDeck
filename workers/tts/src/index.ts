@@ -12,7 +12,7 @@ export {
 export { buildChunks, chunkText, splitChapters, splitSegments } from './split'
 export { concatWav, createToneWav, parseWav, wavDurationMs } from './wav'
 import { buildChunks, splitChapters, type TtsChunk } from './split'
-import { concatWav, concatWavFiles, normalizeWav } from './wav'
+import { concatWavFiles, normalizeWav } from './wav'
 
 export const TTS_DRIVER_ID = 'workers/tts'
 export const CHECKPOINT_FILE = 'checkpoint.json'
