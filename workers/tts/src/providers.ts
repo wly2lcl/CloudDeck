@@ -181,7 +181,9 @@ export class DashScopeTtsProvider implements TtsProvider {
           body: JSON.stringify({
             model: this.options.model ?? 'qwen-audio-3.1-tts-flash',
             input: {
-              text: request.text,
+              ...((this.options.model ?? '').includes('tts-next')
+                ? { text_prompt: request.text }
+                : { text: request.text }),
               voice: this.resolveVoice(request.voice),
               format: 'wav',
               sample_rate: 24000,

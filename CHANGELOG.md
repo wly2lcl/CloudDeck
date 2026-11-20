@@ -34,6 +34,16 @@ All notable changes to this project are documented here. The format follows
 
 - `TTS_RETRY_BASE_MS` / `TTS_RETRY_MAX_MS` configurable retry delays.
 
+## [Unreleased]
+
+### Added
+
+- `qwen-audio-3.1-tts-next` support: provider sends `text_prompt` for `tts-next` models and accepts URL/base64 audio responses.
+
+### Verified
+
+- `qwen-audio-3.1-tts-next` 200 chars → 14.4s audio, 3190 tokens (~14.4 tokens/char), so 1M free tokens covers roughly 60–70k characters.
+
 ## [0.1.39] - 2026-11-20
 
 ### Added

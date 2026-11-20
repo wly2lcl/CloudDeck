@@ -66,4 +66,5 @@
 
 如果某项阻塞了你的使用场景，请开 issue 说明工作负载与外部条件，我们优先按实际需求解冻。
 
-- 真实 10 万字 TTS 免费额度耗尽（`AllocationQuota.FreeTierOnly`）；2 万字真实 TTS 已通过，需付费额度重跑长篇。
+- 真实 10 万字 TTS 免费额度耗尽（`AllocationQuota.FreeTierOnly`）；`qwen-audio-3.1-tts-next` 可用但约 14.4 token/字，1M 额度约支撑 6–7 万字。
+- `tts-next` 使用 `input.text_prompt`（provider 已适配），flash 使用 `input.text`。

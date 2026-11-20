@@ -72,7 +72,7 @@ S3_SECRET_KEY=...
 
 ```sh
 TTS_PROVIDER=dashscope
-TTS_MODEL=qwen-audio-3.1-tts-flash
+TTS_MODEL=qwen-audio-3.1-tts-flash  # 或 qwen-audio-3.1-tts-next
 BAILIAN_API_KEY=...
 TTS_CONCURRENCY=4
 TTS_MAX_ATTEMPTS=6

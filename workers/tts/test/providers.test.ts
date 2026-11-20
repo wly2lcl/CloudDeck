@@ -173,3 +173,26 @@ describe('DashScope TTS provider', () => {
     expect(calls).toBe(2)
   })
 })
+
+describe('tts-next 输入字段', () => {
+  it('qwen-audio-3.1-tts-next 使用 text_prompt', async () => {
+    let received = ''
+    const wav = createToneWav(100)
+    const port = await startServer((body) => {
+      received = body
+      return {
+        status: 200,
+        contentType: 'application/json',
+        payload: JSON.stringify({ output: { audio: { data: wav.toString('base64') } } }),
+      }
+    })
+    const provider = new DashScopeTtsProvider({
+      token: 'test',
+      model: 'qwen-audio-3.1-tts-next',
+      endpoint: `http://127.0.0.1:${port}/tts`,
+    })
+    const data = await provider.synthesize({ text: '你好', voice: 'longanhuan_v3.1', format: 'wav' })
+    expect(data.length).toBeGreaterThan(0)
+    expect(received).toContain('"text_prompt"')
+  })
+})
