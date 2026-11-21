@@ -16,7 +16,7 @@
     "@clouddeck/storage": "workspace:*",
     "@fastify/cors": "^11.4.3",
     "@fastify/helmet": "^13.2.0",
-    "@fastify/multipart": "^10.1.8",
+    "@fastify/multipart": "^10.1.9",
     "@fastify/rate-limit": "^11.2.2",
     "@fastify/websocket": "^11.3.7",
     "fastify": "^5.12.8",
