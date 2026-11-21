@@ -47,7 +47,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: 归档覆盖率报告
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/lcov.info
@@ -62,7 +62,7 @@ jobs:
         run: pnpm sbom
 
       - name: 归档 SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.json
@@ -71,7 +71,7 @@ jobs:
         run: pnpm eval:llm
 
       - name: 归档评测报告
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: llm-eval
           path: eval-report.json
@@ -119,7 +119,7 @@ jobs:
 
       - name: 上传失败产物
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-results
           path: test-results
