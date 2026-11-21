@@ -17,6 +17,6 @@
     "@aws-sdk/s3-request-presigner": "^3.1169.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   }
 }
